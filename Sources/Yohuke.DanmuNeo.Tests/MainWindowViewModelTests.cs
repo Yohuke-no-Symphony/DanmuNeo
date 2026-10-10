@@ -15,7 +15,7 @@ public class MainWindowViewModelTests
         var directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         var service = new AppStateService(directory);
         service.Save(new());
-        using var viewModel = new MainWindowViewModel(service);
+        using var viewModel = new MainWindowViewModel(service, avatarCacheService: new FakeRoomAvatarService());
         var changedProperties = new List<string?>();
         viewModel.PropertyChanged += (_, e) => changedProperties.Add(e.PropertyName);
 
@@ -31,7 +31,7 @@ public class MainWindowViewModelTests
         var directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         var service = new AppStateService(directory);
         service.Save(new());
-        using var viewModel = new MainWindowViewModel(service);
+        using var viewModel = new MainWindowViewModel(service, avatarCacheService: new FakeRoomAvatarService());
         var changedProperties = new List<string?>();
         viewModel.PropertyChanged += (_, e) => changedProperties.Add(e.PropertyName);
 
@@ -80,7 +80,7 @@ public class MainWindowViewModelTests
             ]
         };
         service.Save(state);
-        using var viewModel = new MainWindowViewModel(service);
+        using var viewModel = new MainWindowViewModel(service, avatarCacheService: new FakeRoomAvatarService());
 
         await viewModel.DeleteAccountAsync(viewModel.Accounts.Single());
 

@@ -31,10 +31,13 @@ public partial class LiveRoomTabViewModel : ViewModelBase
     private const string DEFAULT_SUPER_CHAT_COLOR = "#2A60B2";
 
     private CancellationTokenSource? listenTokenSource;
+    private ILiveDanmuSocket? activeListenSocket;
     private CancellationTokenSource? lyricTokenSource;
     private readonly Dictionary<string, CancellationTokenSource> forwardTokenSources = [];
     private readonly HashSet<string> recentSuperChatIdentities = new(StringComparer.Ordinal);
     private readonly Queue<string> recentSuperChatIdentityOrder = new();
+    private readonly HashSet<string> recentGuardPurchaseIdentities = new(StringComparer.Ordinal);
+    private readonly Queue<string> recentGuardPurchaseIdentityOrder = new();
     private Func<LiveRoomTabViewModel, BilibiliAccount?>? resolveAccount;
     private Func<string, string, BilibiliAccount?>? resolveAccountByRoom;
     private Func<string, BilibiliAccount?>? resolveAccountById;
@@ -44,7 +47,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
     private Func<LiveRoomTabViewModel, IEnumerable<ForwardSourceRoomOption>>? getForwardSourceRooms;
     private Func<Task>? saveState;
     private IDanmuSendService? sendService;
-    private AvatarCacheService? avatarCacheService;
+    private IRoomAvatarService? avatarCacheService;
     private IBilibiliLiveStreamService? liveStreamService;
     private ILivePlayerService? livePlayerService;
     private ILiveDanmuSocketFactory liveDanmuSocketFactory = new BilibiliLiveDanmuSocketFactory();
@@ -95,7 +98,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
     public ObservableCollection<DanmuFeedItem> DanmuItems { get; } = [];
 
     /// <summary>
-    /// SC 历史。
+    /// SC 与上舰记录。
     /// </summary>
     public ObservableCollection<SuperChatItem> SuperChats { get; } = [];
 
@@ -152,6 +155,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
                 return;
             }
 
+            StopListening();
             State.RoomId = value;
             AvatarPath = "";
             OnPropertyChanged();
@@ -220,6 +224,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
             }
 
             State.AccountOverrideId = value;
+            InvalidateModerationPermission();
             OnPropertyChanged();
         }
     }
@@ -491,12 +496,13 @@ public partial class LiveRoomTabViewModel : ViewModelBase
         Func<IEnumerable<MarkSymbolGroup>> getSymbolGroups,
         Func<LiveRoomTabViewModel, IEnumerable<ForwardSourceRoomOption>> getForwardSourceRooms,
         IDanmuSendService sendService,
-        AvatarCacheService avatarCacheService,
+        IRoomAvatarService avatarCacheService,
         Func<Task> saveState,
         IBilibiliLiveStreamService? liveStreamService = null,
         ILivePlayerService? livePlayerService = null,
         Func<string, BilibiliAccount?>? resolveAccountById = null,
-        ILiveDanmuSocketFactory? liveDanmuSocketFactory = null)
+        ILiveDanmuSocketFactory? liveDanmuSocketFactory = null,
+        IBilibiliModerationService? moderationService = null)
     {
         this.resolveAccount = resolveAccount;
         this.resolveAccountByRoom = resolveAccountByRoom;
@@ -511,6 +517,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
         this.livePlayerService = livePlayerService;
         this.resolveAccountById = resolveAccountById;
         this.liveDanmuSocketFactory = liveDanmuSocketFactory ?? new BilibiliLiveDanmuSocketFactory();
+        this.moderationService = moderationService ?? new BilibiliModerationService();
         sendService.RecordCreated += OnSendRecordCreated;
         ApplyLyric();
     }
@@ -1122,22 +1129,25 @@ public partial class LiveRoomTabViewModel : ViewModelBase
             return;
         }
 
-        if (!long.TryParse(RoomId, out var parsedRoomId))
+        if (!long.TryParse(RoomId, out var parsedRoomId) || parsedRoomId <= 0)
         {
             ConnectionStatus = "房间号格式错误";
             return;
         }
 
+        var socket = liveDanmuSocketFactory.Create(parsedRoomId, account.Cookie);
         var tokenSource = new CancellationTokenSource();
         listenTokenSource = tokenSource;
-        var socket = liveDanmuSocketFactory.Create(parsedRoomId, account.Cookie);
+        activeListenSocket = socket;
         socket.DanmuReceived += OnDanmuReceived;
         socket.SuperChatReceived += OnSuperChatReceived;
-        socket.Disconnected += (_, _) =>
-            Dispatcher.UIThread.Post(() => ConnectionStatus = "连接中断，正在重连");
-        socket.Recovered += (_, _) => Dispatcher.UIThread.Post(() => ConnectionStatus = "监听中");
-        socket.ErrorReceived += (_, _) =>
-            Dispatcher.UIThread.Post(() => ConnectionStatus = "连接中断，正在重连");
+        socket.GuardPurchaseReceived += OnGuardPurchaseReceived;
+        EventHandler onDisconnected = (_, _) => PostListenerConnectionStatus(socket, "连接中断，正在重连");
+        EventHandler onRecovered = (_, _) => PostListenerConnectionStatus(socket, "监听中");
+        EventHandler<Exception> onError = (_, _) => PostListenerConnectionStatus(socket, "连接中断，正在重连");
+        socket.Disconnected += onDisconnected;
+        socket.Recovered += onRecovered;
+        socket.ErrorReceived += onError;
         IsListening = true;
         ConnectionStatus = "监听中";
 
@@ -1147,24 +1157,33 @@ public partial class LiveRoomTabViewModel : ViewModelBase
             {
                 await socket.StartAsync(tokenSource.Token);
             }
+            catch (OperationCanceledException) when (tokenSource.IsCancellationRequested)
+            {
+            }
             finally
             {
+                socket.DanmuReceived -= OnDanmuReceived;
+                socket.SuperChatReceived -= OnSuperChatReceived;
+                socket.GuardPurchaseReceived -= OnGuardPurchaseReceived;
+                socket.Disconnected -= onDisconnected;
+                socket.Recovered -= onRecovered;
+                socket.ErrorReceived -= onError;
                 if (socket is IDisposable disposable)
                 {
                     disposable.Dispose();
                 }
 
-                tokenSource.Dispose();
                 Dispatcher.UIThread.Post(() =>
                 {
-                    if (listenTokenSource != tokenSource)
+                    if (ReferenceEquals(listenTokenSource, tokenSource))
                     {
-                        return;
+                        listenTokenSource = null;
+                        activeListenSocket = null;
+                        IsListening = false;
+                        ConnectionStatus = "未连接";
                     }
 
-                    listenTokenSource = null;
-                    IsListening = false;
-                    ConnectionStatus = "未连接";
+                    tokenSource.Dispose();
                 });
             }
         }));
@@ -1176,9 +1195,24 @@ public partial class LiveRoomTabViewModel : ViewModelBase
     [RelayCommand]
     public void StopListening()
     {
-        listenTokenSource?.Cancel();
+        InvalidateModerationPermission();
+        activeListenSocket = null;
+        var tokenSource = listenTokenSource;
+        listenTokenSource = null;
+        tokenSource?.Cancel();
         IsListening = false;
         ConnectionStatus = "未连接";
+    }
+
+    private void PostListenerConnectionStatus(ILiveDanmuSocket socket, string status)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (ReferenceEquals(socket, activeListenSocket))
+            {
+                ConnectionStatus = status;
+            }
+        });
     }
 
     /// <summary>
@@ -1403,7 +1437,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
     [RelayCommand]
     public void CopySuperChat(SuperChatItem? superChat)
     {
-        if (superChat is null)
+        if (superChat is null || !superChat.CanInsertContent)
         {
             return;
         }
@@ -1912,6 +1946,11 @@ public partial class LiveRoomTabViewModel : ViewModelBase
 
     private void OnDanmuReceived(object? sender, BilibiliDanmuMessage message)
     {
+        if (!ReferenceEquals(sender, activeListenSocket))
+        {
+            return;
+        }
+
         ObserveDanmuEcho(message);
 
         if (ShouldHideDanmu(message))
@@ -1919,7 +1958,13 @@ public partial class LiveRoomTabViewModel : ViewModelBase
             return;
         }
 
-        Dispatcher.UIThread.Post(() => AddDanmuToFeed(message));
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (ReferenceEquals(sender, activeListenSocket))
+            {
+                AddDanmuToFeed(message);
+            }
+        });
     }
 
     internal void AddDanmu(BilibiliDanmuMessage message)
@@ -1949,9 +1994,13 @@ public partial class LiveRoomTabViewModel : ViewModelBase
     {
         DanmuItems.Insert(0, new()
         {
+            RoomId = message.RoomId,
+            IsRoomAdmin = message.IsRoomAdmin,
             Time = DateTimeOffset.Now,
             UserName = message.UserName,
             UserUid = message.Uid.ToString(),
+            MedalName = message.MedalName,
+            MedalLevel = message.MedalLevel,
             Content = message.Content
         });
         Trim(DanmuItems, 300);
@@ -1959,7 +2008,13 @@ public partial class LiveRoomTabViewModel : ViewModelBase
 
     private void OnSuperChatReceived(object? sender, BilibiliSuperChatMessage message)
     {
-        Dispatcher.UIThread.Post(() => AddSuperChat(message));
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (ReferenceEquals(sender, activeListenSocket))
+            {
+                AddSuperChat(message);
+            }
+        });
     }
 
     internal void AddSuperChat(BilibiliSuperChatMessage message)
@@ -2005,6 +2060,53 @@ public partial class LiveRoomTabViewModel : ViewModelBase
             message.UserName,
             message.Price.ToString(CultureInfo.InvariantCulture),
             message.Content);
+    }
+
+    private void OnGuardPurchaseReceived(object? sender, BilibiliGuardPurchaseMessage message)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (ReferenceEquals(sender, activeListenSocket))
+            {
+                AddGuardPurchase(message);
+            }
+        });
+    }
+
+    internal void AddGuardPurchase(BilibiliGuardPurchaseMessage message)
+    {
+        if (message.GuardLevel is not (1 or 2 or 3) || message.Uid <= 0)
+        {
+            return;
+        }
+
+        var identity = message.Identity;
+
+        if (!string.IsNullOrWhiteSpace(identity))
+        {
+            if (!recentGuardPurchaseIdentities.Add(identity))
+            {
+                return;
+            }
+
+            recentGuardPurchaseIdentityOrder.Enqueue(identity);
+
+            while (recentGuardPurchaseIdentityOrder.Count > MAX_RECENT_SUPER_CHAT_IDENTITIES)
+            {
+                recentGuardPurchaseIdentities.Remove(recentGuardPurchaseIdentityOrder.Dequeue());
+            }
+        }
+
+        SuperChats.Insert(0, new()
+        {
+            Kind = LivePaidEventKind.GuardPurchase,
+            MessageId = message.MessageId,
+            Time = message.Timestamp > 0 ? DateTimeOffset.FromUnixTimeSeconds(message.Timestamp) : DateTimeOffset.Now,
+            UserName = message.UserName,
+            GuardLevelName = message.GuardLevelName,
+            BorderColor = GuardPurchaseStyleService.GetBorderColor(message.GuardLevel)
+        });
+        Trim(SuperChats, 100);
     }
 
     private static Color CreateSuperChatBorderColor(string colorText)

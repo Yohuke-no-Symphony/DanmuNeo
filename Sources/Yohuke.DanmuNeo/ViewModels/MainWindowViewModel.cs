@@ -1,6 +1,7 @@
 ﻿using System.Collections.ObjectModel;
 using Avalonia.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using Yohuke.DanmuNeo.Models.BrowserLogin;
 using Yohuke.DanmuNeo.Models.State;
 using Yohuke.DanmuNeo.Models.Workspace;
@@ -23,7 +24,16 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly MusicLyricImportService musicLyricImportService = new();
     private readonly AppDirectoryService appDirectoryService;
     private readonly AppBackupService appBackupService;
-    private readonly AvatarCacheService avatarCacheService;
+    private readonly IRoomAvatarService avatarCacheService;
+    private readonly AvatarCacheService? ownedAvatarCacheService;
+    private readonly IBilibiliLiveRoomSearchService liveRoomSearchService;
+    private readonly IBilibiliModerationService moderationService;
+    private CancellationTokenSource? liveRoomSearchTokenSource;
+    private string activeLiveRoomSearchKeyword = "";
+    private int liveRoomSearchPage;
+    private long addDialogSession;
+    private bool isDisposed;
+    private Task workspaceMarkGroupSaveTask = Task.CompletedTask;
     private readonly BilibiliLiveStreamService liveStreamService = new();
     private readonly LivePlayerService livePlayerService = new();
     private WorkspaceViewModel? addDialogWorkspace;
@@ -43,13 +53,20 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// <summary>
     /// 初始化主窗口视图模型。
     /// </summary>
-    public MainWindowViewModel(AppStateService stateService)
+    public MainWindowViewModel(
+        AppStateService stateService,
+        IBilibiliLiveRoomSearchService? liveRoomSearchService = null,
+        IRoomAvatarService? avatarCacheService = null,
+        IBilibiliModerationService? moderationService = null)
     {
         this.stateService = stateService;
         appDirectoryService = new(stateService.ConfigDirectory);
         appDirectoryService.EnsureDirectories();
         appBackupService = new(appDirectoryService);
-        avatarCacheService = new(appDirectoryService);
+        this.liveRoomSearchService = liveRoomSearchService ?? new BilibiliLiveRoomSearchService();
+        this.moderationService = moderationService ?? new BilibiliModerationService();
+        ownedAvatarCacheService = avatarCacheService is null ? new(appDirectoryService) : null;
+        this.avatarCacheService = avatarCacheService ?? ownedAvatarCacheService!;
         State = stateService.Load();
         Settings = State.Settings;
         ShortcutBindingService.Normalize(Settings);
@@ -255,14 +272,60 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
         set
         {
-            if (SelectedWorkspace is null || value is null)
+            if (!TrySelectWorkspaceMarkGroup(value))
             {
                 return;
             }
 
-            SelectedWorkspace.SelectedMarkGroupId = value.Id;
-            OnPropertyChanged();
-            _ = SaveAsync();
+            _ = QueueWorkspaceMarkGroupSave();
+        }
+    }
+
+    /// <summary>
+    /// 按预设显示顺序轮切当前工作区的同传样式，并保存选择。
+    /// </summary>
+    [RelayCommand(AllowConcurrentExecutions = true)]
+    public Task CycleWorkspaceMarkGroupAsync()
+    {
+        if (isDisposed || SelectedWorkspace is null || SymbolGroups.Count <= 1)
+        {
+            return Task.CompletedTask;
+        }
+
+        var currentIndex = SymbolGroups.IndexOf(SelectedWorkspaceMarkGroup!);
+        var nextGroup = SymbolGroups[(currentIndex + 1) % SymbolGroups.Count];
+        return TrySelectWorkspaceMarkGroup(nextGroup) ? QueueWorkspaceMarkGroupSave() : Task.CompletedTask;
+    }
+
+    private bool TrySelectWorkspaceMarkGroup(MarkSymbolGroup? group)
+    {
+        if (isDisposed || SelectedWorkspace is null || group is null || !SymbolGroups.Contains(group) ||
+            SelectedWorkspace.SelectedMarkGroupId == group.Id)
+        {
+            return false;
+        }
+
+        SelectedWorkspace.SelectedMarkGroupId = group.Id;
+        OnPropertyChanged(nameof(SelectedWorkspaceMarkGroup));
+        return true;
+    }
+
+    private Task QueueWorkspaceMarkGroupSave()
+    {
+        workspaceMarkGroupSaveTask = SaveWorkspaceMarkGroupAfterAsync(workspaceMarkGroupSaveTask);
+        return workspaceMarkGroupSaveTask;
+    }
+
+    private async Task SaveWorkspaceMarkGroupAfterAsync(Task previousSave)
+    {
+        try
+        {
+            await previousSave;
+            await SaveAsync();
+        }
+        catch (Exception exception)
+        {
+            StatusMessage = $"保存同传样式预设失败：{exception.Message}";
         }
     }
 
@@ -305,6 +368,31 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [ObservableProperty] private string newRoomName = "";
 
     [ObservableProperty] private string newRoomOwnerUid = "";
+
+    [ObservableProperty] private string liveRoomSearchText = "";
+
+    [ObservableProperty] private string liveRoomSearchStatus = "输入主播昵称搜索，也可以手动添加";
+
+    [ObservableProperty] [NotifyCanExecuteChangedFor(nameof(SearchLiveRoomsCommand), nameof(LoadMoreLiveRoomsCommand))]
+    private bool isLiveRoomSearching;
+
+    [ObservableProperty] [NotifyCanExecuteChangedFor(nameof(LoadMoreLiveRoomsCommand))]
+    private bool hasMoreLiveRoomSearchResults;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SearchLiveRoomsCommand), nameof(LoadMoreLiveRoomsCommand),
+        nameof(AddSearchedRoomCommand))]
+    private bool isAddingRoomToWorkspace;
+
+    /// <summary>
+    /// 当前弹窗的主播搜索结果。
+    /// </summary>
+    public ObservableCollection<LiveRoomSearchResult> LiveRoomSearchResults { get; } = [];
+
+    /// <summary>
+    /// 添加弹窗实际指定的工作区名称。
+    /// </summary>
+    public string AddDialogWorkspaceName => addDialogWorkspace?.Name ?? "";
 
     [ObservableProperty] private string statusMessage = "";
 
@@ -417,6 +505,18 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         RefreshTreeSelection();
     }
 
+    partial void OnIsAddDialogOpenChanged(bool value)
+    {
+        if (!value)
+        {
+            CancelLiveRoomSearch();
+        }
+
+        SearchLiveRoomsCommand.NotifyCanExecuteChanged();
+        LoadMoreLiveRoomsCommand.NotifyCanExecuteChanged();
+        AddSearchedRoomCommand.NotifyCanExecuteChanged();
+    }
+
     partial void OnLyricLibrarySearchTextChanged(string value)
     {
         RefreshFilteredLyricLibrary();
@@ -521,6 +621,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// </summary>
     public void OpenAddWorkspaceDialog()
     {
+        ResetLiveRoomSearch();
         addDialogKind = "workspace";
         addDialogWorkspace = null;
         NewWorkspaceName = "";
@@ -542,11 +643,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     {
         var targetWorkspace = workspace ?? SelectedWorkspace;
 
-        if (targetWorkspace is null)
+        if (isDisposed || targetWorkspace is null || !Workspaces.Contains(targetWorkspace))
         {
             return;
         }
 
+        ResetLiveRoomSearch();
         SelectedWorkspace = targetWorkspace;
         addDialogKind = "room";
         addDialogWorkspace = targetWorkspace;
@@ -555,10 +657,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         NewRoomId = "";
         NewRoomOwnerUid = "";
         AddDialogTitle = $"添加直播间到 {targetWorkspace.Name}";
-        AddDialogDescription = "输入直播间名称和 B 站直播间 ID，创建后会自动切换到该直播间。";
-        AddDialogPrimaryText = "确定";
+        AddDialogDescription = "按主播昵称搜索并直接添加，或手动填写直播间信息。";
+        AddDialogPrimaryText = "手动添加";
         OnPropertyChanged(nameof(IsAddingWorkspace));
         OnPropertyChanged(nameof(IsAddingRoom));
+        OnPropertyChanged(nameof(AddDialogWorkspaceName));
         IsAddDialogOpen = true;
     }
 
@@ -568,6 +671,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     public void CloseAddDialog()
     {
         IsAddDialogOpen = false;
+        ResetLiveRoomSearch();
     }
 
     /// <summary>
@@ -575,6 +679,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// </summary>
     public async Task ConfirmAddDialogAsync()
     {
+        if (isDisposed || !IsAddDialogOpen || IsAddingRoomToWorkspace)
+        {
+            return;
+        }
+
         if (addDialogKind == "workspace")
         {
             await AddWorkspaceAsync();
@@ -582,7 +691,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        if (addDialogKind != "room" || string.IsNullOrWhiteSpace(NewRoomId))
+        if (!IsAddDialogOpen || addDialogKind != "room" || IsAddingRoomToWorkspace)
         {
             return;
         }
@@ -594,16 +703,223 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        SelectedWorkspace = workspace;
-        var room = workspace.AddRoom(NewRoomId.Trim(), NewRoomName.Trim(), NewRoomOwnerUid.Trim());
-        ConfigureRoom(room);
-        workspace.IsExpanded = true;
-        NewRoomId = "";
-        NewRoomName = "";
-        NewRoomOwnerUid = "";
-        IsAddDialogOpen = false;
-        await SaveAsync();
-        RefreshTreeSelection();
+        await AddRoomToWorkspaceAsync(workspace, NewRoomId.Trim(), NewRoomName.Trim(), NewRoomOwnerUid.Trim());
+    }
+
+    /// <summary>
+    /// 按主播昵称发起新搜索。
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanSearchLiveRooms), AllowConcurrentExecutions = true)]
+    public async Task SearchLiveRoomsAsync()
+    {
+        if (!IsAddDialogOpen || !IsAddingRoom || IsAddingRoomToWorkspace || isDisposed)
+        {
+            return;
+        }
+
+        CancelLiveRoomSearch();
+        LiveRoomSearchResults.Clear();
+        HasMoreLiveRoomSearchResults = false;
+        liveRoomSearchPage = 0;
+        activeLiveRoomSearchKeyword = LiveRoomSearchText.Trim();
+
+        if (string.IsNullOrWhiteSpace(activeLiveRoomSearchKeyword))
+        {
+            LiveRoomSearchStatus = "请输入主播昵称";
+            return;
+        }
+
+        await SearchLiveRoomPageAsync(1);
+    }
+
+    /// <summary>
+    /// 加载当前关键词的下一页主播结果。
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanLoadMoreLiveRooms), AllowConcurrentExecutions = true)]
+    public async Task LoadMoreLiveRoomsAsync()
+    {
+        if (CanLoadMoreLiveRooms())
+        {
+            await SearchLiveRoomPageAsync(liveRoomSearchPage + 1);
+        }
+    }
+
+    /// <summary>
+    /// 将搜索结果加入弹窗指定的工作区。
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanAddSearchedRoom))]
+    public async Task AddSearchedRoomAsync(LiveRoomSearchResult? result)
+    {
+        if (CanAddSearchedRoom(result) && addDialogWorkspace is { } workspace)
+        {
+            await AddRoomToWorkspaceAsync(workspace, result!.RoomId, result.OwnerName, result.OwnerUid);
+        }
+    }
+
+    private bool CanSearchLiveRooms()
+    {
+        return !isDisposed && IsAddDialogOpen && IsAddingRoom && !IsLiveRoomSearching && !IsAddingRoomToWorkspace;
+    }
+
+    private bool CanLoadMoreLiveRooms()
+    {
+        return CanSearchLiveRooms() && HasMoreLiveRoomSearchResults;
+    }
+
+    private bool CanAddSearchedRoom(LiveRoomSearchResult? result)
+    {
+        return !isDisposed && IsAddDialogOpen && IsAddingRoom && !IsAddingRoomToWorkspace &&
+               result is not null && LiveRoomSearchResults.Contains(result) &&
+               addDialogWorkspace is { } workspace && Workspaces.Contains(workspace);
+    }
+
+    private async Task SearchLiveRoomPageAsync(int page)
+    {
+        var workspace = addDialogWorkspace;
+
+        if (workspace is null || !Workspaces.Contains(workspace))
+        {
+            CloseAddDialog();
+            return;
+        }
+
+        var tokenSource = new CancellationTokenSource();
+        liveRoomSearchTokenSource = tokenSource;
+        IsLiveRoomSearching = true;
+        LiveRoomSearchStatus = "正在搜索主播…";
+
+        try
+        {
+            var account = accountSelectionService.Resolve(State, workspace.State, null);
+            var resultPage = await liveRoomSearchService.SearchAsync(
+                activeLiveRoomSearchKeyword, page, account?.Cookie,
+                TimeSpan.FromSeconds(Settings.TimeoutSeconds), tokenSource.Token);
+
+            if (!IsCurrentLiveRoomSearch(tokenSource))
+            {
+                return;
+            }
+
+            foreach (var result in resultPage.Results)
+            {
+                if (LiveRoomSearchResults.All(existing => existing.RoomId != result.RoomId))
+                {
+                    LiveRoomSearchResults.Add(result);
+                }
+            }
+
+            liveRoomSearchPage = page;
+            HasMoreLiveRoomSearchResults = resultPage.HasMore;
+            LiveRoomSearchStatus = LiveRoomSearchResults.Count == 0
+                ? "没有找到匹配的主播，可以尝试其他昵称或手动添加"
+                : $"已找到 {LiveRoomSearchResults.Count} 个直播间，点击添加即可加入工作区";
+        }
+        catch (OperationCanceledException) when (tokenSource.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception)
+        {
+            if (IsCurrentLiveRoomSearch(tokenSource))
+            {
+                LiveRoomSearchStatus = $"搜索失败：{exception.Message}";
+            }
+        }
+        finally
+        {
+            if (ReferenceEquals(liveRoomSearchTokenSource, tokenSource))
+            {
+                liveRoomSearchTokenSource = null;
+                IsLiveRoomSearching = false;
+                AddSearchedRoomCommand.NotifyCanExecuteChanged();
+            }
+
+            tokenSource.Dispose();
+        }
+    }
+
+    private bool IsCurrentLiveRoomSearch(CancellationTokenSource tokenSource)
+    {
+        return !isDisposed && IsAddDialogOpen && IsAddingRoom && !tokenSource.IsCancellationRequested &&
+               ReferenceEquals(liveRoomSearchTokenSource, tokenSource);
+    }
+
+    private void CancelLiveRoomSearch()
+    {
+        var tokenSource = liveRoomSearchTokenSource;
+        liveRoomSearchTokenSource = null;
+        tokenSource?.Cancel();
+        IsLiveRoomSearching = false;
+    }
+
+    private void ResetLiveRoomSearch()
+    {
+        addDialogSession++;
+        CancelLiveRoomSearch();
+        LiveRoomSearchText = "";
+        LiveRoomSearchResults.Clear();
+        HasMoreLiveRoomSearchResults = false;
+        activeLiveRoomSearchKeyword = "";
+        liveRoomSearchPage = 0;
+        LiveRoomSearchStatus = "输入主播昵称搜索，也可以手动添加";
+        SearchLiveRoomsCommand.NotifyCanExecuteChanged();
+        AddSearchedRoomCommand.NotifyCanExecuteChanged();
+    }
+
+    private async Task AddRoomToWorkspaceAsync(WorkspaceViewModel workspace, string roomId, string roomName,
+        string ownerUid)
+    {
+        if (isDisposed || IsAddingRoomToWorkspace || !Workspaces.Contains(workspace))
+        {
+            return;
+        }
+
+        if (!long.TryParse(roomId, out var parsedRoomId) || parsedRoomId <= 0)
+        {
+            LiveRoomSearchStatus = "请输入有效的直播间 ID";
+            return;
+        }
+
+        var session = addDialogSession;
+        IsAddingRoomToWorkspace = true;
+
+        try
+        {
+            roomId = parsedRoomId.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            SelectedWorkspace = workspace;
+            var room = workspace.Rooms.FirstOrDefault(existing =>
+                long.TryParse(existing.RoomId, out var existingRoomId) && existingRoomId == parsedRoomId);
+
+            if (room is null)
+            {
+                room = workspace.AddRoom(roomId, roomName, ownerUid);
+                ConfigureRoom(room);
+            }
+
+            workspace.SelectedRoom = room;
+            workspace.IsExpanded = true;
+            RefreshTreeSelection();
+            RefreshForwardSourceRooms();
+            await SaveAsync();
+
+            if (session == addDialogSession)
+            {
+                NewRoomId = "";
+                NewRoomName = "";
+                NewRoomOwnerUid = "";
+                CloseAddDialog();
+            }
+        }
+        catch (Exception exception)
+        {
+            if (session == addDialogSession)
+            {
+                LiveRoomSearchStatus = $"添加直播间失败：{exception.Message}";
+            }
+        }
+        finally
+        {
+            IsAddingRoomToWorkspace = false;
+        }
     }
 
     /// <summary>
@@ -695,6 +1011,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        if (ReferenceEquals(addDialogWorkspace, workspace))
+        {
+            CloseAddDialog();
+        }
+
         foreach (var room in workspace.Rooms)
         {
             room.StopListening();
@@ -721,15 +1042,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        var room = SelectedWorkspace.AddRoom(NewRoomId.Trim(), NewRoomName.Trim(), NewRoomOwnerUid.Trim());
-        ConfigureRoom(room);
-        SelectedWorkspace.IsExpanded = true;
-        NewRoomId = "";
-        NewRoomName = "";
-        NewRoomOwnerUid = "";
-        await SaveAsync();
-        RefreshTreeSelection();
-        RefreshForwardSourceRooms();
+        await AddRoomToWorkspaceAsync(SelectedWorkspace, NewRoomId.Trim(), NewRoomName.Trim(), NewRoomOwnerUid.Trim());
     }
 
     /// <summary>
@@ -1697,20 +2010,30 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             SaveAsync,
             liveStreamService,
             livePlayerService,
-            ResolveAccount);
+            ResolveAccount,
+            moderationService: moderationService);
         _ = room.LoadAvatarAsync();
     }
 
     /// <inheritdoc/>
     public void Dispose()
     {
+        if (isDisposed)
+        {
+            return;
+        }
+
+        isDisposed = true;
+        ResetLiveRoomSearch();
         foreach (var room in Workspaces.SelectMany(workspace => workspace.Rooms))
         {
+            room.StopListening();
+            room.StopForwarding();
             room.StopLivePlayer();
         }
 
         livePlayerService.Dispose();
-        avatarCacheService.Dispose();
+        ownedAvatarCacheService?.Dispose();
         GC.SuppressFinalize(this);
     }
 
@@ -1916,6 +2239,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private void RefreshAccountLabels()
     {
+        foreach (var room in Workspaces.SelectMany(workspace => workspace.Rooms))
+        {
+            room.InvalidateModerationPermission();
+        }
+
         foreach (var workspace in Workspaces)
         {
             workspace.RefreshAccountLabel();

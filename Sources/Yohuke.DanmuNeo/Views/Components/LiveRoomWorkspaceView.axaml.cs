@@ -1,4 +1,3 @@
-using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Globalization;
 using Avalonia;
@@ -22,8 +21,7 @@ namespace Yohuke.DanmuNeo.Views.Components;
 /// </summary>
 public partial class LiveRoomWorkspaceView : UserControl
 {
-    private const double DANMU_LATEST_OFFSET_THRESHOLD = 1;
-
+    private readonly DanmuFeedScrollController danmuScrollController;
     private LiveRoomTabViewModel? currentRoom;
     private NativeWebView? liveWebView;
     private DispatcherTimer? lyricSeekRepeatTimer;
@@ -38,6 +36,7 @@ public partial class LiveRoomWorkspaceView : UserControl
     public LiveRoomWorkspaceView()
     {
         InitializeComponent();
+        danmuScrollController = new(DanmuScrollViewer, DanmuItemsControl);
         DataContextChanged += LiveRoomWorkspaceView_OnDataContextChanged;
         AttachedToVisualTree += LiveRoomWorkspaceView_OnAttachedToVisualTree;
         AddHandler(KeyDownEvent, LiveRoomWorkspaceView_OnPreviewKeyDown, RoutingStrategies.Tunnel);
@@ -192,7 +191,7 @@ public partial class LiveRoomWorkspaceView : UserControl
         CreateDanmuContextMenu(item, sourceRoom).Open(button);
     }
 
-    private ContextMenu CreateDanmuContextMenu(DanmuFeedItem item, LiveRoomTabViewModel sourceRoom)
+    internal ContextMenu CreateDanmuContextMenu(DanmuFeedItem item, LiveRoomTabViewModel sourceRoom)
     {
         var copyTextItem = new MenuItem
         {
@@ -214,16 +213,53 @@ public partial class LiveRoomWorkspaceView : UserControl
         };
         forwardItem.ItemsSource = CreateForwardTargetMenuItems(item, sourceRoom).ToList();
 
-        return new()
+        var muteItem = new MenuItem
+        {
+            Header = "检查禁言权限…",
+            Command = sourceRoom.MuteDanmuCommand,
+            CommandParameter = item,
+            IsEnabled = false
+        };
+        var menu = new ContextMenu
         {
             ItemsSource = new object[]
             {
                 copyTextItem,
                 copyUserUidItem,
                 new Separator(),
-                forwardItem
+                forwardItem,
+                new Separator(),
+                muteItem
             }
         };
+        menu.Opened += async (_, _) => await RefreshMuteMenuItemAsync(menu, muteItem, item, sourceRoom);
+        return menu;
+    }
+
+    private static async Task RefreshMuteMenuItemAsync(
+        ContextMenu menu, MenuItem muteItem, DanmuFeedItem item, LiveRoomTabViewModel sourceRoom)
+    {
+        using var tokenSource = new CancellationTokenSource();
+        EventHandler<RoutedEventArgs> onClosed = (_, _) => tokenSource.Cancel();
+        menu.Closed += onClosed;
+
+        try
+        {
+            var allowed = await sourceRoom.RefreshModerationPermissionAsync(item, tokenSource.Token);
+
+            if (tokenSource.IsCancellationRequested || !menu.IsOpen)
+            {
+                return;
+            }
+
+            muteItem.Header = allowed ? "禁言该用户" : "无法禁言该用户";
+            muteItem.IsEnabled = allowed;
+            ToolTip.SetTip(muteItem, sourceRoom.ModerationStatus);
+        }
+        finally
+        {
+            menu.Closed -= onClosed;
+        }
     }
 
     private IEnumerable<MenuItem> CreateForwardTargetMenuItems(DanmuFeedItem item, LiveRoomTabViewModel sourceRoom)
@@ -274,15 +310,21 @@ public partial class LiveRoomWorkspaceView : UserControl
         }
     }
 
-    private void SuperChat_OnClick(object? sender, RoutedEventArgs e)
+    private async void SuperChat_OnClick(object? sender, RoutedEventArgs e)
     {
-        if (sender is not Button { DataContext: SuperChatItem item } ||
-            DataContext is not LiveRoomTabViewModel room)
+        if (sender is not Button { DataContext: SuperChatItem item })
         {
             return;
         }
 
-        InsertFeedContent(room, item.Content);
+        if (item.IsGuardPurchase)
+        {
+            await CopyToClipboardAsync(item.UserName);
+        }
+        else if (item.CanInsertContent && DataContext is LiveRoomTabViewModel room)
+        {
+            InsertFeedContent(room, item.Content);
+        }
     }
 
     private void LyricLine_OnDoubleTapped(object? sender, TappedEventArgs e)
@@ -346,6 +388,11 @@ public partial class LiveRoomWorkspaceView : UserControl
     private void LiveRoomWorkspaceView_OnAttachedToVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
     {
         ApplySavedWorkspaceColumnWidths();
+
+        if (currentRoom is null)
+        {
+            AttachDanmuItems(DataContext as LiveRoomTabViewModel);
+        }
     }
 
     private void AttachDanmuItems(LiveRoomTabViewModel? room)
@@ -359,10 +406,9 @@ public partial class LiveRoomWorkspaceView : UserControl
             return;
         }
 
-        currentRoom.DanmuItems.CollectionChanged += DanmuItems_OnCollectionChanged;
+        danmuScrollController.Attach(currentRoom.DanmuItems);
         currentRoom.PropertyChanged += CurrentRoom_OnPropertyChanged;
         UpdateLivePlayerHost();
-        ScrollDanmuToLatest();
     }
 
     private void DetachDanmuItems()
@@ -372,7 +418,7 @@ public partial class LiveRoomWorkspaceView : UserControl
             return;
         }
 
-        currentRoom.DanmuItems.CollectionChanged -= DanmuItems_OnCollectionChanged;
+        danmuScrollController.Attach(null);
         currentRoom.PropertyChanged -= CurrentRoom_OnPropertyChanged;
         currentRoom = null;
         ClearLivePlayerHost();
@@ -424,8 +470,9 @@ public partial class LiveRoomWorkspaceView : UserControl
 
     private bool TryHandleShortcut(KeyEventArgs e)
     {
-        if (currentRoom is null ||
-            GetMainWindowViewModel() is not { } viewModel)
+        if (e.Handled || currentRoom is null || GetMainWindowViewModel() is not { } viewModel ||
+            viewModel.IsRecordingShortcut || viewModel.IsSettingsOpen || viewModel.IsAddDialogOpen ||
+            viewModel.IsConfirmDeleteDialogOpen)
         {
             return false;
         }
@@ -435,9 +482,17 @@ public partial class LiveRoomWorkspaceView : UserControl
             e.Key,
             e.KeyModifiers);
 
-        if (actionKey is null || IsTextInputEvent(e) && actionKey != ShortcutActionKeys.INPUT_CLEAR_DRAFT)
+        if (actionKey is null || IsTextInputEvent(e) &&
+            actionKey is not (ShortcutActionKeys.INPUT_CLEAR_DRAFT or ShortcutActionKeys.INPUT_CYCLE_MARK_GROUP))
         {
             return false;
+        }
+
+        if (actionKey == ShortcutActionKeys.INPUT_CYCLE_MARK_GROUP &&
+            viewModel.SelectedWorkspace is not null && viewModel.SymbolGroups.Count > 0)
+        {
+            viewModel.CycleWorkspaceMarkGroupCommand.Execute(null);
+            return true;
         }
 
         return ExecuteShortcut(actionKey, e.Key);
@@ -647,38 +702,6 @@ public partial class LiveRoomWorkspaceView : UserControl
         catch
         {
         }
-    }
-
-    private void DanmuItems_OnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
-    {
-        if (e.Action == NotifyCollectionChangedAction.Reset)
-        {
-            ScrollDanmuToLatest();
-            return;
-        }
-
-        if (e.Action == NotifyCollectionChangedAction.Add &&
-            e.NewStartingIndex == 0 &&
-            DanmuScrollViewer.Offset.Y <= DANMU_LATEST_OFFSET_THRESHOLD)
-        {
-            ScrollDanmuToLatest();
-        }
-    }
-
-    private void DanmuItemsControl_OnContainerPrepared(object? sender, ContainerPreparedEventArgs e)
-    {
-        DanmuScrollViewer.RegisterAnchorCandidate(e.Container);
-    }
-
-    private void DanmuItemsControl_OnContainerClearing(object? sender, ContainerClearingEventArgs e)
-    {
-        DanmuScrollViewer.UnregisterAnchorCandidate(e.Container);
-    }
-
-    private void ScrollDanmuToLatest()
-    {
-        Dispatcher.UIThread.Post(() => { DanmuScrollViewer.Offset = new Vector(DanmuScrollViewer.Offset.X, 0); },
-            DispatcherPriority.Background);
     }
 
     private async void WorkspaceSplitter_OnPointerReleased(object? sender, PointerReleasedEventArgs e)

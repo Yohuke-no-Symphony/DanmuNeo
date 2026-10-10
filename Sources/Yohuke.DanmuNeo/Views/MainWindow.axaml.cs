@@ -95,8 +95,8 @@ public partial class MainWindow : Window
 
     private bool TryHandleShortcut(KeyEventArgs e)
     {
-        if (DataContext is not MainWindowViewModel viewModel ||
-            viewModel.SelectedWorkspace?.SelectedRoom is not { } room)
+        if (e.Handled || DataContext is not MainWindowViewModel viewModel || viewModel.IsRecordingShortcut ||
+            viewModel.IsSettingsOpen || viewModel.IsAddDialogOpen || viewModel.IsConfirmDeleteDialogOpen)
         {
             return false;
         }
@@ -106,12 +106,20 @@ public partial class MainWindow : Window
             e.Key,
             e.KeyModifiers);
 
-        if (actionKey is null || IsTextInputEvent(e) && actionKey != ShortcutActionKeys.INPUT_CLEAR_DRAFT)
+        if (actionKey is null || IsTextInputEvent(e) &&
+            actionKey is not (ShortcutActionKeys.INPUT_CLEAR_DRAFT or ShortcutActionKeys.INPUT_CYCLE_MARK_GROUP))
         {
             return false;
         }
 
-        return ExecuteShortcut(room, actionKey, e.Key);
+        if (actionKey == ShortcutActionKeys.INPUT_CYCLE_MARK_GROUP &&
+            viewModel.SelectedWorkspace is not null && viewModel.SymbolGroups.Count > 0)
+        {
+            viewModel.CycleWorkspaceMarkGroupCommand.Execute(null);
+            return true;
+        }
+
+        return viewModel.SelectedWorkspace?.SelectedRoom is { } room && ExecuteShortcut(room, actionKey, e.Key);
     }
 
     private bool ExecuteShortcut(LiveRoomTabViewModel room, string actionKey, Key key)

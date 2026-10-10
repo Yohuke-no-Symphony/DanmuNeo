@@ -3,6 +3,7 @@
         xmlns:components="clr-namespace:Yohuke.DanmuNeo.Views.Components">
     <Styles.Resources>
         <ResourceDictionary>
+            <FontFamily x:Key="ContentControlThemeFontFamily">PingFang SC, Microsoft YaHei UI, Noto Sans CJK SC, Noto Sans SC, sans-serif</FontFamily>
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Light">
                     <SolidColorBrush x:Key="AppBackgroundBrush" Color="#F3F4F6" />
@@ -60,8 +61,8 @@
         </ResourceDictionary>
     </Styles.Resources>
 
-    <Style Selector="Window">
-        <Setter Property="FontFamily" Value="Noto Sans SC, Microsoft YaHei UI, PingFang SC, sans-serif" />
+    <Style Selector=":is(TemplatedControl)">
+        <Setter Property="FontFamily" Value="{StaticResource ContentControlThemeFontFamily}" />
     </Style>
 
     <Style Selector="Grid.rootSurface">
@@ -125,11 +126,17 @@
         <Setter Property="FontSize" Value="{DynamicResource AppFontSizeBody}" />
         <Setter Property="FontWeight" Value="Regular" />
         <Setter Property="MinHeight" Value="30" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
     </Style>
 
     <Style Selector="TextBox">
         <Setter Property="FontSize" Value="{DynamicResource AppFontSizeBody}" />
         <Setter Property="MinHeight" Value="32" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="TextBox[AcceptsReturn=True]">
+        <Setter Property="VerticalContentAlignment" Value="Top" />
     </Style>
 
     <Style Selector="Control.scrollSafeContent">
@@ -146,6 +153,11 @@
     <Style Selector="ComboBox">
         <Setter Property="FontSize" Value="{DynamicResource AppFontSizeBody}" />
         <Setter Property="MinHeight" Value="32" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="CheckBox, RadioButton, ToggleButton, TabItem, ComboBoxItem, ListBoxItem">
+        <Setter Property="VerticalContentAlignment" Value="Center" />
     </Style>
 
     <Style Selector="LucideIcon">
@@ -223,7 +235,8 @@
                                SelectionStart="{TemplateBinding SelectionStart}"
                                SelectionEnd="{TemplateBinding SelectionEnd}"
                                TextAlignment="{TemplateBinding TextAlignment}"
-                               TextWrapping="{TemplateBinding TextWrapping}" />
+                               TextWrapping="{TemplateBinding TextWrapping}"
+                               VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
             </ControlTemplate>
         </Setter>
     </Style>
@@ -633,8 +646,9 @@
 
     <Style Selector="TextBlock">
         <Setter Property="Foreground" Value="{DynamicResource AppTextBrush}" />
-        <Setter Property="FontFamily" Value="Noto Sans SC, Microsoft YaHei UI, PingFang SC, sans-serif" />
+        <Setter Property="FontFamily" Value="{StaticResource ContentControlThemeFontFamily}" />
         <Setter Property="FontSize" Value="{DynamicResource AppFontSizeBody}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
     </Style>
 
     <Style Selector="TextBlock.muted">
@@ -880,25 +894,48 @@
     <Style Selector="TextBlock.danmuFeedUser">
         <Setter Property="FontSize" Value="13" />
         <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="LineHeight" Value="17" />
+        <Setter Property="VerticalAlignment" Value="Center" />
     </Style>
 
     <Style Selector="TextBlock.danmuFeedMeta">
         <Setter Property="FontSize" Value="11" />
         <Setter Property="Foreground" Value="{DynamicResource AppMutedTextBrush}" />
-        <Setter Property="LineHeight" Value="14" />
+    </Style>
+
+    <Style Selector="Border.danmuMedalBadge">
+        <Setter Property="Background" Value="{DynamicResource AppSidebarSelectedBrush}" />
+        <Setter Property="CornerRadius" Value="3" />
+        <Setter Property="Padding" Value="4,1" />
+        <Setter Property="Margin" Value="0,0,6,0" />
+        <Setter Property="HorizontalAlignment" Value="Left" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="TextBlock.danmuMedalText">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="Foreground" Value="{DynamicResource AppMutedTextBrush}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
     </Style>
 
     <Style Selector="TextBlock.danmuFeedContent">
         <Setter Property="FontSize" Value="13" />
-        <Setter Property="LineHeight" Value="18" />
-        <Setter Property="VerticalAlignment" Value="Top" />
+        <Setter Property="LineSpacing" Value="1" />
+        <Setter Property="VerticalAlignment" Value="Center" />
     </Style>
 
     <Style Selector="components|HoverMarqueeTextBlock.compactFeedContent">
         <Setter Property="IsVisible" Value="False" />
         <Setter Property="FontSize" Value="12" />
         <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="Grid.scFeedLayout">
+        <Setter Property="RowSpacing" Value="5" />
+    </Style>
+
+    <Style Selector="Grid.danmuFeedLayout">
+        <Setter Property="ColumnSpacing" Value="10" />
+        <Setter Property="RowSpacing" Value="1" />
     </Style>
 
     <Style Selector="Grid.compactDanmu Button.danmuFeedButton">
@@ -924,6 +961,7 @@
 
     <Style Selector="Grid.compactDanmu Grid.danmuFeedLayout">
         <Setter Property="ColumnSpacing" Value="6" />
+        <Setter Property="RowSpacing" Value="0" />
     </Style>
 
     <Style Selector="Grid.compactDanmu TextBlock.danmuFeedMeta">
@@ -932,7 +970,6 @@
 
     <Style Selector="Grid.compactDanmu TextBlock.danmuFeedUser">
         <Setter Property="FontSize" Value="12" />
-        <Setter Property="LineHeight" Value="16" />
     </Style>
 
     <Style Selector="Grid.compactDanmu TextBlock.scFeedPrice">
@@ -941,7 +978,7 @@
 
     <Style Selector="Grid.compactDanmu TextBlock.danmuFeedContent">
         <Setter Property="FontSize" Value="12" />
-        <Setter Property="LineHeight" Value="16" />
+        <Setter Property="LineSpacing" Value="0" />
     </Style>
 
     <Style Selector="Grid.compactDanmu TextBlock.regularFeedContent">
@@ -950,5 +987,17 @@
 
     <Style Selector="Grid.compactDanmu components|HoverMarqueeTextBlock.compactFeedContent">
         <Setter Property="IsVisible" Value="True" />
+    </Style>
+
+    <Style Selector="Button.scFeedButton.guardPurchase">
+        <Setter Property="ToolTip.Tip" Value="点击复制用户名" />
+    </Style>
+
+    <Style Selector="Button.scFeedButton.guardPurchase Grid.scFeedLayout">
+        <Setter Property="RowSpacing" Value="0" />
+    </Style>
+
+    <Style Selector="Button.scFeedButton.guardPurchase TextBlock.danmuFeedMeta">
+        <Setter Property="IsVisible" Value="False" />
     </Style>
 </Styles>

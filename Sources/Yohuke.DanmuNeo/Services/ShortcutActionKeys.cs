@@ -41,6 +41,11 @@ public static class ShortcutActionKeys
     public const string INPUT_CLEAR_DRAFT = "input.clearDraft";
 
     /// <summary>
+    /// 轮切当前工作区的同传样式预设。
+    /// </summary>
+    public const string INPUT_CYCLE_MARK_GROUP = "input.cycleMarkGroup";
+
+    /// <summary>
     /// 开始发送歌词。
     /// </summary>
     public const string LYRIC_START_SENDING = "lyric.startSending";

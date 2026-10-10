@@ -36,6 +36,9 @@
                                        FontWeight="SemiBold" />
                             <TextBlock Text="{Binding RoomId}"
                                        Classes="muted" />
+                            <TextBlock Text="{Binding ModerationStatus}"
+                                       Classes="muted"
+                                       TextWrapping="Wrap" />
                         </StackPanel>
                     </Grid>
                     <Button Grid.Column="1"
@@ -200,6 +203,7 @@
                                     <ListBox.ItemTemplate>
                                         <DataTemplate DataType="workspace:SuperChatItem">
                                             <Button Classes="scFeedButton"
+                                                    Classes.guardPurchase="{Binding IsGuardPurchase}"
                                                     HorizontalAlignment="Stretch"
                                                     HorizontalContentAlignment="Stretch"
                                                     Click="SuperChat_OnClick">
@@ -209,8 +213,7 @@
                                                         <SolidColorBrush Color="{Binding BorderColor}" />
                                                     </Border.BorderBrush>
                                                     <Grid Classes="scFeedLayout"
-                                                          RowDefinitions="Auto,Auto"
-                                                          RowSpacing="5">
+                                                          RowDefinitions="Auto,Auto">
                                                         <Grid ColumnDefinitions="*,Auto"
                                                               ColumnSpacing="8">
                                                             <StackPanel Spacing="1">
@@ -221,7 +224,7 @@
                                                                            Classes="danmuFeedMeta" />
                                                             </StackPanel>
                                                             <TextBlock Grid.Column="1"
-                                                                       Text="{Binding PriceText}"
+                                                                       Text="{Binding BadgeText}"
                                                                        Classes="scFeedPrice"
                                                                        VerticalAlignment="Center">
                                                                 <TextBlock.Foreground>
@@ -229,13 +232,16 @@
                                                                 </TextBlock.Foreground>
                                                             </TextBlock>
                                                         </Grid>
-                                                        <TextBlock Grid.Row="1"
-                                                                   Text="{Binding Content}"
-                                                                   Classes="danmuFeedContent regularFeedContent"
-                                                                   TextWrapping="Wrap" />
-                                                        <components:HoverMarqueeTextBlock Grid.Row="1"
-                                                                                          Text="{Binding Content}"
-                                                                                          Classes="compactFeedContent" />
+                                                        <Grid Grid.Row="1"
+                                                              Classes="scFeedContent"
+                                                              IsVisible="{Binding CanInsertContent}">
+                                                            <TextBlock Text="{Binding Content}"
+                                                                       Classes="danmuFeedContent regularFeedContent"
+                                                                       TextWrapping="Wrap" />
+                                                            <components:HoverMarqueeTextBlock
+                                                                Text="{Binding Content}"
+                                                                Classes="compactFeedContent" />
+                                                        </Grid>
                                                     </Grid>
                                                 </Border>
                                             </Button>
@@ -255,8 +261,6 @@
                                           Margin="0,6,0,0">
                                 <ItemsControl x:Name="DanmuItemsControl"
                                               Classes="scrollSafeContent"
-                                              ContainerPrepared="DanmuItemsControl_OnContainerPrepared"
-                                              ContainerClearing="DanmuItemsControl_OnContainerClearing"
                                               ItemsSource="{Binding DanmuItems}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate DataType="workspace:DanmuFeedItem">
@@ -266,23 +270,31 @@
                                                     ContextRequested="Danmu_OnContextRequested"
                                                     Click="Danmu_OnClick">
                                                 <Grid Classes="danmuFeedLayout"
-                                                      ColumnDefinitions="96,*"
-                                                      ColumnSpacing="10">
-                                                    <StackPanel Spacing="1">
+                                                      ColumnDefinitions="2*,3*"
+                                                      RowDefinitions="Auto,Auto">
+                                                    <DockPanel Classes="danmuFeedIdentity"
+                                                               VerticalAlignment="Center">
+                                                        <Border Classes="danmuMedalBadge"
+                                                                IsVisible="{Binding HasMedal}"
+                                                                ToolTip.Tip="{Binding MedalText}">
+                                                            <TextBlock Text="{Binding MedalDisplayText}"
+                                                                       Classes="danmuMedalText" />
+                                                        </Border>
                                                         <TextBlock Text="{Binding UserName}"
                                                                    Classes="danmuFeedUser"
                                                                    TextTrimming="CharacterEllipsis" />
-                                                        <TextBlock Text="{Binding DetailLine}"
-                                                                   Classes="danmuFeedMeta"
-                                                                   TextTrimming="CharacterEllipsis" />
-                                                    </StackPanel>
+                                                    </DockPanel>
+                                                    <TextBlock Grid.Row="1"
+                                                               Text="{Binding DetailLine}"
+                                                               Classes="danmuFeedMeta"
+                                                               TextTrimming="CharacterEllipsis" />
                                                     <TextBlock Grid.Column="1"
                                                                Text="{Binding Content}"
                                                                Classes="danmuFeedContent regularFeedContent"
                                                                TextWrapping="Wrap" />
                                                     <components:HoverMarqueeTextBlock Grid.Column="1"
-                                                                                      Text="{Binding Content}"
-                                                                                      Classes="compactFeedContent" />
+                                                            Text="{Binding Content}"
+                                                            Classes="compactFeedContent" />
                                                 </Grid>
                                             </Button>
                                         </DataTemplate>

@@ -9,6 +9,18 @@ namespace Yohuke.DanmuNeo.Apis.Models.Bilibili;
 public class BilibiliUserInfoData
 {
     /// <summary>
+    /// 服务端确认的登录身份。
+    /// </summary>
+    [JsonProperty("info")]
+    public BilibiliRoomUserIdentity? Info { get; set; }
+
+    /// <summary>
+    /// 当前房间的权限。
+    /// </summary>
+    [JsonProperty("badge")]
+    public BilibiliRoomUserBadge? Badge { get; set; }
+
+    /// <summary>
     /// 用户 UID。
     /// </summary>
     [JsonProperty("uid")]

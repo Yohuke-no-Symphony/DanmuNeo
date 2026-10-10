@@ -23,9 +23,15 @@ public class BilibiliLiveWebSocket : BaseApi, ILiveDanmuSocket
     private const int HEARTBEAT_INTERVAL_SECONDS = 30;
     private const int CONNECTION_MONITOR_INTERVAL_SECONDS = 5;
     private const int CONNECTION_TIMEOUT_SECONDS = 75;
+    private const long MAX_UNIX_TIMESTAMP_SECONDS = 253402300799;
     private const string URL_GET_DANMU_INFO = "https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo";
-    private static readonly Regex TL_PATTERN1 = new(@"^【(?<speaker>[^:：]{1,5})[:：](?<content>[^】]+)", RegexOptions.Compiled);
-    private static readonly Regex TL_PATTERN2 = new(@"^(?<speaker>[^\u0592✉【][^【]{0,4})?【(?<content>[^】]+)", RegexOptions.Compiled);
+
+    private static readonly Regex TL_PATTERN1 =
+        new(@"^【(?<speaker>[^:：]{1,5})[:：](?<content>[^】]+)", RegexOptions.Compiled);
+
+    private static readonly Regex TL_PATTERN2 =
+        new(@"^(?<speaker>[^\u0592✉【][^【]{0,4})?【(?<content>[^】]+)", RegexOptions.Compiled);
+
     private static readonly byte[] HEARTBEAT_PACKET = Convert.FromHexString("00000010001000010000000200000001");
 
     private readonly string roomId;
@@ -46,6 +52,11 @@ public class BilibiliLiveWebSocket : BaseApi, ILiveDanmuSocket
     /// 接收到 Super Chat 时触发。
     /// </summary>
     public event EventHandler<BilibiliSuperChatMessage>? SuperChatReceived;
+
+    /// <summary>
+    /// 接收到大航海购买或续费记录时触发。
+    /// </summary>
+    public event EventHandler<BilibiliGuardPurchaseMessage>? GuardPurchaseReceived;
 
     /// <summary>
     /// 监听发生错误时触发。
@@ -99,7 +110,8 @@ public class BilibiliLiveWebSocket : BaseApi, ILiveDanmuSocket
     /// <summary>
     /// 获取直播间弹幕服务器信息。
     /// </summary>
-    public async Task<ApiResponse<BilibiliDanmuInfoData>> GetDanmuInfoAsync(CancellationToken cancellationToken = default)
+    public async Task<ApiResponse<BilibiliDanmuInfoData>> GetDanmuInfoAsync(
+        CancellationToken cancellationToken = default)
     {
         var parameters = await signer.FillAsync(new Dictionary<string, object?>
         {
@@ -285,7 +297,7 @@ public class BilibiliLiveWebSocket : BaseApi, ILiveDanmuSocket
         }
     }
 
-    private void AnalyseBusinessPackage(byte[] body)
+    internal void AnalyseBusinessPackage(byte[] body)
     {
         var text = Encoding.UTF8.GetString(body);
         var json = JObject.Parse(text);
@@ -313,6 +325,18 @@ public class BilibiliLiveWebSocket : BaseApi, ILiveDanmuSocket
             {
                 SuperChatReceived?.Invoke(this, superChat);
             }
+
+            return;
+        }
+
+        if (IsCommand(command, "GUARD_BUY") || IsCommand(command, "USER_TOAST_MSG"))
+        {
+            var purchase = ParseGuardPurchaseMessage(roomId, json);
+
+            if (purchase is not null)
+            {
+                GuardPurchaseReceived?.Invoke(this, purchase);
+            }
         }
     }
 
@@ -328,14 +352,140 @@ public class BilibiliLiveWebSocket : BaseApi, ILiveDanmuSocket
             return null;
         }
 
+        var metadata = ReadArrayItem(info, 0);
+        var legacyUser = ReadArrayItem(info, 2);
+        var modernUser = ReadObjectProperty(ReadArrayItem(metadata, 15), "user");
+        var modernMedal = ReadObjectProperty(modernUser, "medal") as JObject;
+        var legacyMedal = ReadArrayItem(info, 3);
+        var modernUid = ReadInteger(ReadObjectProperty(modernUser, "uid"));
+        var modernName = ReadScalarText(ReadObjectProperty(ReadObjectProperty(modernUser, "base"), "name"));
+        var content = ReadScalarText(ReadArrayItem(info, 1));
+
         return new()
         {
             RoomId = roomId,
-            Uid = info[2]?[0]?.Value<long>() ?? 0,
-            UserName = info[2]?[1]?.Value<string>() ?? "",
-            Content = info[1]?.Value<string>() ?? "",
-            IsEmoticon = IsProtocolEmoticon(info[0], info[1]?.Value<string>())
+            Uid = modernUid > 0 ? modernUid : ReadInteger(ReadArrayItem(legacyUser, 0)),
+            UserName = string.IsNullOrWhiteSpace(modernName)
+                ? ReadScalarText(ReadArrayItem(legacyUser, 1))
+                : modernName,
+            Content = content,
+            IsRoomAdmin = ReadBoolean(ReadArrayItem(legacyUser, 2)),
+            MedalName = modernMedal is not null
+                ? ReadScalarText(modernMedal["name"])
+                : ReadScalarText(ReadArrayItem(legacyMedal, 1)),
+            MedalLevel = ReadNonNegativeInt(modernMedal is not null
+                ? modernMedal["level"]
+                : ReadArrayItem(legacyMedal, 0)),
+            UserLevel = ReadNonNegativeInt(ReadArrayItem(ReadArrayItem(info, 4), 0)),
+            IsEmoticon = IsProtocolEmoticon(metadata, content)
         };
+    }
+
+    /// <summary>
+    /// 从旧购买消息或大航海提示消息中解析购买、续费记录。
+    /// </summary>
+    public static BilibiliGuardPurchaseMessage? ParseGuardPurchaseMessage(string roomId, JObject json)
+    {
+        var command = json.Value<string>("cmd");
+
+        if ((!IsCommand(command, "GUARD_BUY") && !IsCommand(command, "USER_TOAST_MSG")) ||
+            json["data"] is not JObject data)
+        {
+            return null;
+        }
+
+        var isModern = IsCommand(command, "USER_TOAST_MSG_V2");
+        var option = data["option"];
+
+        if (isModern && ReadInteger(ReadObjectProperty(option, "source")) == 2)
+        {
+            return null;
+        }
+
+        var sender = data["sender_uinfo"];
+        var guard = data["guard_info"];
+        var pay = data["pay_info"];
+        var uid = ReadInteger(isModern ? ReadObjectProperty(sender, "uid") : data["uid"]);
+        var name = ReadScalarText(isModern
+            ? ReadObjectProperty(ReadObjectProperty(sender, "base"), "name")
+            : data["username"] ?? data["uname"]);
+        var guardLevel = ReadNonNegativeInt(isModern ? ReadObjectProperty(guard, "guard_level") : data["guard_level"]);
+
+        if (uid <= 0 || string.IsNullOrWhiteSpace(name) || guardLevel is not (1 or 2 or 3))
+        {
+            return null;
+        }
+
+        return new()
+        {
+            MessageId = ReadScalarText(data["msg_id"] ?? data["id"] ?? json["msg_id"]),
+            RoomId = roomId,
+            Uid = uid,
+            UserName = name,
+            GuardLevel = guardLevel,
+            Timestamp = ReadServerTimestamp(
+                isModern ? ReadObjectProperty(guard, "start_time") : data["start_time"],
+                data["timestamp"],
+                data["ts"],
+                json["ts"],
+                json["send_time"]),
+            Quantity = ReadNonNegativeInt(isModern ? ReadObjectProperty(pay, "num") : data["num"]),
+            IsGroup = ReadBoolean(ReadObjectProperty(option, "is_group")),
+            ReceiverUid = ReadInteger(ReadObjectProperty(data["receiver_uinfo"], "uid"))
+        };
+    }
+
+    private static JToken? ReadArrayItem(JToken? token, int index)
+    {
+        return token is JArray array && index >= 0 && index < array.Count ? array[index] : null;
+    }
+
+    private static JToken? ReadObjectProperty(JToken? token, string name)
+    {
+        return token is JObject value ? value[name] : null;
+    }
+
+    private static string ReadScalarText(JToken? token)
+    {
+        return token is JValue ? ReadTokenText(token) : "";
+    }
+
+    private static long ReadInteger(JToken? token)
+    {
+        return long.TryParse(ReadScalarText(token), NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
+            ? value
+            : 0;
+    }
+
+    private static int ReadNonNegativeInt(JToken? token)
+    {
+        var value = ReadInteger(token);
+        return value is >= 0 and <= int.MaxValue ? (int)value : 0;
+    }
+
+    private static bool ReadBoolean(JToken? token)
+    {
+        return token?.Type == JTokenType.Boolean ? token.Value<bool>() : ReadInteger(token) > 0;
+    }
+
+    private static long ReadServerTimestamp(params JToken?[] candidates)
+    {
+        foreach (var candidate in candidates)
+        {
+            var value = ReadInteger(candidate);
+
+            if (value > MAX_UNIX_TIMESTAMP_SECONDS)
+            {
+                value /= 1000;
+            }
+
+            if (value is > 0 and <= MAX_UNIX_TIMESTAMP_SECONDS)
+            {
+                return value;
+            }
+        }
+
+        return 0;
     }
 
     private static bool IsProtocolEmoticon(JToken? metadata, string? content)

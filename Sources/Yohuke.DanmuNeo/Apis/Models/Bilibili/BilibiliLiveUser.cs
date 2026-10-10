@@ -33,6 +33,12 @@ public class BilibiliLiveUser
     public string? Title { get; set; }
 
     /// <summary>
+    /// 是否正在直播。
+    /// </summary>
+    [JsonProperty("is_live")]
+    public bool IsLive { get; set; }
+
+    /// <summary>
     /// 未显式映射的字段。
     /// </summary>
     [JsonExtensionData]

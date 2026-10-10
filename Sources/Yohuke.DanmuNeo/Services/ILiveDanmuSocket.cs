@@ -18,6 +18,11 @@ public interface ILiveDanmuSocket
     event EventHandler<BilibiliSuperChatMessage>? SuperChatReceived;
 
     /// <summary>
+    /// 接收到大航海购买或续费记录时触发。
+    /// </summary>
+    event EventHandler<BilibiliGuardPurchaseMessage>? GuardPurchaseReceived;
+
+    /// <summary>
     /// 监听发生错误时触发。
     /// </summary>
     event EventHandler<Exception>? ErrorReceived;

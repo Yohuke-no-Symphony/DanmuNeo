@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Input;
 using CommunityToolkit.Mvvm.Input;
 using Yohuke.DanmuNeo.ViewModels;
 
@@ -15,6 +16,18 @@ public partial class AddWorkspaceDialogView : UserControl
     public AddWorkspaceDialogView()
     {
         InitializeComponent();
+    }
+
+    private async void LiveRoomSearch_OnKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter || DataContext is not MainWindowViewModel viewModel ||
+            !viewModel.SearchLiveRoomsCommand.CanExecute(null))
+        {
+            return;
+        }
+
+        e.Handled = true;
+        await viewModel.SearchLiveRoomsCommand.ExecuteAsync(null);
     }
 
     [RelayCommand]

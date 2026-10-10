@@ -17,16 +17,16 @@ public class BilibiliApi : BaseApi
     /// <summary>
     /// 初始化 B 站 API。
     /// </summary>
-    public BilibiliApi(string cookie = "", TimeSpan? timeout = null)
-        : this([cookie], timeout)
+    public BilibiliApi(string cookie = "", TimeSpan? timeout = null, HttpClient? httpClient = null)
+        : this([cookie], timeout, httpClient)
     {
     }
 
     /// <summary>
     /// 初始化 B 站 API。
     /// </summary>
-    public BilibiliApi(IEnumerable<string> cookies, TimeSpan? timeout = null)
-        : base(timeout: timeout)
+    public BilibiliApi(IEnumerable<string> cookies, TimeSpan? timeout = null, HttpClient? httpClient = null)
+        : base(httpClient, timeout)
     {
         rnd = DateTimeOffset.UtcNow.ToUnixTimeSeconds() > int.MaxValue
             ? int.MaxValue
@@ -403,7 +403,8 @@ public class BilibiliApi : BaseApi
         int pageSize = 42,
         string cookie = "",
         TimeSpan? timeout = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        int page = 1)
     {
         var headers = CreateDefaultHeaders();
         headers["Cookie"] = cookie;
@@ -415,7 +416,8 @@ public class BilibiliApi : BaseApi
             {
                 ["keyword"] = keyword,
                 ["search_type"] = "live_user",
-                ["page_size"] = pageSize
+                ["page_size"] = pageSize,
+                ["page"] = page
             },
             headers,
             timeout,

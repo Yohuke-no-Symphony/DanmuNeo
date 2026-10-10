@@ -3,10 +3,35 @@ using Avalonia.Media;
 namespace Yohuke.DanmuNeo.Models.Workspace;
 
 /// <summary>
-/// Super Chat 展示项。
+/// Super Chat 与上舰记录的展示项。
 /// </summary>
 public class SuperChatItem
 {
+    /// <summary>
+    /// 付费事件类型。
+    /// </summary>
+    public LivePaidEventKind Kind { get; set; }
+
+    /// <summary>
+    /// 是否为只展示用户名和档位的上舰记录。
+    /// </summary>
+    public bool IsGuardPurchase => Kind == LivePaidEventKind.GuardPurchase;
+
+    /// <summary>
+    /// 大航海档位名称；仅上舰记录使用。
+    /// </summary>
+    public string GuardLevelName { get; set; } = "";
+
+    /// <summary>
+    /// 事件右侧显示的金额或档位。
+    /// </summary>
+    public string BadgeText => IsGuardPurchase ? GuardLevelName : PriceText;
+
+    /// <summary>
+    /// 是否具有可插入同传输入框的留言内容。
+    /// </summary>
+    public bool CanInsertContent => Kind == LivePaidEventKind.SuperChat;
+
     /// <summary>
     /// SC 消息 ID。
     /// </summary>

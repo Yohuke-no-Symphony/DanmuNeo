@@ -8,7 +8,7 @@ namespace Yohuke.DanmuNeo.Services;
 /// <summary>
 /// 提供主播头像拉取与本地缓存能力。
 /// </summary>
-public class AvatarCacheService : IDisposable
+public class AvatarCacheService : IRoomAvatarService, IDisposable
 {
     private static readonly HashSet<string> SUPPORTED_EXTENSIONS = new(StringComparer.OrdinalIgnoreCase)
     {

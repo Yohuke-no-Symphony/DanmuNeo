@@ -7,11 +7,26 @@ namespace Yohuke.DanmuNeo.Tests;
 /// <summary>
 /// 测试用直播弹幕连接。
 /// </summary>
-public class FakeLiveDanmuSocket : ILiveDanmuSocket
+public class FakeLiveDanmuSocket : ILiveDanmuSocket, IDisposable
 {
+    private readonly TaskCompletionSource started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly TaskCompletionSource disposed = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    /// <summary>
+    /// 后台监听开始的通知。
+    /// </summary>
+    public Task StartedTask => started.Task;
+
+    /// <summary>
+    /// 后台连接释放的通知。
+    /// </summary>
+    public Task DisposedTask => disposed.Task;
+
     public event EventHandler<BilibiliDanmuMessage>? DanmuReceived;
 
     public event EventHandler<BilibiliSuperChatMessage>? SuperChatReceived;
+
+    public event EventHandler<BilibiliGuardPurchaseMessage>? GuardPurchaseReceived;
 
     public event EventHandler<Exception>? ErrorReceived;
 
@@ -25,6 +40,7 @@ public class FakeLiveDanmuSocket : ILiveDanmuSocket
 
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
+        started.TrySetResult();
         if (NextMessage is not null)
         {
             DanmuReceived?.Invoke(this, NextMessage);
@@ -53,6 +69,14 @@ public class FakeLiveDanmuSocket : ILiveDanmuSocket
     }
 
     /// <summary>
+    /// 触发大航海购买消息事件。
+    /// </summary>
+    public void EmitGuardPurchase(BilibiliGuardPurchaseMessage message)
+    {
+        GuardPurchaseReceived?.Invoke(this, message);
+    }
+
+    /// <summary>
     /// 触发连接错误事件。
     /// </summary>
     public void EmitError(Exception exception)
@@ -74,5 +98,11 @@ public class FakeLiveDanmuSocket : ILiveDanmuSocket
     public void EmitRecovered()
     {
         Recovered?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <inheritdoc/>
+    public void Dispose()
+    {
+        disposed.TrySetResult();
     }
 }

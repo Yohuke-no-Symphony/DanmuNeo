@@ -12,7 +12,13 @@ public class BilibiliLiveUserSearchData
     /// 搜索结果。
     /// </summary>
     [JsonProperty("result")]
-    public List<BilibiliLiveUser> Result { get; set; } = [];
+    public List<BilibiliLiveUser>? Result { get; set; }
+
+    /// <summary>
+    /// 总页数。
+    /// </summary>
+    [JsonProperty("numPages")]
+    public int TotalPages { get; set; }
 
     /// <summary>
     /// 未显式映射的字段。

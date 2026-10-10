@@ -19,6 +19,7 @@ public static class ShortcutActionCatalog
         new(ShortcutActionKeys.LIVE_PLAYER_CHASE, "livePlayer", "追帧", "追帧刷新", "Ctrl+Shift+R"),
         new(ShortcutActionKeys.INPUT_FOCUS_DRAFT, "input", "输入", "聚焦同传框", "Ctrl+Shift+I"),
         new(ShortcutActionKeys.INPUT_CLEAR_DRAFT, "input", "输入", "清除同传框", "Ctrl+Shift+Backspace"),
+        new(ShortcutActionKeys.INPUT_CYCLE_MARK_GROUP, "input", "输入", "轮切同传样式预设", "Tab"),
         new(ShortcutActionKeys.LYRIC_START_SENDING, "lyric", "歌词", "开始发送", "Ctrl+Shift+A"),
         new(ShortcutActionKeys.LYRIC_STOP_SENDING, "lyric", "歌词", "停止发送", "Ctrl+Shift+S"),
         new(ShortcutActionKeys.LYRIC_SEEK_BACKWARD, "lyric", "歌词", "微调快退", "Ctrl+Shift+Left"),

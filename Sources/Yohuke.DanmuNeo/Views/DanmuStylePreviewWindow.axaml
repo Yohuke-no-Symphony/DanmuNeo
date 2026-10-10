@@ -9,7 +9,7 @@
         MinWidth="820"
         MinHeight="580"
         WindowStartupLocation="CenterOwner"
-        Title="弹幕与 SC 样式测试">
+        Title="弹幕、SC 与上舰样式测试">
     <Grid Classes="rootSurface"
           RowDefinitions="Auto,*">
         <Border Classes="panel"
@@ -18,11 +18,22 @@
             <Grid ColumnDefinitions="*,Auto"
                   ColumnSpacing="12">
                 <StackPanel Spacing="2">
-                    <TextBlock Text="弹幕与 SC 样式测试"
+                    <TextBlock Text="弹幕、SC 与上舰样式测试"
                                FontSize="18"
                                FontWeight="SemiBold" />
                     <TextBlock Text="仅 DEBUG 入口可用；拖动窗口、列分隔条和上下分隔条检查响应式布局。"
                                Classes="muted" />
+                    <StackPanel x:Name="CurrentMarkGroupPanel"
+                                IsVisible="False"
+                                Orientation="Horizontal"
+                                Spacing="6">
+                        <TextBlock Text="当前工作区同传预设："
+                                   Classes="muted" />
+                        <TextBlock x:Name="CurrentMarkGroupText"
+                                   Text="{Binding SelectedWorkspaceMarkGroup.Name}"
+                                   MaxWidth="180"
+                                   TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
                 </StackPanel>
                 <StackPanel Grid.Column="1"
                              Orientation="Horizontal"
@@ -78,16 +89,17 @@
                         <ListBox.ItemTemplate>
                             <DataTemplate DataType="workspace:SuperChatItem">
                                 <Button Classes="scFeedButton"
+                                        Classes.guardPurchase="{Binding IsGuardPurchase}"
                                         HorizontalAlignment="Stretch"
-                                        HorizontalContentAlignment="Stretch">
+                                        HorizontalContentAlignment="Stretch"
+                                        Click="SuperChat_OnClick">
                                     <Border Classes="scFeedCard"
                                             BorderThickness="2">
                                         <Border.BorderBrush>
                                             <SolidColorBrush Color="{Binding BorderColor}" />
                                         </Border.BorderBrush>
                                         <Grid Classes="scFeedLayout"
-                                              RowDefinitions="Auto,Auto"
-                                              RowSpacing="5">
+                                              RowDefinitions="Auto,Auto">
                                             <Grid ColumnDefinitions="*,Auto"
                                                   ColumnSpacing="8">
                                                 <StackPanel Spacing="1">
@@ -98,7 +110,7 @@
                                                                Classes="danmuFeedMeta" />
                                                 </StackPanel>
                                                 <TextBlock Grid.Column="1"
-                                                           Text="{Binding PriceText}"
+                                                           Text="{Binding BadgeText}"
                                                            Classes="scFeedPrice"
                                                            VerticalAlignment="Center">
                                                     <TextBlock.Foreground>
@@ -106,13 +118,15 @@
                                                     </TextBlock.Foreground>
                                                 </TextBlock>
                                             </Grid>
-                                            <TextBlock Grid.Row="1"
-                                                       Text="{Binding Content}"
-                                                       Classes="danmuFeedContent regularFeedContent"
-                                                       TextWrapping="Wrap" />
-                                            <components:HoverMarqueeTextBlock Grid.Row="1"
-                                                                              Text="{Binding Content}"
-                                                                              Classes="compactFeedContent" />
+                                            <Grid Grid.Row="1"
+                                                  Classes="scFeedContent"
+                                                  IsVisible="{Binding CanInsertContent}">
+                                                <TextBlock Text="{Binding Content}"
+                                                           Classes="danmuFeedContent regularFeedContent"
+                                                           TextWrapping="Wrap" />
+                                                <components:HoverMarqueeTextBlock Text="{Binding Content}"
+                                                                                  Classes="compactFeedContent" />
+                                            </Grid>
                                         </Grid>
                                     </Border>
                                 </Button>
@@ -126,9 +140,11 @@
                                   ResizeDirection="Rows"
                                   ResizeBehavior="PreviousAndNext" />
 
-                    <ScrollViewer Grid.Row="3"
+                    <ScrollViewer x:Name="DanmuScrollViewer"
+                                  Grid.Row="3"
                                   Margin="0,6,0,0">
-                        <ItemsControl Classes="scrollSafeContent"
+                        <ItemsControl x:Name="DanmuItemsControl"
+                                      Classes="scrollSafeContent"
                                       ItemsSource="{Binding DanmuItems}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate DataType="workspace:DanmuFeedItem">
@@ -136,16 +152,24 @@
                                             HorizontalAlignment="Stretch"
                                             HorizontalContentAlignment="Stretch">
                                         <Grid Classes="danmuFeedLayout"
-                                              ColumnDefinitions="96,*"
-                                              ColumnSpacing="10">
-                                            <StackPanel Spacing="1">
+                                              ColumnDefinitions="2*,3*"
+                                              RowDefinitions="Auto,Auto">
+                                            <DockPanel Classes="danmuFeedIdentity"
+                                                       VerticalAlignment="Center">
+                                                <Border Classes="danmuMedalBadge"
+                                                        IsVisible="{Binding HasMedal}"
+                                                        ToolTip.Tip="{Binding MedalText}">
+                                                    <TextBlock Text="{Binding MedalDisplayText}"
+                                                               Classes="danmuMedalText" />
+                                                </Border>
                                                 <TextBlock Text="{Binding UserName}"
                                                            Classes="danmuFeedUser"
                                                            TextTrimming="CharacterEllipsis" />
-                                                <TextBlock Text="{Binding DetailLine}"
-                                                           Classes="danmuFeedMeta"
-                                                           TextTrimming="CharacterEllipsis" />
-                                            </StackPanel>
+                                            </DockPanel>
+                                            <TextBlock Grid.Row="1"
+                                                       Text="{Binding DetailLine}"
+                                                       Classes="danmuFeedMeta"
+                                                       TextTrimming="CharacterEllipsis" />
                                             <TextBlock Grid.Column="1"
                                                        Text="{Binding Content}"
                                                        Classes="danmuFeedContent regularFeedContent"
@@ -207,9 +231,38 @@
                                      Watermark="例如：已转发" />
                         </StackPanel>
 
-                        <Button Classes="primaryButton"
-                                Content="添加普通弹幕"
-                                Click="AddDanmu_OnClick" />
+                        <Grid ColumnDefinitions="*,120"
+                              ColumnSpacing="8">
+                            <StackPanel Spacing="5">
+                                <TextBlock Text="粉丝牌名称（可空）"
+                                           Classes="muted" />
+                                <TextBox Text="{Binding MedalName}"
+                                         Watermark="留空可预览无牌用户" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1"
+                                        Spacing="5">
+                                <TextBlock Text="粉丝牌等级"
+                                           Classes="muted" />
+                                <NumericUpDown Value="{Binding MedalLevel}"
+                                               Minimum="0"
+                                               Maximum="2147483647"
+                                               Increment="1"
+                                               FormatString="0" />
+                            </StackPanel>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="*,*"
+                              ColumnSpacing="8">
+                            <Button Classes="primaryButton"
+                                    Content="添加普通弹幕"
+                                    Click="AddDanmu_OnClick" />
+                            <Button Grid.Column="1"
+                                    Content="批量添加 80 条"
+                                    Click="AddDanmuBatch_OnClick" />
+                        </Grid>
+                        <TextBlock Text="批量添加后下翻弹幕，再添加新消息检查阅读位置；回到顶部后恢复自动跟随。"
+                                   Classes="muted"
+                                   TextWrapping="Wrap" />
 
                         <Border Classes="historyRecordCard"
                                 Margin="0,4,0,0">
@@ -245,6 +298,24 @@
                                 <Button Classes="primaryButton"
                                         Content="添加醒目留言"
                                         Click="AddSuperChat_OnClick" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Classes="historyRecordCard">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="上舰设置"
+                                           FontWeight="SemiBold" />
+                                <ComboBox ItemsSource="{Binding GuardPresets}"
+                                          SelectedItem="{Binding SelectedGuardPreset}">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate DataType="workspace:GuardStylePreset">
+                                            <TextBlock Text="{Binding DisplayName}" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <Button Classes="primaryButton"
+                                        Content="添加上舰记录"
+                                        Click="AddGuardPurchase_OnClick" />
                             </StackPanel>
                         </Border>
 

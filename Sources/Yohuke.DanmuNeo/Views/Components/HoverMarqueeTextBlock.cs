@@ -39,7 +39,6 @@ public sealed class HoverMarqueeTextBlock : UserControl
     {
         var textBlock = new TextBlock
         {
-            LineHeight = 16,
             TextWrapping = TextWrapping.NoWrap,
             VerticalAlignment = VerticalAlignment.Center
         };

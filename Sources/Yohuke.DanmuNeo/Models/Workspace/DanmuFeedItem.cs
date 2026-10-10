@@ -1,3 +1,4 @@
+using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Yohuke.DanmuNeo.Models.Workspace;
@@ -7,6 +8,57 @@ namespace Yohuke.DanmuNeo.Models.Workspace;
 /// </summary>
 public class DanmuFeedItem : ObservableObject
 {
+    private const int MAX_MEDAL_NAME_LENGTH = 3;
+
+    /// <summary>
+    /// 接收此弹幕时的直播间 ID。
+    /// </summary>
+    public string RoomId { get; set; } = "";
+
+    /// <summary>
+    /// 发送者是否为房管。
+    /// </summary>
+    public bool IsRoomAdmin { get; set; }
+
+    /// <summary>
+    /// 发送者佩戴的粉丝牌名称。
+    /// </summary>
+    public string MedalName { get; set; } = "";
+
+    /// <summary>
+    /// 粉丝牌等级。
+    /// </summary>
+    public int MedalLevel { get; set; }
+
+    /// <summary>
+    /// 是否有可展示的粉丝牌。
+    /// </summary>
+    public bool HasMedal => !string.IsNullOrWhiteSpace(MedalName) && MedalLevel > 0;
+
+    /// <summary>
+    /// 粉丝牌名称与等级。
+    /// </summary>
+    public string MedalText => HasMedal ? $"{MedalName} {MedalLevel}" : "";
+
+    /// <summary>
+    /// 名称最多展示三个文字元素的粉丝牌及等级。
+    /// </summary>
+    public string MedalDisplayText
+    {
+        get
+        {
+            if (!HasMedal)
+            {
+                return "";
+            }
+
+            var name = new StringInfo(MedalName);
+            var displayName =
+                name.SubstringByTextElements(0, Math.Min(MAX_MEDAL_NAME_LENGTH, name.LengthInTextElements));
+            return $"{displayName} {MedalLevel}";
+        }
+    }
+
     /// <summary>
     /// 发送时间。
     /// </summary>
