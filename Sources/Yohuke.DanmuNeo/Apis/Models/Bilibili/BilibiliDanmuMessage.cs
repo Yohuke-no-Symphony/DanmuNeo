@@ -41,6 +41,11 @@ public class BilibiliDanmuMessage
     public int MedalLevel { get; set; }
 
     /// <summary>
+    /// 佩戴粉丝牌所属主播的大航海档位；0 为普通，1 为总督，2 为提督，3 为舰长。
+    /// </summary>
+    public int MedalGuardLevel { get; set; }
+
+    /// <summary>
     /// 直播用户等级，与粉丝牌等级独立。
     /// </summary>
     public int UserLevel { get; set; }

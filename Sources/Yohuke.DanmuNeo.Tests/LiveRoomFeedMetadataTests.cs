@@ -19,7 +19,7 @@ public class LiveRoomFeedMetadataTests
         context.Room.AddDanmu(new()
         {
             RoomId = "100", Uid = 42, UserName = "带牌用户", Content = "弹幕", IsRoomAdmin = true,
-            MedalName = "夜更", MedalLevel = 25
+            MedalName = "夜更", MedalLevel = 25, MedalGuardLevel = 3
         });
 
         var item = context.Room.DanmuItems[0];
@@ -27,6 +27,8 @@ public class LiveRoomFeedMetadataTests
         Assert.True(item.IsRoomAdmin);
         Assert.True(item.HasMedal);
         Assert.Equal("夜更 25", item.MedalText);
+        Assert.Equal(3, item.MedalGuardLevel);
+        Assert.Equal(Color.Parse("#3171D2"), item.MedalBorderColor);
         Assert.False(context.Item.HasMedal);
         Assert.Empty(context.Item.MedalText);
     }

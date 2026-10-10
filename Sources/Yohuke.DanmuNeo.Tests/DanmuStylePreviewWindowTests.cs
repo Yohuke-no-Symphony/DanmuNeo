@@ -20,6 +20,44 @@ namespace Yohuke.DanmuNeo.Tests;
 public class DanmuStylePreviewWindowTests
 {
     /// <summary>
+    /// 粉丝牌档位下拉框通过真实绑定和添加按钮生成对应颜色的弹幕。
+    /// </summary>
+    [AvaloniaTheory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void MedalGuardSelectorAppliesToAddedDanmu(int level)
+    {
+        var window = new DanmuStylePreviewWindow();
+        var viewModel = Assert.IsType<DanmuStylePreviewViewModel>(window.DataContext);
+        viewModel.ClearSamples();
+
+        try
+        {
+            ShowWindow(window);
+            var selector = window.GetVisualDescendants().OfType<ComboBox>()
+                .Single(control => ReferenceEquals(control.ItemsSource, viewModel.MedalGuardPresets));
+            selector.SelectedItem = viewModel.MedalGuardPresets.Single(preset => preset.GuardLevel == level);
+            var add = window.GetVisualDescendants().OfType<Button>()
+                .Single(control => control.Content is "添加普通弹幕");
+            add.BringIntoView();
+            PumpLayout(window);
+            Click(window, add);
+
+            var item = Assert.Single(viewModel.DanmuItems);
+            Assert.Equal(level, item.MedalGuardLevel);
+            var badge = window.GetVisualDescendants().OfType<Border>()
+                .Single(control => control.Classes.Contains("danmuMedalBadge"));
+            Assert.Equal(item.MedalBorderColor, Assert.IsAssignableFrom<ISolidColorBrush>(badge.BorderBrush).Color);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>
     /// 两种模式和主题下均显示粉丝牌、上舰用户名与档位，并可渲染窄窗口。
     /// </summary>
     [AvaloniaTheory]
@@ -45,8 +83,22 @@ public class DanmuStylePreviewWindowTests
             var badges = window.GetVisualDescendants().OfType<Border>()
                 .Where(control => control.Classes.Contains("danmuMedalBadge")).ToList();
             Assert.Contains(badges,
-                control => control.IsEffectivelyVisible && control.Child is TextBlock { Text: "星光 25" });
+                control => control.IsEffectivelyVisible &&
+                           control.GetVisualDescendants().OfType<TextBlock>().Any(text => text.Text == "星光") &&
+                           control.GetVisualDescendants().OfType<TextBlock>().Any(text => text.Text == "25"));
             Assert.Contains(badges, control => !control.IsVisible);
+            Assert.Equal(new[] { 0, 1, 2, 3 }, badges.Where(control => control.IsVisible)
+                .Select(control => Assert.IsType<DanmuFeedItem>(control.DataContext).MedalGuardLevel).Distinct()
+                .Order());
+
+            foreach (var medalBadge in badges.Where(control => control.IsVisible))
+            {
+                var item = Assert.IsType<DanmuFeedItem>(medalBadge.DataContext);
+                Assert.Equal(item.MedalBorderColor,
+                    Assert.IsAssignableFrom<ISolidColorBrush>(medalBadge.BorderBrush).Color);
+                Assert.True(medalBadge.BorderThickness.Left > 0);
+            }
+
             var badge = badges.First(control => control.IsVisible);
             var danmu = badge.GetVisualAncestors().OfType<Button>().First();
             var name = danmu.GetVisualDescendants().OfType<TextBlock>()
@@ -90,7 +142,7 @@ public class DanmuStylePreviewWindowTests
             batch.BringIntoView();
             PumpLayout(window);
             Click(window, batch);
-            Assert.Equal(84, viewModel.DanmuItems.Count);
+            Assert.Equal(87, viewModel.DanmuItems.Count);
             PumpLayout(window);
             var scroll = window.FindControl<ScrollViewer>("DanmuScrollViewer")!;
             viewModel.AddDanmu();

@@ -9,8 +9,17 @@ namespace Yohuke.DanmuNeo.Services;
 /// </summary>
 public class DanmuSendService : IDanmuSendService
 {
+    private readonly HttpClient? httpClient;
     private readonly SemaphoreSlim sendLock = new(1, 1);
     private DateTimeOffset lastSentAt = DateTimeOffset.MinValue;
+
+    /// <summary>
+    /// 初始化服务；注入的 HTTP 客户端由调用方管理。
+    /// </summary>
+    public DanmuSendService(HttpClient? httpClient = null)
+    {
+        this.httpClient = httpClient;
+    }
 
     /// <summary>
     /// 发送记录产生时触发。
@@ -44,18 +53,18 @@ public class DanmuSendService : IDanmuSendService
                 await Task.Delay(waitTime, cancellationToken);
             }
 
-            var api = new BilibiliApi(account.Cookie, TimeSpan.FromSeconds(settings.TimeoutSeconds));
+            using var api = new BilibiliApi(account.Cookie, TimeSpan.FromSeconds(settings.TimeoutSeconds), httpClient);
             requestedAt = DateTimeOffset.UtcNow;
             var response = await api.SendDanmuAsync(long.Parse(roomId), message, cancellationToken: cancellationToken);
             lastSentAt = DateTimeOffset.Now;
 
             if (response.Code == 0)
             {
-                return CreateResult(roomId, message, "接口已接受", true, requestedAt);
+                return CreateResult(roomId, message, "接口已接受", true, requestedAt, response.Code);
             }
 
             var errorMessage = response.Message ?? response.Msg ?? $"发送失败：{response.Code}";
-            return CreateResult(roomId, message, errorMessage, false, requestedAt);
+            return CreateResult(roomId, message, errorMessage, false, requestedAt, response.Code);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -104,7 +113,8 @@ public class DanmuSendService : IDanmuSendService
         string message,
         string status,
         bool isAccepted,
-        DateTimeOffset requestedAt)
+        DateTimeOffset requestedAt,
+        int? apiCode = null)
     {
         var record = new DanmuFeedItem
         {
@@ -119,6 +129,7 @@ public class DanmuSendService : IDanmuSendService
         return new()
         {
             IsAccepted = isAccepted,
+            ApiCode = apiCode,
             ErrorMessage = isAccepted ? "" : status,
             RequestedAt = requestedAt,
             Record = record

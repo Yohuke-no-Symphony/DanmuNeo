@@ -653,6 +653,184 @@ public class LiveRoomTabViewModelTests
 
         Assert.Equal("待发送", viewModel.InputDraft);
         Assert.Equal("发送失败：风控拒绝", viewModel.DraftSendStatus);
+        Assert.True(viewModel.IsDraftSendRejected);
+    }
+
+    /// <summary>
+    /// 没有明确接口错误码的失败保留草稿，但不显示失败描边。
+    /// </summary>
+    [Fact]
+    public async Task SendDraftTransportFailureKeepsInputWithoutRejection()
+    {
+        var sendService = new FakeDanmuSendService
+        {
+            IsAccepted = false, FailureApiCode = null, ErrorMessage = "网络超时"
+        };
+        var viewModel = CreateConfiguredViewModel(new(), sendService);
+        viewModel.InputDraft = "待发送";
+
+        await viewModel.SendDraftAsync();
+
+        Assert.False(viewModel.IsDraftSendRejected);
+        Assert.Equal("待发送", viewModel.InputDraft);
+    }
+
+    /// <summary>
+    /// 部分发送失败仅在存在明确接口拒绝时显示失败描边。
+    /// </summary>
+    [Theory]
+    [InlineData(null, false)]
+    [InlineData(10030, true)]
+    [InlineData(-101, true)]
+    public async Task SendDraftPartialFailureOnlyHighlightsExplicitRejection(int? code, bool rejected)
+    {
+        var sendService = new FakeDanmuSendService
+        {
+            MessageParts = ["第一段", "第二段"], FailureApiCode = code
+        };
+        sendService.AcceptanceResults.Enqueue(true);
+        sendService.AcceptanceResults.Enqueue(false);
+        var viewModel = CreateConfiguredViewModel(new(), sendService);
+        viewModel.InputDraft = "完整同传";
+
+        await viewModel.SendDraftAsync();
+
+        Assert.Equal(rejected, viewModel.IsDraftSendRejected);
+        Assert.Equal("完整同传", viewModel.InputDraft);
+    }
+
+    /// <summary>
+    /// 修改或清空输入会移除上次拒绝描边。
+    /// </summary>
+    [Theory]
+    [InlineData("修正内容")]
+    [InlineData("")]
+    public async Task SendDraftEditingClearsRejection(string nextDraft)
+    {
+        var viewModel = CreateConfiguredViewModel(new(), new FakeDanmuSendService { IsAccepted = false });
+        viewModel.InputDraft = "待发送";
+        await viewModel.SendDraftAsync();
+        Assert.True(viewModel.IsDraftSendRejected);
+
+        viewModel.InputDraft = nextDraft;
+
+        Assert.False(viewModel.IsDraftSendRejected);
+    }
+
+    /// <summary>
+    /// 新一轮发送开始时立即移除上次拒绝描边。
+    /// </summary>
+    [Fact]
+    public async Task SendDraftRetryClearsRejectionBeforeResponse()
+    {
+        var sendService = new BlockingDanmuSendService();
+        var viewModel = CreateConfiguredViewModel(new(), sendService);
+        viewModel.InputDraft = "重试内容";
+        viewModel.IsDraftSendRejected = true;
+        var sending = viewModel.SendDraftAsync();
+
+        try
+        {
+            await sendService.FirstSendStarted;
+            Assert.False(viewModel.IsDraftSendRejected);
+        }
+        finally
+        {
+            sendService.ReleaseFirstSend();
+            await sending;
+        }
+    }
+
+    /// <summary>
+    /// 请求期间编辑过的草稿不会被旧响应清空或标红，即使后来恢复成原文。
+    /// </summary>
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    [InlineData(false, true)]
+    public async Task SendDraftOldResponseDoesNotChangeEditedDraft(bool accepted, bool restoreOriginal)
+    {
+        var sendService = new BlockingDanmuSendService { IsAccepted = accepted };
+        var viewModel = CreateConfiguredViewModel(new(), sendService);
+        viewModel.InputDraft = "原始内容";
+        var sending = viewModel.SendDraftAsync();
+
+        try
+        {
+            await sendService.FirstSendStarted;
+            viewModel.InputDraft = "新内容";
+
+            if (restoreOriginal)
+            {
+                viewModel.InputDraft = "原始内容";
+            }
+        }
+        finally
+        {
+            sendService.ReleaseFirstSend();
+            await sending;
+        }
+
+        Assert.Equal(restoreOriginal ? "原始内容" : "新内容", viewModel.InputDraft);
+        Assert.False(viewModel.IsDraftSendRejected);
+    }
+
+    /// <summary>
+    /// 切换房间使旧请求失效，旧响应不会清空输入或触发描边。
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task SendDraftRoomChangeInvalidatesOldResponse(bool accepted)
+    {
+        var sendService = new BlockingDanmuSendService { IsAccepted = accepted };
+        var viewModel = CreateConfiguredViewModel(new(), sendService);
+        viewModel.RoomId = "100";
+        viewModel.InputDraft = "房间内容";
+        var sending = viewModel.SendDraftAsync();
+
+        try
+        {
+            await sendService.FirstSendStarted;
+            viewModel.RoomId = "200";
+        }
+        finally
+        {
+            sendService.ReleaseFirstSend();
+            await sending;
+        }
+
+        Assert.Equal("房间内容", viewModel.InputDraft);
+        Assert.False(viewModel.IsDraftSendRejected);
+    }
+
+    /// <summary>
+    /// 两次请求逆序完成时，旧拒绝不能覆盖新请求的成功状态。
+    /// </summary>
+    [Fact]
+    public async Task SendDraftOlderRejectionCannotOverwriteNewerSuccess()
+    {
+        var sendService = new BlockingDanmuSendService { IsAccepted = false };
+        var viewModel = CreateConfiguredViewModel(new(), sendService);
+        viewModel.InputDraft = "待发送";
+        var first = viewModel.SendDraftAsync();
+
+        try
+        {
+            await sendService.FirstSendStarted;
+            sendService.IsAccepted = true;
+            await viewModel.SendDraftAsync();
+        }
+        finally
+        {
+            sendService.ReleaseFirstSend();
+            await first;
+        }
+
+        Assert.False(viewModel.IsDraftSendRejected);
+        Assert.Equal("", viewModel.InputDraft);
+        Assert.Equal("接口已接受，无法确认", viewModel.DraftSendStatus);
     }
 
     [Fact]
@@ -671,6 +849,7 @@ public class LiveRoomTabViewModelTests
 
         Assert.Equal("", viewModel.InputDraft);
         Assert.Equal("接口已接受，无法确认", viewModel.DraftSendStatus);
+        Assert.False(viewModel.IsDraftSendRejected);
         Assert.Equal("接口已接受，无法确认", Assert.Single(sendService.Records).Status);
     }
 
@@ -692,6 +871,7 @@ public class LiveRoomTabViewModelTests
 
         Assert.Equal("完整同传", viewModel.InputDraft);
         Assert.Equal("部分发送失败：1/2 段接口已接受", viewModel.DraftSendStatus);
+        Assert.True(viewModel.IsDraftSendRejected);
         Assert.Equal("接口已接受，无法确认", sendService.Records[0].Status);
         Assert.Equal("第二段失败", sendService.Records[1].Status);
     }
@@ -725,6 +905,7 @@ public class LiveRoomTabViewModelTests
         await WaitForAsync(() => viewModel.DraftSendStatus == "已在弹幕流确认");
 
         Assert.Equal("已在弹幕流确认", Assert.Single(sendService.Records).Status);
+        Assert.False(viewModel.IsDraftSendRejected);
         viewModel.StopListening();
     }
 

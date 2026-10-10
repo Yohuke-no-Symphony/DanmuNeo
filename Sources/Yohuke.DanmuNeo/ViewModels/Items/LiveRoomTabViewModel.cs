@@ -58,6 +58,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
     private double lyricPlaybackStartPositionSeconds;
     private int lastAutoEnteredLyricIndex = -1;
     private long draftSendOperationId;
+    private long draftRevision;
     private readonly DanmuForwardService forwardService = new();
     private readonly LyricTimelineService lyricTimelineService = new();
     private readonly TranslateHistoryExportService translateHistoryExportService = new();
@@ -157,6 +158,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
 
             StopListening();
             State.RoomId = value;
+            InvalidateDraftSendFeedback();
             AvatarPath = "";
             OnPropertyChanged();
             OnPropertyChanged(nameof(Header));
@@ -232,6 +234,8 @@ public partial class LiveRoomTabViewModel : ViewModelBase
     [ObservableProperty] private string inputDraft = "";
 
     [ObservableProperty] private string draftSendStatus = "";
+
+    [ObservableProperty] private bool isDraftSendRejected;
 
     [ObservableProperty] private string lyricInput = "";
 
@@ -395,6 +399,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
     partial void OnInputDraftChanged(string value)
     {
         State.InputDraft = value;
+        InvalidateDraftSendFeedback();
         OnPropertyChanged(nameof(IsInputDraftEmpty));
     }
 
@@ -402,17 +407,6 @@ public partial class LiveRoomTabViewModel : ViewModelBase
     /// 同传输入是否为空。
     /// </summary>
     public bool IsInputDraftEmpty => string.IsNullOrWhiteSpace(InputDraft);
-
-    /// <summary>
-    /// 是否存在同传发送状态。
-    /// </summary>
-    public bool HasDraftSendStatus => !string.IsNullOrWhiteSpace(DraftSendStatus);
-
-    partial void OnDraftSendStatusChanged(string value)
-    {
-        _ = value;
-        OnPropertyChanged(nameof(HasDraftSendStatus));
-    }
 
     /// <summary>
     /// 当前歌词标题展示文本。
@@ -677,6 +671,9 @@ public partial class LiveRoomTabViewModel : ViewModelBase
     [RelayCommand]
     public async Task SendDraftAsync()
     {
+        var operationId = Interlocked.Increment(ref draftSendOperationId);
+        IsDraftSendRejected = false;
+
         if (string.IsNullOrWhiteSpace(InputDraft))
         {
             return;
@@ -693,7 +690,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
         var markGroup = getMarkSymbolGroup?.Invoke() ?? MarkSymbolService.CreateDefaultGroup(settings);
         var content = ShieldReplacementService.Apply(InputDraft.Trim(), settings, false);
         var message = $"{markGroup.TranslateOpenMark}{content}{markGroup.TranslateCloseMark}";
-        var operationId = Interlocked.Increment(ref draftSendOperationId);
+        var revision = draftRevision;
         DraftSendStatus = "发送中";
         var results = await SendMessageAsync(message, account, settings);
         var acceptedResults = results.Where(result => result.IsAccepted).ToList();
@@ -701,18 +698,23 @@ public partial class LiveRoomTabViewModel : ViewModelBase
 
         if (results.Count == 0)
         {
-            DraftSendStatus = "发送失败：发送服务不可用";
+            SetDraftSendStatus(operationId, "发送失败：发送服务不可用");
             return;
         }
 
-        if (failedResults.Count == 0)
+        if (operationId == draftSendOperationId && revision == draftRevision)
         {
-            InputDraft = "";
+            IsDraftSendRejected = failedResults.Any(result => result.IsExplicitlyRejected);
+
+            if (failedResults.Count == 0)
+            {
+                InputDraft = "";
+            }
         }
 
         if (acceptedResults.Count == 0)
         {
-            DraftSendStatus = $"发送失败：{failedResults[0].ErrorMessage}";
+            SetDraftSendStatus(operationId, $"发送失败：{failedResults[0].ErrorMessage}");
             return;
         }
 
@@ -1893,6 +1895,12 @@ public partial class LiveRoomTabViewModel : ViewModelBase
         }
     }
 
+    private void InvalidateDraftSendFeedback()
+    {
+        draftRevision++;
+        IsDraftSendRejected = false;
+    }
+
     private async Task RunAutoLyricAsync(CancellationTokenSource tokenSource)
     {
         var cancellationToken = tokenSource.Token;
@@ -2001,6 +2009,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
             UserUid = message.Uid.ToString(),
             MedalName = message.MedalName,
             MedalLevel = message.MedalLevel,
+            MedalGuardLevel = message.MedalGuardLevel,
             Content = message.Content
         });
         Trim(DanmuItems, 300);

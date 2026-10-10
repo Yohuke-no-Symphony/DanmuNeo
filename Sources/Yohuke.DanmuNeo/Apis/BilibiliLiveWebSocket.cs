@@ -357,6 +357,9 @@ public class BilibiliLiveWebSocket : BaseApi, ILiveDanmuSocket
         var modernUser = ReadObjectProperty(ReadArrayItem(metadata, 15), "user");
         var modernMedal = ReadObjectProperty(modernUser, "medal") as JObject;
         var legacyMedal = ReadArrayItem(info, 3);
+        var medalGuardLevel = ReadNonNegativeInt(modernMedal is not null
+            ? modernMedal["guard_level"]
+            : ReadArrayItem(legacyMedal, 10));
         var modernUid = ReadInteger(ReadObjectProperty(modernUser, "uid"));
         var modernName = ReadScalarText(ReadObjectProperty(ReadObjectProperty(modernUser, "base"), "name"));
         var content = ReadScalarText(ReadArrayItem(info, 1));
@@ -376,6 +379,7 @@ public class BilibiliLiveWebSocket : BaseApi, ILiveDanmuSocket
             MedalLevel = ReadNonNegativeInt(modernMedal is not null
                 ? modernMedal["level"]
                 : ReadArrayItem(legacyMedal, 0)),
+            MedalGuardLevel = medalGuardLevel is >= 1 and <= 3 ? medalGuardLevel : 0,
             UserLevel = ReadNonNegativeInt(ReadArrayItem(ReadArrayItem(info, 4), 0)),
             IsEmoticon = IsProtocolEmoticon(metadata, content)
         };

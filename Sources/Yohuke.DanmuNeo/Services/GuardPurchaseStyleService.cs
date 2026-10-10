@@ -3,7 +3,7 @@ using Avalonia.Media;
 namespace Yohuke.DanmuNeo.Services;
 
 /// <summary>
-/// 为正式列表和离线预览提供统一的上舰档位颜色。
+/// 为上舰记录、粉丝牌和离线预览提供统一的大航海档位颜色。
 /// </summary>
 public static class GuardPurchaseStyleService
 {

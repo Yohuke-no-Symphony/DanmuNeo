@@ -15,6 +15,8 @@ internal class BlockingDanmuSendService : IDanmuSendService
 
     public Task FirstSendStarted => firstSendStarted.Task;
 
+    public bool IsAccepted { get; set; } = true;
+
     public void ReleaseFirstSend()
     {
         firstSendRelease.TrySetResult();
@@ -27,6 +29,8 @@ internal class BlockingDanmuSendService : IDanmuSendService
         AppSettings settings,
         CancellationToken cancellationToken = default)
     {
+        var isAccepted = IsAccepted;
+
         if (Interlocked.Increment(ref sendCount) == 1)
         {
             firstSendStarted.TrySetResult();
@@ -38,13 +42,15 @@ internal class BlockingDanmuSendService : IDanmuSendService
             UserName = roomId,
             Content = message,
             IsLocalRecord = true,
-            IsSendAccepted = true,
-            Status = "接口已接受"
+            IsSendAccepted = isAccepted,
+            Status = isAccepted ? "接口已接受" : "测试接口拒绝"
         };
         RecordCreated?.Invoke(this, record);
         return new()
         {
-            IsAccepted = true,
+            IsAccepted = isAccepted,
+            ApiCode = isAccepted ? 0 : -1,
+            ErrorMessage = isAccepted ? "" : "测试接口拒绝",
             RequestedAt = DateTimeOffset.UtcNow,
             Record = record
         };

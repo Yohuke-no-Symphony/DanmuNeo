@@ -5,6 +5,8 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Threading;
+using Avalonia.Media;
+using Avalonia.Styling;
 using Avalonia.VisualTree;
 using Yohuke.DanmuNeo.Models.Workspace;
 using Yohuke.DanmuNeo.Views.Components;
@@ -16,6 +18,70 @@ namespace Yohuke.DanmuNeo.Tests;
 /// </summary>
 public class LiveRoomFeedViewTests
 {
+    /// <summary>
+    /// 正式列表在两种主题与布局下区分普通粉丝牌和三个大航海档位的边缘。
+    /// </summary>
+    [AvaloniaTheory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public void MedalEdgesDistinguishAllGuardTiers(bool compact, bool dark)
+    {
+        using var context = new LiveRoomFeedViewTestContext();
+        context.ViewModel.IsCompactDanmuDisplay = compact;
+        context.Room.DanmuItems.Clear();
+
+        foreach (var level in new[] { 0, 3, 2, 1 })
+        {
+            context.Room.AddDanmu(new()
+            {
+                RoomId = "100", Uid = 42 + level, UserName = $"档位{level}用户", Content = "边缘颜色样本",
+                MedalName = "星光", MedalLevel = 25, MedalGuardLevel = level
+            });
+        }
+
+        var view = new LiveRoomWorkspaceView { DataContext = context.Room };
+        var window = CreateWindow(context, view);
+        window.RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light;
+
+        try
+        {
+            ShowWindow(window);
+            var badges = view.GetVisualDescendants().OfType<Border>()
+                .Where(control => control.Classes.Contains("danmuMedalBadge") && control.IsEffectivelyVisible).ToList();
+            Assert.Equal(4, badges.Count);
+            Assert.Equal(new[] { 0, 1, 2, 3 }, badges
+                .Select(control => Assert.IsType<DanmuFeedItem>(control.DataContext).MedalGuardLevel).Order());
+
+            foreach (var badge in badges)
+            {
+                var item = Assert.IsType<DanmuFeedItem>(badge.DataContext);
+                Assert.Equal(item.MedalBorderColor, Assert.IsAssignableFrom<ISolidColorBrush>(badge.BorderBrush).Color);
+
+                if (item.MedalGuardLevel != 0)
+                {
+                    Assert.True(badge.BorderThickness.Left > 0);
+                }
+            }
+
+            var directory = Environment.GetEnvironmentVariable("YOHUKE_FEED_QA_OUTPUT");
+
+            if (!string.IsNullOrWhiteSpace(directory))
+            {
+                Directory.CreateDirectory(directory);
+                using var frame = window.CaptureRenderedFrame();
+                Assert.NotNull(frame);
+                frame.Save(Path.Combine(directory,
+                    $"medal-{(compact ? "compact" : "regular")}-{(dark ? "dark" : "light")}.png"));
+            }
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
     /// <summary>
     /// 普通和紧凑模式均展示粉丝牌等级和上舰档位，无牌用户不占用徽章位置。
     /// </summary>
@@ -35,8 +101,12 @@ public class LiveRoomFeedViewTests
             var badges = view.GetVisualDescendants().OfType<Border>()
                 .Where(control => control.Classes.Contains("danmuMedalBadge")).ToList();
             var badge = Assert.Single(badges, control => control.IsVisible);
-            var medal = Assert.IsType<TextBlock>(badge.Child);
-            Assert.Equal("夜更 25", medal.Text);
+            var medal = badge.GetVisualDescendants().OfType<TextBlock>()
+                .Single(control => control.Classes.Contains("danmuMedalName"));
+            var level = badge.GetVisualDescendants().OfType<TextBlock>()
+                .Single(control => control.Classes.Contains("danmuMedalLevel"));
+            Assert.Equal("夜更", medal.Text);
+            Assert.Equal("25", level.Text);
             Assert.True(medal.IsEffectivelyVisible);
             Assert.True(medal.Bounds.Width > 0 && medal.Bounds.Height > 0);
             Assert.Single(badges, control => !control.IsVisible);

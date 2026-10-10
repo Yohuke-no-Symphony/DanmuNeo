@@ -1,5 +1,7 @@
 using System.Globalization;
+using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Yohuke.DanmuNeo.Services;
 
 namespace Yohuke.DanmuNeo.Models.Workspace;
 
@@ -31,6 +33,23 @@ public class DanmuFeedItem : ObservableObject
     public int MedalLevel { get; set; }
 
     /// <summary>
+    /// 佩戴粉丝牌所属主播的大航海档位；0 为普通，1 为总督，2 为提督，3 为舰长。
+    /// </summary>
+    public int MedalGuardLevel { get; set; }
+
+    /// <summary>
+    /// 有效大航海粉丝牌的边缘色；普通、未知档位和无牌用户保持透明。
+    /// </summary>
+    public Color MedalBorderColor => HasMedal && MedalGuardLevel is >= 1 and <= 3
+        ? GuardPurchaseStyleService.GetBorderColor(MedalGuardLevel)
+        : Colors.Transparent;
+
+    /// <summary>
+    /// 粉丝牌边缘画刷。
+    /// </summary>
+    public IBrush MedalBorderBrush => new SolidColorBrush(MedalBorderColor);
+
+    /// <summary>
     /// 是否有可展示的粉丝牌。
     /// </summary>
     public bool HasMedal => !string.IsNullOrWhiteSpace(MedalName) && MedalLevel > 0;
@@ -41,9 +60,9 @@ public class DanmuFeedItem : ObservableObject
     public string MedalText => HasMedal ? $"{MedalName} {MedalLevel}" : "";
 
     /// <summary>
-    /// 名称最多展示三个文字元素的粉丝牌及等级。
+    /// 名称最多展示三个完整文字元素的粉丝牌名称。
     /// </summary>
-    public string MedalDisplayText
+    public string MedalDisplayName
     {
         get
         {
@@ -53,11 +72,14 @@ public class DanmuFeedItem : ObservableObject
             }
 
             var name = new StringInfo(MedalName);
-            var displayName =
-                name.SubstringByTextElements(0, Math.Min(MAX_MEDAL_NAME_LENGTH, name.LengthInTextElements));
-            return $"{displayName} {MedalLevel}";
+            return name.SubstringByTextElements(0, Math.Min(MAX_MEDAL_NAME_LENGTH, name.LengthInTextElements));
         }
     }
+
+    /// <summary>
+    /// 短展示名称与等级。
+    /// </summary>
+    public string MedalDisplayText => HasMedal ? $"{MedalDisplayName} {MedalLevel}" : "";
 
     /// <summary>
     /// 发送时间。

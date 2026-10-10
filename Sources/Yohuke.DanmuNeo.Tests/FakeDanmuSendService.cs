@@ -19,6 +19,8 @@ public class FakeDanmuSendService : IDanmuSendService
 
     public string ErrorMessage { get; set; } = "测试发送失败";
 
+    public int? FailureApiCode { get; set; } = -1;
+
     public Queue<bool> AcceptanceResults { get; } = [];
 
     public List<string>? MessageParts { get; set; }
@@ -47,6 +49,7 @@ public class FakeDanmuSendService : IDanmuSendService
         return Task.FromResult(new DanmuSendResult
         {
             IsAccepted = isAccepted,
+            ApiCode = isAccepted ? 0 : FailureApiCode,
             ErrorMessage = isAccepted ? "" : ErrorMessage,
             RequestedAt = DateTimeOffset.UtcNow,
             Record = record

@@ -157,10 +157,19 @@
                                             <DockPanel Classes="danmuFeedIdentity"
                                                        VerticalAlignment="Center">
                                                 <Border Classes="danmuMedalBadge"
+                                                        BorderBrush="{Binding MedalBorderBrush}"
                                                         IsVisible="{Binding HasMedal}"
                                                         ToolTip.Tip="{Binding MedalText}">
-                                                    <TextBlock Text="{Binding MedalDisplayText}"
-                                                               Classes="danmuMedalText" />
+                                                    <Grid Classes="danmuMedalLayout"
+                                                          ColumnDefinitions="*,Auto">
+                                                        <TextBlock Text="{Binding MedalDisplayName}"
+                                                                   Classes="danmuMedalText danmuMedalName"
+                                                                   TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock Grid.Column="1"
+                                                                   Text="{Binding MedalLevel}"
+                                                                   Classes="danmuMedalText danmuMedalLevel"
+                                                                   TextTrimming="CharacterEllipsis" />
+                                                    </Grid>
                                                 </Border>
                                                 <TextBlock Text="{Binding UserName}"
                                                            Classes="danmuFeedUser"
@@ -250,6 +259,19 @@
                                                FormatString="0" />
                             </StackPanel>
                         </Grid>
+
+                        <StackPanel Spacing="5">
+                            <TextBlock Text="粉丝牌大航海身份"
+                                       Classes="muted" />
+                            <ComboBox ItemsSource="{Binding MedalGuardPresets}"
+                                      SelectedItem="{Binding SelectedMedalGuardPreset}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate DataType="workspace:GuardStylePreset">
+                                        <TextBlock Text="{Binding DisplayName}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </StackPanel>
 
                         <Grid ColumnDefinitions="*,*"
                               ColumnSpacing="8">

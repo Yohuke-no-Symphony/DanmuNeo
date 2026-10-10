@@ -38,7 +38,7 @@ public class DanmuStylePreviewViewModelTests
         var guardPurchases = viewModel.SuperChats.Where(item => item.Kind == LivePaidEventKind.GuardPurchase).ToArray();
         Assert.Equal(6, superChats.Length);
         Assert.Equal(3, guardPurchases.Length);
-        Assert.Equal(4, viewModel.DanmuItems.Count);
+        Assert.Equal(7, viewModel.DanmuItems.Count);
         Assert.Equal("300 电池", superChats[0].BadgeText);
         Assert.Equal(Color.Parse("#3171D2"), superChats[0].BorderColor);
         Assert.Equal("20000 电池", superChats[^1].BadgeText);
@@ -52,6 +52,30 @@ public class DanmuStylePreviewViewModelTests
         });
         Assert.Contains(viewModel.DanmuItems, item => item.HasMedal && item.MedalLevel > 0);
         Assert.Contains(viewModel.DanmuItems, item => !item.HasMedal);
+        Assert.Equal(new[] { 0, 1, 2, 3 }, viewModel.DanmuItems.Where(item => item.HasMedal)
+            .Select(item => item.MedalGuardLevel).Distinct().Order());
+    }
+
+    /// <summary>
+    /// 粉丝牌身份可以独立于上舰记录选择，并用于单条和批量弹幕。
+    /// </summary>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void EditableMedalGuardTierAppliesToSingleAndBatchDanmu(int level)
+    {
+        var viewModel = new DanmuStylePreviewViewModel();
+        viewModel.SelectedMedalGuardPreset = viewModel.MedalGuardPresets.Single(preset => preset.GuardLevel == level);
+        viewModel.SelectedGuardPreset = viewModel.GuardPresets.First(preset => preset.GuardLevel != level);
+        viewModel.ClearSamples();
+
+        viewModel.AddDanmu();
+        viewModel.AddDanmuBatch();
+
+        Assert.All(viewModel.DanmuItems, item => Assert.Equal(level, item.MedalGuardLevel));
+        Assert.Equal(level, viewModel.SelectedMedalGuardPreset.GuardLevel);
     }
 
     /// <summary>

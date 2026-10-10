@@ -18,6 +18,7 @@ internal sealed class DanmuStylePreviewViewModel : ViewModelBase
     private bool isCompactDanmuDisplay;
     private SuperChatStylePreset? selectedSuperChatPreset;
     private GuardStylePreset? selectedGuardPreset;
+    private GuardStylePreset? selectedMedalGuardPreset;
 
     /// <summary>
     /// 创建六档 SC、三档上舰和不同粉丝牌场景的离线默认样本。
@@ -51,8 +52,10 @@ internal sealed class DanmuStylePreviewViewModel : ViewModelBase
                 DisplayName = "舰长"
             }
         ];
+        MedalGuardPresets = [new() { GuardLevel = 0, DisplayName = "普通" }, .. GuardPresets];
         SelectedSuperChatPreset = SuperChatPresets[0];
         SelectedGuardPreset = GuardPresets[^1];
+        SelectedMedalGuardPreset = MedalGuardPresets[0];
         ResetSamples();
     }
 
@@ -66,6 +69,20 @@ internal sealed class DanmuStylePreviewViewModel : ViewModelBase
     /// 可在离线预览中选择的大航海档位。
     /// </summary>
     public IReadOnlyList<GuardStylePreset> GuardPresets { get; }
+
+    /// <summary>
+    /// 普通粉丝牌和三个大航海档位的预览选项。
+    /// </summary>
+    public IReadOnlyList<GuardStylePreset> MedalGuardPresets { get; }
+
+    /// <summary>
+    /// 新增弹幕的粉丝牌大航海身份。
+    /// </summary>
+    public GuardStylePreset? SelectedMedalGuardPreset
+    {
+        get => selectedMedalGuardPreset;
+        set => SetProperty(ref selectedMedalGuardPreset, value);
+    }
 
     public bool IsCompactDanmuDisplay
     {
@@ -237,7 +254,7 @@ internal sealed class DanmuStylePreviewViewModel : ViewModelBase
             UserName = "Emoji 用户 🎉",
             UserUid = "10003",
             MedalName = "吸夕猫",
-            MedalLevel = 60,
+            MedalLevel = 8,
             Content = "中日文、English、数字 12345 与 Emoji ✨🚀 混排测试。"
         });
         DanmuItems.Add(new()
@@ -248,6 +265,20 @@ internal sealed class DanmuStylePreviewViewModel : ViewModelBase
             Content = "带有状态文本的弹幕。",
             Status = "已转发"
         });
+
+        foreach (var preset in GuardPresets)
+        {
+            DanmuItems.Add(new()
+            {
+                Time = now.AddSeconds(-32 - preset.GuardLevel),
+                UserName = $"{preset.DisplayName}粉丝牌用户",
+                UserUid = $"medal-guard-{preset.GuardLevel}",
+                MedalName = "星光",
+                MedalLevel = 25,
+                MedalGuardLevel = preset.GuardLevel,
+                Content = $"{preset.DisplayName}粉丝牌边缘色测试。"
+            });
+        }
     }
 
     private DanmuFeedItem CreateDanmuItem(DateTimeOffset time, string contentText)
@@ -260,7 +291,8 @@ internal sealed class DanmuStylePreviewViewModel : ViewModelBase
             Content = contentText,
             Status = DanmuStatus.Trim(),
             MedalName = MedalName.Trim(),
-            MedalLevel = MedalLevel
+            MedalLevel = MedalLevel,
+            MedalGuardLevel = SelectedMedalGuardPreset?.GuardLevel ?? 0
         };
     }
 

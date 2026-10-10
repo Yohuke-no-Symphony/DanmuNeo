@@ -13,6 +13,16 @@ public class DanmuSendResult
     public bool IsAccepted { get; init; }
 
     /// <summary>
+    /// 已收到的接口业务状态码；本地或传输失败时为空。
+    /// </summary>
+    public int? ApiCode { get; init; }
+
+    /// <summary>
+    /// 接口是否明确拒绝本次发送。
+    /// </summary>
+    public bool IsExplicitlyRejected => !IsAccepted && ApiCode is not null and not 0;
+
+    /// <summary>
     /// 接口返回的错误信息。
     /// </summary>
     public string ErrorMessage { get; init; } = "";
