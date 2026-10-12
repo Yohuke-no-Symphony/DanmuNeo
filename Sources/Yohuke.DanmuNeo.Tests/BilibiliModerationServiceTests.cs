@@ -53,23 +53,30 @@ public class BilibiliModerationServiceTests
     }
 
     /// <summary>
-    /// 写接口使用正确房间、目标、Cookie 和 CSRF。
+    /// 写接口使用正确房间、目标、原始弹幕、Cookie 和 CSRF。
     /// </summary>
-    [Fact]
-    public async Task MuteSendsAccountCookieAndCsrf()
+    [Theory]
+    [InlineData("")]
+    [InlineData("禁言内容 & + = ? % 中文🙂")]
+    public async Task MuteSendsAccountCookieAndCsrf(string message)
     {
         using var handler = new ModerationHttpHandler();
         handler.Responses.Enqueue("""{"code":0,"data":{}}""");
         using var client = new HttpClient(handler);
         var service = new BilibiliModerationService(client);
 
-        await service.MuteUserAsync(100, 30, "SESSDATA=test-session;bili_jct=test-csrf;DedeUserID=10");
+        await service.MuteUserAsync(100, 30, "SESSDATA=test-session;bili_jct=test-csrf;DedeUserID=10", message);
 
-        Assert.EndsWith("/AddSilentUser", handler.Requests.Single().AbsolutePath);
-        Assert.Contains("room_id=100", handler.Form);
-        Assert.Contains("tuid=30", handler.Form);
-        Assert.Contains("csrf=test-csrf", handler.Form);
-        Assert.Contains("csrf_token=test-csrf", handler.Form);
+        Assert.Equal("https://api.live.bilibili.com/xlive/web-ucenter/v1/banned/AddSilentUser",
+            handler.Requests.Single().AbsoluteUri);
+        Assert.Equal(HttpMethod.Post, handler.Method);
+        Assert.Equal("application/x-www-form-urlencoded", handler.ContentType);
+        Assert.Equal("100", handler.FormParameters["room_id"]);
+        Assert.Equal("30", handler.FormParameters["tuid"]);
+        Assert.Equal("web", handler.FormParameters["mobile_app"]);
+        Assert.Equal(message, handler.FormParameters["msg"]);
+        Assert.Equal("test-csrf", handler.FormParameters["csrf"]);
+        Assert.Equal("test-csrf", handler.FormParameters["csrf_token"]);
         Assert.Contains("SESSDATA=test-session", handler.Cookie);
     }
 
@@ -85,23 +92,48 @@ public class BilibiliModerationServiceTests
         using var client = new HttpClient(handler);
         var service = new BilibiliModerationService(client);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.MuteUserAsync(100, 30, cookie));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.MuteUserAsync(100, 30, cookie, "目标弹幕"));
         Assert.Empty(handler.Requests);
     }
 
     /// <summary>
-    /// 禁言失败保留服务端错误。
+    /// 操作响应的空对象、空数组和空值都不会影响成功状态。
     /// </summary>
-    [Fact]
-    public async Task MutePreservesApiError()
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("[]")]
+    [InlineData("null")]
+    public async Task MuteAcceptsEmptyOperationData(string data)
     {
         using var handler = new ModerationHttpHandler();
-        handler.Responses.Enqueue("""{"code":-1,"message":"没有权限"}""");
+        handler.Responses.Enqueue($$"""{"code":0,"message":"","data":{{data}}}""");
+        using var client = new HttpClient(handler);
+        var service = new BilibiliModerationService(client);
+
+        await service.MuteUserAsync(100, 30, "SESSDATA=test;bili_jct=csrf", "目标弹幕");
+
+        Assert.Single(handler.Requests);
+    }
+
+    /// <summary>
+    /// 禁言失败保留服务端错误，优先使用非空的 message，再使用 msg。
+    /// </summary>
+    [Theory]
+    [InlineData("{\"code\":-1,\"message\":\"没有权限\"}", "没有权限")]
+    [InlineData("{\"code\":-1,\"message\":\"没有权限\",\"msg\":\"备用错误\"}", "没有权限")]
+    [InlineData("{\"code\":-1,\"message\":\"\",\"msg\":\"没有权限\",\"data\":[]}", "没有权限")]
+    [InlineData("{\"code\":-1,\"message\":\" \",\"msg\":\"没有权限\"}", "没有权限")]
+    [InlineData("{\"code\":-1,\"message\":null,\"msg\":\"没有权限\"}", "没有权限")]
+    [InlineData("{\"code\":-1,\"message\":\"\",\"msg\":\"\"}", "禁言失败")]
+    public async Task MutePreservesApiError(string response, string expectedMessage)
+    {
+        using var handler = new ModerationHttpHandler();
+        handler.Responses.Enqueue(response);
         using var client = new HttpClient(handler);
         var service = new BilibiliModerationService(client);
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            service.MuteUserAsync(100, 30, "SESSDATA=test;bili_jct=csrf"));
-        Assert.Equal("没有权限", exception.Message);
+            service.MuteUserAsync(100, 30, "SESSDATA=test;bili_jct=csrf", "目标弹幕"));
+        Assert.Equal(expectedMessage, exception.Message);
     }
 }

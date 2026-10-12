@@ -14,14 +14,15 @@ public sealed class RoomModerationTestContext : IDisposable
     /// <summary>
     /// 创建房间、登录账号和一条远端弹幕。
     /// </summary>
-    public RoomModerationTestContext(ILiveDanmuSocketFactory? socketFactory = null)
+    public RoomModerationTestContext(ILiveDanmuSocketFactory? socketFactory = null,
+        IBilibiliModerationService? moderationService = null)
     {
         Room = new(new() { RoomId = "100", OwnerUid = "999", RoomName = "测试直播间" });
         Room.Configure(
             _ => Account, (_, _) => Account, () => new(), () => new(), () => [], _ => [],
             new FakeDanmuSendService(), new FakeRoomAvatarService(), () => Task.CompletedTask,
             liveDanmuSocketFactory: socketFactory,
-            moderationService: Service);
+            moderationService: moderationService ?? Service);
         Room.IsSelected = true;
         Room.AddDanmu(new() { RoomId = "100", Uid = 30, UserName = "目标用户", Content = "远端弹幕" });
         Item = Room.DanmuItems.Single();

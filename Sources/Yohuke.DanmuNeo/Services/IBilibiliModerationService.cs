@@ -23,6 +23,7 @@ public interface IBilibiliModerationService
         long roomId,
         long userUid,
         string cookie,
+        string message,
         TimeSpan? timeout = null,
         CancellationToken cancellationToken = default);
 }

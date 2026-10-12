@@ -36,7 +36,7 @@ public class BilibiliModerationService : IBilibiliModerationService
 
         if (userResponse.Code != 0)
         {
-            throw new InvalidOperationException(userResponse.Message ?? userResponse.Msg ?? "禁言权限查询失败");
+            throw new InvalidOperationException(GetErrorMessage(userResponse.Message, userResponse.Msg, "禁言权限查询失败"));
         }
 
         var userInfo = userResponse.Data?.Info;
@@ -50,7 +50,7 @@ public class BilibiliModerationService : IBilibiliModerationService
 
         if (roomResponse.Code != 0)
         {
-            throw new InvalidOperationException(roomResponse.Message ?? roomResponse.Msg ?? "直播间资料查询失败");
+            throw new InvalidOperationException(GetErrorMessage(roomResponse.Message, roomResponse.Msg, "直播间资料查询失败"));
         }
 
         var roomInfo = roomResponse.Data?.RoomInfo;
@@ -74,6 +74,7 @@ public class BilibiliModerationService : IBilibiliModerationService
         long roomId,
         long userUid,
         string cookie,
+        string message,
         TimeSpan? timeout = null,
         CancellationToken cancellationToken = default)
     {
@@ -88,11 +89,22 @@ public class BilibiliModerationService : IBilibiliModerationService
 
         using var api = new BilibiliApi(cookie, httpClient: httpClient);
         var response =
-            await api.AddSilentUserAsync(roomId, userUid, timeout: timeout, cancellationToken: cancellationToken);
+            await api.AddSilentUserAsync(roomId, userUid, message, timeout: timeout,
+                cancellationToken: cancellationToken);
 
         if (response.Code != 0)
         {
-            throw new InvalidOperationException(response.Message ?? response.Msg ?? "禁言失败");
+            throw new InvalidOperationException(GetErrorMessage(response.Message, response.Msg, "禁言失败"));
         }
+    }
+
+    private static string GetErrorMessage(string? message, string? msg, string fallback)
+    {
+        if (!string.IsNullOrWhiteSpace(message))
+        {
+            return message;
+        }
+
+        return !string.IsNullOrWhiteSpace(msg) ? msg : fallback;
     }
 }

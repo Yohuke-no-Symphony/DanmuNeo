@@ -17,7 +17,7 @@ public class FakeBilibiliModerationService : IBilibiliModerationService
     /// <summary>
     /// 禁言请求记录。
     /// </summary>
-    public List<(long RoomId, long UserUid, string Cookie)> MuteRequests { get; } = [];
+    public List<(long RoomId, long UserUid, string Cookie, string Message)> MuteRequests { get; } = [];
 
     /// <summary>
     /// 权限请求令牌。
@@ -50,11 +50,11 @@ public class FakeBilibiliModerationService : IBilibiliModerationService
     }
 
     /// <inheritdoc/>
-    public Task MuteUserAsync(long roomId, long userUid, string cookie, TimeSpan? timeout = null,
+    public Task MuteUserAsync(long roomId, long userUid, string cookie, string message, TimeSpan? timeout = null,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        MuteRequests.Add((roomId, userUid, cookie));
+        MuteRequests.Add((roomId, userUid, cookie, message));
         return MuteException is null ? Task.CompletedTask : Task.FromException(MuteException);
     }
 }

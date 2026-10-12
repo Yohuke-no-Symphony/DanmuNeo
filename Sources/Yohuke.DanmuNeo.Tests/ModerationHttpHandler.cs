@@ -24,6 +24,24 @@ public class ModerationHttpHandler : HttpMessageHandler
     public string Form { get; private set; } = "";
 
     /// <summary>
+    /// 最后请求的解码表单字段。
+    /// </summary>
+    public IReadOnlyDictionary<string, string> FormParameters => Form
+        .Split('&', StringSplitOptions.RemoveEmptyEntries)
+        .Select(parameter => parameter.Split('=', 2))
+        .ToDictionary(pair => WebUtility.UrlDecode(pair[0]), pair => WebUtility.UrlDecode(pair[1]));
+
+    /// <summary>
+    /// 最后请求的 HTTP 方法。
+    /// </summary>
+    public HttpMethod? Method { get; private set; }
+
+    /// <summary>
+    /// 最后请求的内容类型。
+    /// </summary>
+    public string? ContentType { get; private set; }
+
+    /// <summary>
     /// 最后请求的 Cookie。
     /// </summary>
     public string Cookie { get; private set; } = "";
@@ -33,6 +51,8 @@ public class ModerationHttpHandler : HttpMessageHandler
         CancellationToken cancellationToken)
     {
         Requests.Add(request.RequestUri!);
+        Method = request.Method;
+        ContentType = request.Content?.Headers.ContentType?.MediaType;
         Cookie = request.Headers.TryGetValues("Cookie", out var values) ? string.Join(";", values) : "";
         Form = request.Content is null ? "" : await request.Content.ReadAsStringAsync(cancellationToken);
         return new(HttpStatusCode.OK) { Content = new StringContent(Responses.Dequeue()) };

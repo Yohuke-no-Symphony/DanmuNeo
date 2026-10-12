@@ -1,4 +1,5 @@
 using System.Net;
+using Newtonsoft.Json.Linq;
 using Yohuke.DanmuNeo.Apis.Models.Bilibili;
 using Yohuke.DanmuNeo.Apis.Models.Common;
 
@@ -280,20 +281,22 @@ public class BilibiliApi : BaseApi
     /// <summary>
     /// 禁言用户。
     /// </summary>
-    public Task<ApiResponse<BilibiliOperationData>> AddSilentUserAsync(
+    public Task<ApiResponse<JToken>> AddSilentUserAsync(
         long roomId,
         long uid,
+        string message,
         int number = 0,
         TimeSpan? timeout = null,
         CancellationToken cancellationToken = default)
     {
-        return PostFormJsonAsync<ApiResponse<BilibiliOperationData>>(
+        return PostFormJsonAsync<ApiResponse<JToken>>(
             "https://api.live.bilibili.com/xlive/web-ucenter/v1/banned/AddSilentUser",
             new Dictionary<string, object?>
             {
                 ["room_id"] = roomId,
                 ["tuid"] = uid,
                 ["mobile_app"] = "web",
+                ["msg"] = message,
                 ["csrf_token"] = GetCsrf(number),
                 ["csrf"] = GetCsrf(number)
             },

@@ -119,6 +119,7 @@ public partial class LiveRoomTabViewModel
         var accountId = moderationAccountId;
         var cookie = moderationCookie;
         var userUid = long.Parse(item.UserUid);
+        var message = item.Content;
         InvalidateModerationPermission();
         var tokenSource = new CancellationTokenSource();
         moderationTokenSource = tokenSource;
@@ -142,7 +143,7 @@ public partial class LiveRoomTabViewModel
                 return;
             }
 
-            await moderationService.MuteUserAsync(permission.RoomId, userUid, cookie, GetModerationTimeout(),
+            await moderationService.MuteUserAsync(permission.RoomId, userUid, cookie, message, GetModerationTimeout(),
                 tokenSource.Token);
 
             if (IsCurrentModerationOperation(tokenSource, roomId, accountId, cookie))

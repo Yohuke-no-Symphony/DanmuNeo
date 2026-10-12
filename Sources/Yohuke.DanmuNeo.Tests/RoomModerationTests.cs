@@ -1,4 +1,5 @@
 using Yohuke.DanmuNeo.Models.Workspace;
+using Yohuke.DanmuNeo.Services;
 
 namespace Yohuke.DanmuNeo.Tests;
 
@@ -8,7 +9,7 @@ namespace Yohuke.DanmuNeo.Tests;
 public class RoomModerationTests
 {
     /// <summary>
-    /// 菜单授权后执行命令仍会再次查询，并用同一账号执行禁言。
+    /// 菜单授权后执行命令仍会再次查询，并用同一账号和目标弹幕执行禁言。
     /// </summary>
     [Fact]
     public async Task MuteRechecksPermissionAndUsesCapturedAccount()
@@ -19,7 +20,39 @@ public class RoomModerationTests
         await context.Room.MuteDanmuCommand.ExecuteAsync(context.Item);
 
         Assert.Equal(2, context.Service.PermissionRequestCount);
-        Assert.Equal((100L, 30L, context.Account.Cookie), Assert.Single(context.Service.MuteRequests));
+        Assert.Equal((100L, 30L, context.Account.Cookie, context.Item.Content),
+            Assert.Single(context.Service.MuteRequests));
+        Assert.Contains("已禁言", context.Room.ModerationStatus);
+        Assert.False(context.Room.IsMutingDanmu);
+    }
+
+    /// <summary>
+    /// 完整命令链路将所选弹幕作为禁言依据，并正确处理空数组响应。
+    /// </summary>
+    [Fact]
+    public async Task MutePostsSelectedMessageAndAcceptsEmptyArrayResponse()
+    {
+        using var handler = new ModerationHttpHandler();
+
+        for (var index = 0; index < 2; index++)
+        {
+            handler.Responses.Enqueue("""{"code":0,"data":{"info":{"uid":10},"badge":{"is_room_admin":true}}}""");
+            handler.Responses.Enqueue("""{"code":0,"data":{"room_info":{"room_id":100,"uid":20}}}""");
+        }
+
+        handler.Responses.Enqueue("""{"code":0,"message":"","data":[]}""");
+        using var client = new HttpClient(handler);
+        using var context = new RoomModerationTestContext(moderationService: new BilibiliModerationService(client));
+        context.Item.Content = "所选弹幕 & + = ? % 中文🙂";
+
+        Assert.True(await context.Room.RefreshModerationPermissionAsync(context.Item));
+        await context.Room.MuteDanmuCommand.ExecuteAsync(context.Item);
+
+        Assert.Equal(5, handler.Requests.Count);
+        Assert.Equal("100", handler.FormParameters["room_id"]);
+        Assert.Equal("30", handler.FormParameters["tuid"]);
+        Assert.Equal(context.Item.Content, handler.FormParameters["msg"]);
+        Assert.Contains("SESSDATA=test-session", handler.Cookie);
         Assert.Contains("已禁言", context.Room.ModerationStatus);
         Assert.False(context.Room.IsMutingDanmu);
     }

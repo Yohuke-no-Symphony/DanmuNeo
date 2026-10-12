@@ -217,7 +217,7 @@ public class LiveRoomFeedViewTests
             await execution;
 
             Assert.Equal(2, context.ModerationService.PermissionRequestCount);
-            Assert.Equal((100L, 30L, context.ViewModel.State.Accounts[0].Cookie),
+            Assert.Equal((100L, 30L, context.ViewModel.State.Accounts[0].Cookie, item.Content),
                 Assert.Single(context.ModerationService.MuteRequests));
         }
         finally
