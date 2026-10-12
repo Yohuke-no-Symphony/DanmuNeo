@@ -26,6 +26,7 @@ public partial class LiveRoomWorkspaceView : UserControl
     private NativeWebView? liveWebView;
     private DispatcherTimer? lyricSeekRepeatTimer;
     private Key? lyricSeekRepeatKey;
+    private Key? lyricNextShortcutKey;
     private double lyricSeekRepeatOffsetSeconds;
     private bool isLyricSeekRepeating;
     private bool isLyricAutoFollowEnabled = true;
@@ -41,6 +42,7 @@ public partial class LiveRoomWorkspaceView : UserControl
         AttachedToVisualTree += LiveRoomWorkspaceView_OnAttachedToVisualTree;
         AddHandler(KeyDownEvent, LiveRoomWorkspaceView_OnPreviewKeyDown, RoutingStrategies.Tunnel);
         AddHandler(KeyUpEvent, LiveRoomWorkspaceView_OnPreviewKeyUp, RoutingStrategies.Tunnel);
+        LostFocus += (_, _) => lyricNextShortcutKey = null;
         LyricListBox.AddHandler(
             PointerPressedEvent,
             LyricListBox_OnPointerPressed,
@@ -61,6 +63,7 @@ public partial class LiveRoomWorkspaceView : UserControl
     /// <inheritdoc/>
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
+        lyricNextShortcutKey = null;
         currentRoom?.StopLivePlayer();
         DetachDanmuItems();
         base.OnDetachedFromVisualTree(e);
@@ -335,7 +338,26 @@ public partial class LiveRoomWorkspaceView : UserControl
         }
     }
 
-    private void LyricLine_OnDoubleTapped(object? sender, TappedEventArgs e)
+    private void NextLyricButton_OnClick(object? sender, RoutedEventArgs e)
+    {
+        isLyricAutoFollowEnabled = true;
+    }
+
+    /// <summary>
+    /// 从快捷键跳到下一句并发送，同时恢复歌词列表跟随。
+    /// </summary>
+    public void SeekNextLyricFromShortcut()
+    {
+        if (currentRoom is not { } room || !room.SeekNextLyricCommand.CanExecute(null))
+        {
+            return;
+        }
+
+        isLyricAutoFollowEnabled = true;
+        room.SeekNextLyricCommand.Execute(null);
+    }
+
+    private async void LyricLine_OnDoubleTapped(object? sender, TappedEventArgs e)
     {
         if ((sender as Control)?.DataContext is not LyricLineState line ||
             DataContext is not LiveRoomTabViewModel room)
@@ -344,8 +366,8 @@ public partial class LiveRoomWorkspaceView : UserControl
         }
 
         isLyricAutoFollowEnabled = true;
-        room.SeekLyricLineStart(line);
         e.Handled = true;
+        await room.SeekAndSendLyricLineAsync(line);
     }
 
     private void LyricListBox_OnPointerPressed(object? sender, PointerPressedEventArgs e)
@@ -427,6 +449,7 @@ public partial class LiveRoomWorkspaceView : UserControl
     private void AttachDanmuItems(LiveRoomTabViewModel? room)
     {
         DetachDanmuItems();
+        lyricNextShortcutKey = null;
         currentRoom = room;
         isLyricAutoFollowEnabled = true;
 
@@ -529,6 +552,11 @@ public partial class LiveRoomWorkspaceView : UserControl
 
     private void LiveRoomWorkspaceView_OnPreviewKeyUp(object? sender, KeyEventArgs e)
     {
+        if (lyricNextShortcutKey == e.Key)
+        {
+            lyricNextShortcutKey = null;
+        }
+
         if (lyricSeekRepeatKey == e.Key)
         {
             StopLyricSeekRepeat();
@@ -576,6 +604,14 @@ public partial class LiveRoomWorkspaceView : UserControl
                 return true;
             case ShortcutActionKeys.LYRIC_SEEK_FORWARD:
                 StartLyricSeekShortcut(key, 0.5);
+                return true;
+            case ShortcutActionKeys.LYRIC_SEEK_NEXT:
+                if (lyricNextShortcutKey != key)
+                {
+                    lyricNextShortcutKey = key;
+                    SeekNextLyricFromShortcut();
+                }
+
                 return true;
             default:
                 return false;

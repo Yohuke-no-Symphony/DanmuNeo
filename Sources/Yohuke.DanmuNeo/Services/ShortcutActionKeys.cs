@@ -64,4 +64,9 @@ public static class ShortcutActionKeys
     /// 歌词快进。
     /// </summary>
     public const string LYRIC_SEEK_FORWARD = "lyric.seekForward";
+
+    /// <summary>
+    /// 跳到下一句歌词并发送。
+    /// </summary>
+    public const string LYRIC_SEEK_NEXT = "lyric.seekNext";
 }

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using Avalonia.Media;
@@ -57,6 +58,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
     private DateTimeOffset lyricPlaybackStartedAt;
     private double lyricPlaybackStartPositionSeconds;
     private int lastAutoEnteredLyricIndex = -1;
+    private readonly ConcurrentDictionary<LyricLineState, byte> lyricLinesSending = new();
     private long draftSendOperationId;
     private long draftRevision;
     private readonly DanmuForwardService forwardService = new();
@@ -796,6 +798,48 @@ public partial class LiveRoomTabViewModel : ViewModelBase
     }
 
     /// <summary>
+    /// 跳转到下一句歌词并发送，保留当前播放或暂停状态。
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanSeekNextLyric))]
+    public async Task SeekNextLyricAsync()
+    {
+        if (!CanSeekNextLyric())
+        {
+            return;
+        }
+
+        await SeekAndSendLyricLineAsync(Lyrics[ActiveLyricIndex + 1]);
+    }
+
+    private bool CanSeekNextLyric()
+    {
+        return ActiveLyricIndex >= 0 && ActiveLyricIndex < Lyrics.Count - 1;
+    }
+
+    /// <summary>
+    /// 定位并发送指定歌词行，保留当前播放或暂停状态并遵从防重复设置。
+    /// </summary>
+    public async Task SeekAndSendLyricLineAsync(LyricLineState? line)
+    {
+        if (line is null)
+        {
+            return;
+        }
+
+        var index = Lyrics.IndexOf(line);
+
+        if (index < 0)
+        {
+            return;
+        }
+
+        var positionSeconds = line.TimeSeconds >= 0 ? line.TimeSeconds : LyricPlaybackPositionSeconds;
+        SetLyricPlaybackPosition(positionSeconds, index);
+        lastAutoEnteredLyricIndex = index;
+        await SendLyricLineAsync(line, false);
+    }
+
+    /// <summary>
     /// 快退歌词播放位置。
     /// </summary>
     [RelayCommand]
@@ -960,12 +1004,13 @@ public partial class LiveRoomTabViewModel : ViewModelBase
         SetLyricPlaybackPosition(GetFirstTimedLyricPosition());
     }
 
-    private void SetLyricPlaybackPosition(double positionSeconds)
+    private void SetLyricPlaybackPosition(double positionSeconds, int? targetIndex = null)
     {
         if (Lyrics.Count == 0)
         {
             LyricPlaybackPositionSeconds = 0;
             ActiveLyricLine = null;
+            SeekNextLyricCommand.NotifyCanExecuteChanged();
             return;
         }
 
@@ -974,7 +1019,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
             GetFirstTimedLyricPosition(),
             GetLastLyricEndPosition());
         LyricPlaybackPositionSeconds = normalizedPosition;
-        ActiveLyricIndex = FindActiveLyricIndex(normalizedPosition);
+        ActiveLyricIndex = targetIndex ?? FindActiveLyricIndex(normalizedPosition);
         RefreshActiveLyric();
         UpdateLyricProgress(normalizedPosition);
         ResetLyricPlaybackClock(normalizedPosition);
@@ -1059,33 +1104,51 @@ public partial class LiveRoomTabViewModel : ViewModelBase
         bool forceSend,
         CancellationToken cancellationToken = default)
     {
-        if (!forceSend && PreventRepeatedLyricSend && line.IsSent)
+        if (!lyricLinesSending.TryAdd(line, 0))
         {
             return false;
         }
 
-        var settings = getSettings?.Invoke();
-        var account = resolveAccount?.Invoke(this);
-
-        if (settings is null || sendService is null)
+        try
         {
-            return false;
+            if (!forceSend && PreventRepeatedLyricSend && line.IsSent)
+            {
+                return false;
+            }
+
+            var settings = getSettings?.Invoke();
+            var account = resolveAccount?.Invoke(this);
+
+            if (settings is null || sendService is null)
+            {
+                return false;
+            }
+
+            var markGroup = getMarkSymbolGroup?.Invoke() ?? MarkSymbolService.CreateDefaultGroup(settings);
+            var content = LyricTimelineService.CreateContent(line.Content, line.TranslatedContent, LyricSendMode);
+
+            if (string.IsNullOrWhiteSpace(content))
+            {
+                return false;
+            }
+
+            content = ShieldReplacementService.Apply(content, settings, true);
+            var message =
+                LyricTimelineService.CreateMessage(markGroup.LyricOpenMark, markGroup.LyricCloseMark, content);
+            var results = await SendMessageAsync(message, account, settings, cancellationToken);
+
+            if (results.Count == 0 || results.Any(result => !result.IsAccepted))
+            {
+                return false;
+            }
+
+            line.IsSent = true;
+            return true;
         }
-
-        var markGroup = getMarkSymbolGroup?.Invoke() ?? MarkSymbolService.CreateDefaultGroup(settings);
-        var content = LyricTimelineService.CreateContent(line.Content, line.TranslatedContent, LyricSendMode);
-
-        if (string.IsNullOrWhiteSpace(content))
+        finally
         {
-            return false;
+            lyricLinesSending.TryRemove(line, out _);
         }
-
-        content = ShieldReplacementService.Apply(content, settings, true);
-        var message =
-            LyricTimelineService.CreateMessage(markGroup.LyricOpenMark, markGroup.LyricCloseMark, content);
-        await SendMessageAsync(message, account, settings, cancellationToken);
-        line.IsSent = true;
-        return true;
     }
 
     private async Task SendActiveLyricIfNeededAsync(CancellationToken cancellationToken)
@@ -1928,7 +1991,8 @@ public partial class LiveRoomTabViewModel : ViewModelBase
                     break;
                 }
 
-                SetLyricPlaybackPosition(nextPosition);
+                var targetIndex = ActiveLyricLine is { TimeSeconds: < 0 } ? ActiveLyricIndex : (int?)null;
+                SetLyricPlaybackPosition(nextPosition, targetIndex);
                 await SendActiveLyricIfNeededAsync(cancellationToken);
                 await Task.Delay(LYRIC_PLAYBACK_TICK_MS, cancellationToken);
             }
@@ -1958,6 +2022,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
         ActiveLyricLine = ActiveLyricIndex >= 0 && ActiveLyricIndex < Lyrics.Count
             ? Lyrics[ActiveLyricIndex]
             : null;
+        SeekNextLyricCommand.NotifyCanExecuteChanged();
     }
 
     private void OnDanmuReceived(object? sender, BilibiliDanmuMessage message)

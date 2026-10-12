@@ -22,6 +22,7 @@ public partial class MainWindow : Window
     private MainWindowViewModel? sidebarViewModel;
     private DispatcherTimer? lyricSeekRepeatTimer;
     private Key? lyricSeekRepeatKey;
+    private Key? lyricNextShortcutKey;
     private double lyricSeekRepeatOffsetSeconds;
     private bool isLyricSeekRepeating;
 
@@ -39,6 +40,7 @@ public partial class MainWindow : Window
         DataContextChanged += OnDataContextChanged;
         AddHandler(KeyDownEvent, MainWindow_OnPreviewKeyDown, RoutingStrategies.Tunnel);
         AddHandler(KeyUpEvent, MainWindow_OnPreviewKeyUp, RoutingStrategies.Tunnel);
+        Deactivated += (_, _) => lyricNextShortcutKey = null;
         Closing += async (_, _) =>
         {
             if (DataContext is MainWindowViewModel viewModel)
@@ -67,6 +69,7 @@ public partial class MainWindow : Window
 
     private void OnDataContextChanged(object? sender, EventArgs e)
     {
+        lyricNextShortcutKey = null;
         AttachSidebarViewModel(DataContext as MainWindowViewModel);
         dialogCoordinator.Attach(DataContext as MainWindowViewModel);
 
@@ -138,6 +141,11 @@ public partial class MainWindow : Window
 
     private void MainWindow_OnPreviewKeyUp(object? sender, KeyEventArgs e)
     {
+        if (lyricNextShortcutKey == e.Key)
+        {
+            lyricNextShortcutKey = null;
+        }
+
         if (lyricSeekRepeatKey == e.Key)
         {
             StopLyricSeekRepeat();
@@ -219,6 +227,23 @@ public partial class MainWindow : Window
                 return true;
             case ShortcutActionKeys.LYRIC_SEEK_FORWARD:
                 StartLyricSeekShortcut(room, key, 0.5);
+                return true;
+            case ShortcutActionKeys.LYRIC_SEEK_NEXT:
+                if (lyricNextShortcutKey != key)
+                {
+                    lyricNextShortcutKey = key;
+                    var view = GetActiveLiveRoomView();
+
+                    if (view is not null)
+                    {
+                        view.SeekNextLyricFromShortcut();
+                    }
+                    else if (room.SeekNextLyricCommand.CanExecute(null))
+                    {
+                        room.SeekNextLyricCommand.Execute(null);
+                    }
+                }
+
                 return true;
             default:
                 return false;

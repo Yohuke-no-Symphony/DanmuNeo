@@ -453,7 +453,7 @@
                             </Grid>
 
                             <Grid Grid.Row="3"
-                                  ColumnDefinitions="Auto,Auto,*,Auto,Auto"
+                                  ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto"
                                   ColumnSpacing="8">
                                 <Button Grid.Column="0"
                                         ToolTip.Tip="快退 0.5 秒"
@@ -467,7 +467,16 @@
                                         Command="{Binding FastForwardLyricCommand}">
                                     <LucideIcon Kind="CircleArrowRight" />
                                 </Button>
-                                <Button Grid.Column="3"
+                                <Button x:Name="NextLyricButton"
+                                        Grid.Column="2"
+                                        ToolTip.Tip="跳到下一句并发送"
+                                        AutomationProperties.Name="下一句歌词"
+                                        Classes="iconButton"
+                                        Click="NextLyricButton_OnClick"
+                                        Command="{Binding SeekNextLyricCommand}">
+                                    <LucideIcon Kind="SkipForward" />
+                                </Button>
+                                <Button Grid.Column="4"
                                         ToolTip.Tip="{Binding LyricAutoSendingToggleToolTip}"
                                         Classes="iconButton"
                                         Classes.selected="{Binding IsLyricAutoSending}"
@@ -479,7 +488,7 @@
                                                     IsVisible="{Binding IsLyricAutoSending}" />
                                     </Grid>
                                 </Button>
-                                <Button Grid.Column="4"
+                                <Button Grid.Column="5"
                                         ToolTip.Tip="停止歌词发送"
                                         Classes="iconButton"
                                         Command="{Binding StopAutoLyricCommand}">

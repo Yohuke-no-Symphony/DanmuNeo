@@ -6,6 +6,68 @@ namespace Yohuke.DanmuNeo.Tests;
 
 public class ShortcutBindingServiceTests
 {
+    /// <summary>
+    /// 旧配置补齐下一句默认绑定，并保留既有自定义绑定对象。
+    /// </summary>
+    [Fact]
+    public void NormalizeAddsNextLyricBindingWithoutChangingCustomBinding()
+    {
+        var existing = new ShortcutBindingState
+        {
+            ActionKey = ShortcutActionKeys.LYRIC_SEEK_FORWARD, GestureText = "Ctrl+F", IsEnabled = true
+        };
+        var settings = new AppSettings { ShortcutBindingsVersion = 2, ShortcutBindings = [existing] };
+
+        ShortcutBindingService.Normalize(settings);
+
+        Assert.Same(existing, settings.ShortcutBindings.Single(item => item.ActionKey == existing.ActionKey));
+        Assert.Equal("Ctrl+F", existing.GestureText);
+        var next = Assert.Single(settings.ShortcutBindings, item => item.ActionKey == ShortcutActionKeys.LYRIC_SEEK_NEXT);
+        Assert.True(next.IsEnabled);
+        Assert.Equal("Ctrl+Shift+Down", next.GestureText);
+        Assert.Equal(ShortcutActionKeys.LYRIC_SEEK_NEXT,
+            ShortcutBindingService.GetTriggeredActionKey(settings.ShortcutBindings, Key.Down,
+                KeyModifiers.Control | KeyModifiers.Shift));
+        Assert.Empty(ShortcutBindingService.GetConflictActionKeys(settings.ShortcutBindings));
+    }
+
+    /// <summary>
+    /// 下一句的禁用、清空和自定义手势经保存读取后仍然保留。
+    /// </summary>
+    [Theory]
+    [InlineData("", false)]
+    [InlineData("Ctrl+N", false)]
+    [InlineData("Ctrl+N", true)]
+    public void NextLyricBindingPersistsCustomAndDisabledStates(string gesture, bool enabled)
+    {
+        var directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            var service = new AppStateService(directory);
+            service.Save(new()
+            {
+                Settings = new()
+                {
+                    ShortcutBindingsVersion = 2,
+                    ShortcutBindings =
+                    [
+                        new() { ActionKey = ShortcutActionKeys.LYRIC_SEEK_NEXT, GestureText = gesture, IsEnabled = enabled }
+                    ]
+                }
+            });
+            var binding = service.Load().Settings.ShortcutBindings
+                .Single(item => item.ActionKey == ShortcutActionKeys.LYRIC_SEEK_NEXT);
+
+            Assert.Equal(gesture, binding.GestureText);
+            Assert.Equal(enabled, binding.IsEnabled);
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
     [Fact]
     public void DefaultBindingsCoverEveryActionAndCanParse()
     {
