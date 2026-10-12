@@ -128,7 +128,7 @@
                 </Grid>
 
                 <Border Grid.Row="2" Classes="translateComposer"
-                        Classes.sendRejected="{Binding IsDraftSendRejected}">
+                        Classes.sendFailed="{Binding IsDraftSendFailed}">
                     <Grid RowDefinitions="Auto,Auto"
                           RowSpacing="4">
                         <Grid>

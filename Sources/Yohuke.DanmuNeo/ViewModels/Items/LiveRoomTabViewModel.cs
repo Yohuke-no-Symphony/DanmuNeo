@@ -235,7 +235,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
 
     [ObservableProperty] private string draftSendStatus = "";
 
-    [ObservableProperty] private bool isDraftSendRejected;
+    [ObservableProperty] private bool isDraftSendFailed;
 
     [ObservableProperty] private string lyricInput = "";
 
@@ -672,25 +672,26 @@ public partial class LiveRoomTabViewModel : ViewModelBase
     public async Task SendDraftAsync()
     {
         var operationId = Interlocked.Increment(ref draftSendOperationId);
-        IsDraftSendRejected = false;
+        IsDraftSendFailed = false;
 
         if (string.IsNullOrWhiteSpace(InputDraft))
         {
             return;
         }
 
+        var revision = draftRevision;
         var settings = getSettings?.Invoke();
         var account = resolveAccount?.Invoke(this);
 
         if (settings is null || sendService is null)
         {
+            TrySetDraftSendFeedback(operationId, revision, "发送失败：发送服务不可用", true);
             return;
         }
 
         var markGroup = getMarkSymbolGroup?.Invoke() ?? MarkSymbolService.CreateDefaultGroup(settings);
         var content = ShieldReplacementService.Apply(InputDraft.Trim(), settings, false);
         var message = $"{markGroup.TranslateOpenMark}{content}{markGroup.TranslateCloseMark}";
-        var revision = draftRevision;
         DraftSendStatus = "发送中";
         var results = await SendMessageAsync(message, account, settings);
         var acceptedResults = results.Where(result => result.IsAccepted).ToList();
@@ -698,23 +699,13 @@ public partial class LiveRoomTabViewModel : ViewModelBase
 
         if (results.Count == 0)
         {
-            SetDraftSendStatus(operationId, "发送失败：发送服务不可用");
+            TrySetDraftSendFeedback(operationId, revision, "发送失败：发送服务不可用", true);
             return;
-        }
-
-        if (operationId == draftSendOperationId && revision == draftRevision)
-        {
-            IsDraftSendRejected = failedResults.Any(result => result.IsExplicitlyRejected);
-
-            if (failedResults.Count == 0)
-            {
-                InputDraft = "";
-            }
         }
 
         if (acceptedResults.Count == 0)
         {
-            SetDraftSendStatus(operationId, $"发送失败：{failedResults[0].ErrorMessage}");
+            TrySetDraftSendFeedback(operationId, revision, $"发送失败：{failedResults[0].ErrorMessage}", true);
             return;
         }
 
@@ -723,13 +714,13 @@ public partial class LiveRoomTabViewModel : ViewModelBase
         if (!CanConfirmDanmuEcho(uid))
         {
             SetAcceptedRecordStatus(acceptedResults, "接口已接受，无法确认");
-            SetDraftSendStatus(operationId, failedResults.Count == 0
+            TrySetDraftSendFeedback(operationId, revision, failedResults.Count == 0
                 ? "接口已接受，无法确认"
-                : $"部分发送失败：{acceptedResults.Count}/{results.Count} 段接口已接受");
+                : $"部分发送失败：{acceptedResults.Count}/{results.Count} 段接口已接受", true);
             return;
         }
 
-        _ = ConfirmDraftEchoesAsync(operationId, uid, acceptedResults, failedResults.Count);
+        _ = ConfirmDraftEchoesAsync(operationId, revision, uid, acceptedResults, failedResults.Count);
     }
 
     /// <summary>
@@ -1820,6 +1811,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
 
     private async Task ConfirmDraftEchoesAsync(
         long operationId,
+        long revision,
         long uid,
         IReadOnlyList<DanmuSendResult> acceptedResults,
         int failedCount)
@@ -1827,6 +1819,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
         try
         {
             SetAcceptedRecordStatus(acceptedResults, "接口已接受，等待弹幕流确认");
+            TrySetDraftSendFeedback(operationId, revision, "接口已接受，等待弹幕流确认", failedCount > 0);
             var confirmationTasks = acceptedResults
                 .Select(result => danmuEchoTracker.WaitAsync(
                     uid,
@@ -1855,13 +1848,18 @@ public partial class LiveRoomTabViewModel : ViewModelBase
                     : confirmedCount == 0
                         ? "接口已接受，未确认显示"
                         : $"接口已接受，{confirmedCount}/{acceptedResults.Count} 段已确认";
-            SetDraftSendStatus(operationId, status);
+            var failed = failedCount > 0 || confirmedCount != acceptedResults.Count;
+
+            if (TrySetDraftSendFeedback(operationId, revision, status, failed) && !failed)
+            {
+                InputDraft = "";
+            }
         }
         catch (Exception exception)
         {
             StartupLog.Append($"Danmu echo confirmation failed roomId={RoomId} exception={exception}");
             SetAcceptedRecordStatus(acceptedResults, "接口已接受，确认失败");
-            SetDraftSendStatus(operationId, "接口已接受，确认失败");
+            TrySetDraftSendFeedback(operationId, revision, "接口已接受，确认失败", true);
         }
     }
 
@@ -1887,18 +1885,22 @@ public partial class LiveRoomTabViewModel : ViewModelBase
             : 0;
     }
 
-    private void SetDraftSendStatus(long operationId, string status)
+    private bool TrySetDraftSendFeedback(long operationId, long revision, string status, bool failed)
     {
-        if (operationId == draftSendOperationId)
+        if (operationId != draftSendOperationId || revision != draftRevision)
         {
-            DraftSendStatus = status;
+            return false;
         }
+
+        DraftSendStatus = status;
+        IsDraftSendFailed = failed;
+        return true;
     }
 
     private void InvalidateDraftSendFeedback()
     {
         draftRevision++;
-        IsDraftSendRejected = false;
+        IsDraftSendFailed = false;
     }
 
     private async Task RunAutoLyricAsync(CancellationTokenSource tokenSource)

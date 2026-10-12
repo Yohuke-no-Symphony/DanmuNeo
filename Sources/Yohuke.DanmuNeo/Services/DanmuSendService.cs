@@ -58,12 +58,16 @@ public class DanmuSendService : IDanmuSendService
             var response = await api.SendDanmuAsync(long.Parse(roomId), message, cancellationToken: cancellationToken);
             lastSentAt = DateTimeOffset.Now;
 
-            if (response.Code == 0)
+            var isBlocked = response.Message is "f" || response.Msg is "f";
+
+            if (response.Code == 0 && !isBlocked)
             {
                 return CreateResult(roomId, message, "接口已接受", true, requestedAt, response.Code);
             }
 
-            var errorMessage = response.Message ?? response.Msg ?? $"发送失败：{response.Code}";
+            var errorMessage = isBlocked
+                ? "弹幕被屏蔽"
+                : response.Message ?? response.Msg ?? $"发送失败：{response.Code}";
             return CreateResult(roomId, message, errorMessage, false, requestedAt, response.Code);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

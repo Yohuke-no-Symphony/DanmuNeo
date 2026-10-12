@@ -37,6 +37,28 @@ public class DanmuSendServiceTests
     }
 
     /// <summary>
+    /// 零状态码携带屏蔽标记时仍视为发送失败，并保留业务码和失败记录。
+    /// </summary>
+    [Theory]
+    [InlineData("{\"code\":0,\"message\":\"f\",\"data\":{}}")]
+    [InlineData("{\"code\":0,\"msg\":\"f\",\"data\":{}}")]
+    public async Task BlockedMessageDoesNotCountAsAccepted(string json)
+    {
+        using var handler = new DanmuSendHttpHandler { ResponseJson = json };
+        using var client = new HttpClient(handler);
+        var service = new DanmuSendService(client);
+
+        var result = await service.SendAsync("100", "同传", CreateAccount(), new());
+
+        Assert.False(result.IsAccepted);
+        Assert.Equal(0, result.ApiCode);
+        Assert.False(result.IsExplicitlyRejected);
+        Assert.Equal("弹幕被屏蔽", result.ErrorMessage);
+        Assert.False(result.Record.IsSendAccepted);
+        Assert.Equal("弹幕被屏蔽", result.Record.Status);
+    }
+
+    /// <summary>
     /// 连接异常、超时、HTTP 错误和损坏响应都没有明确的业务拒绝码。
     /// </summary>
     [Theory]

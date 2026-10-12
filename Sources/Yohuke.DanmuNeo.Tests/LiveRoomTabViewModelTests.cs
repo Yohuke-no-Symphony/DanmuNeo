@@ -653,36 +653,89 @@ public class LiveRoomTabViewModelTests
 
         Assert.Equal("待发送", viewModel.InputDraft);
         Assert.Equal("发送失败：风控拒绝", viewModel.DraftSendStatus);
-        Assert.True(viewModel.IsDraftSendRejected);
+        Assert.True(viewModel.IsDraftSendFailed);
     }
 
     /// <summary>
-    /// 没有明确接口错误码的失败保留草稿，但不显示失败描边。
+    /// 本地、网络或零业务码的失败同样保留草稿并显示失败描边。
     /// </summary>
-    [Fact]
-    public async Task SendDraftTransportFailureKeepsInputWithoutRejection()
+    [Theory]
+    [InlineData(null)]
+    [InlineData(0)]
+    public async Task SendDraftFailureWithoutRejectionKeepsInputAndHighlights(int? code)
     {
         var sendService = new FakeDanmuSendService
         {
-            IsAccepted = false, FailureApiCode = null, ErrorMessage = "网络超时"
+            IsAccepted = false, FailureApiCode = code, ErrorMessage = "网络超时"
         };
         var viewModel = CreateConfiguredViewModel(new(), sendService);
         viewModel.InputDraft = "待发送";
 
         await viewModel.SendDraftAsync();
 
-        Assert.False(viewModel.IsDraftSendRejected);
+        Assert.True(viewModel.IsDraftSendFailed);
         Assert.Equal("待发送", viewModel.InputDraft);
     }
 
     /// <summary>
-    /// 部分发送失败仅在存在明确接口拒绝时显示失败描边。
+    /// 无可用发送服务时保留草稿并显示失败描边。
+    /// </summary>
+    [Fact]
+    public async Task SendDraftMissingServiceKeepsInputAndHighlights()
+    {
+        var viewModel = new LiveRoomTabViewModel(new());
+        viewModel.InputDraft = "待发送";
+
+        await viewModel.SendDraftAsync();
+
+        Assert.True(viewModel.IsDraftSendFailed);
+        Assert.Equal("待发送", viewModel.InputDraft);
+        Assert.Equal("发送失败：发送服务不可用", viewModel.DraftSendStatus);
+    }
+
+    /// <summary>
+    /// 未配置账号时通过真实发送服务返回本地失败并显示失败描边。
+    /// </summary>
+    [Fact]
+    public async Task SendDraftMissingAccountKeepsInputAndHighlights()
+    {
+        var viewModel = CreateConfiguredViewModel(new());
+        viewModel.InputDraft = "待发送";
+
+        await viewModel.SendDraftAsync();
+
+        Assert.True(viewModel.IsDraftSendFailed);
+        Assert.Equal("待发送", viewModel.InputDraft);
+        Assert.Equal("发送失败：未配置账号", viewModel.DraftSendStatus);
+    }
+
+    /// <summary>
+    /// 没有可发送分段时保留草稿并显示失败描边。
+    /// </summary>
+    [Fact]
+    public async Task SendDraftEmptyResultsKeepsInputAndHighlights()
+    {
+        var sendService = new FakeDanmuSendService { MessageParts = [] };
+        var viewModel = CreateConfiguredViewModel(new(), sendService);
+        viewModel.InputDraft = "待发送";
+
+        await viewModel.SendDraftAsync();
+
+        Assert.True(viewModel.IsDraftSendFailed);
+        Assert.Equal("待发送", viewModel.InputDraft);
+        Assert.Equal("发送失败：发送服务不可用", viewModel.DraftSendStatus);
+        Assert.Empty(sendService.SentMessages);
+    }
+
+    /// <summary>
+    /// 任意分段发送失败都显示失败描边。
     /// </summary>
     [Theory]
-    [InlineData(null, false)]
-    [InlineData(10030, true)]
-    [InlineData(-101, true)]
-    public async Task SendDraftPartialFailureOnlyHighlightsExplicitRejection(int? code, bool rejected)
+    [InlineData(null)]
+    [InlineData(0)]
+    [InlineData(10030)]
+    [InlineData(-101)]
+    public async Task SendDraftPartialFailureAlwaysHighlights(int? code)
     {
         var sendService = new FakeDanmuSendService
         {
@@ -695,44 +748,44 @@ public class LiveRoomTabViewModelTests
 
         await viewModel.SendDraftAsync();
 
-        Assert.Equal(rejected, viewModel.IsDraftSendRejected);
+        Assert.True(viewModel.IsDraftSendFailed);
         Assert.Equal("完整同传", viewModel.InputDraft);
     }
 
     /// <summary>
-    /// 修改或清空输入会移除上次拒绝描边。
+    /// 修改或清空输入会移除上次失败描边。
     /// </summary>
     [Theory]
     [InlineData("修正内容")]
     [InlineData("")]
-    public async Task SendDraftEditingClearsRejection(string nextDraft)
+    public async Task SendDraftEditingClearsFailureFeedback(string nextDraft)
     {
         var viewModel = CreateConfiguredViewModel(new(), new FakeDanmuSendService { IsAccepted = false });
         viewModel.InputDraft = "待发送";
         await viewModel.SendDraftAsync();
-        Assert.True(viewModel.IsDraftSendRejected);
+        Assert.True(viewModel.IsDraftSendFailed);
 
         viewModel.InputDraft = nextDraft;
 
-        Assert.False(viewModel.IsDraftSendRejected);
+        Assert.False(viewModel.IsDraftSendFailed);
     }
 
     /// <summary>
-    /// 新一轮发送开始时立即移除上次拒绝描边。
+    /// 新一轮发送开始时立即移除上次失败描边。
     /// </summary>
     [Fact]
-    public async Task SendDraftRetryClearsRejectionBeforeResponse()
+    public async Task SendDraftRetryClearsFailureFeedbackBeforeResponse()
     {
         var sendService = new BlockingDanmuSendService();
         var viewModel = CreateConfiguredViewModel(new(), sendService);
         viewModel.InputDraft = "重试内容";
-        viewModel.IsDraftSendRejected = true;
+        viewModel.IsDraftSendFailed = true;
         var sending = viewModel.SendDraftAsync();
 
         try
         {
             await sendService.FirstSendStarted;
-            Assert.False(viewModel.IsDraftSendRejected);
+            Assert.False(viewModel.IsDraftSendFailed);
         }
         finally
         {
@@ -773,7 +826,7 @@ public class LiveRoomTabViewModelTests
         }
 
         Assert.Equal(restoreOriginal ? "原始内容" : "新内容", viewModel.InputDraft);
-        Assert.False(viewModel.IsDraftSendRejected);
+        Assert.False(viewModel.IsDraftSendFailed);
     }
 
     /// <summary>
@@ -802,18 +855,24 @@ public class LiveRoomTabViewModelTests
         }
 
         Assert.Equal("房间内容", viewModel.InputDraft);
-        Assert.False(viewModel.IsDraftSendRejected);
+        Assert.False(viewModel.IsDraftSendFailed);
     }
 
     /// <summary>
-    /// 两次请求逆序完成时，旧拒绝不能覆盖新请求的成功状态。
+    /// 两次请求逆序完成时，旧拒绝不能覆盖新请求的回显成功状态。
     /// </summary>
     [Fact]
     public async Task SendDraftOlderRejectionCannotOverwriteNewerSuccess()
     {
         var sendService = new BlockingDanmuSendService { IsAccepted = false };
-        var viewModel = CreateConfiguredViewModel(new(), sendService);
+        var socketFactory = new FakeLiveDanmuSocketFactory();
+        socketFactory.Socket.KeepRunning = true;
+        var viewModel = CreateConfiguredViewModel(new(), sendService,
+            resolveAccount: _ => new() { Cookie = "DedeUserID=42" },
+            liveDanmuSocketFactory: socketFactory);
+        viewModel.RoomId = "100";
         viewModel.InputDraft = "待发送";
+        viewModel.StartListening();
         var first = viewModel.SendDraftAsync();
 
         try
@@ -821,20 +880,23 @@ public class LiveRoomTabViewModelTests
             await sendService.FirstSendStarted;
             sendService.IsAccepted = true;
             await viewModel.SendDraftAsync();
+            socketFactory.Socket.EmitDanmu(new() { Uid = 42, Content = "【待发送】" });
+            await WaitForAsync(() => viewModel.DraftSendStatus == "已在弹幕流确认");
         }
         finally
         {
             sendService.ReleaseFirstSend();
             await first;
+            viewModel.StopListening();
         }
 
-        Assert.False(viewModel.IsDraftSendRejected);
+        Assert.False(viewModel.IsDraftSendFailed);
         Assert.Equal("", viewModel.InputDraft);
-        Assert.Equal("接口已接受，无法确认", viewModel.DraftSendStatus);
+        Assert.Equal("已在弹幕流确认", viewModel.DraftSendStatus);
     }
 
     [Fact]
-    public async Task SendDraftApiAcceptanceClearsInputWithoutListening()
+    public async Task SendDraftApiAcceptanceKeepsInputWithoutListening()
     {
         var sendService = new FakeDanmuSendService();
         var account = new BilibiliAccount
@@ -847,9 +909,9 @@ public class LiveRoomTabViewModelTests
 
         await viewModel.SendDraftAsync();
 
-        Assert.Equal("", viewModel.InputDraft);
+        Assert.Equal("待发送", viewModel.InputDraft);
         Assert.Equal("接口已接受，无法确认", viewModel.DraftSendStatus);
-        Assert.False(viewModel.IsDraftSendRejected);
+        Assert.True(viewModel.IsDraftSendFailed);
         Assert.Equal("接口已接受，无法确认", Assert.Single(sendService.Records).Status);
     }
 
@@ -871,7 +933,7 @@ public class LiveRoomTabViewModelTests
 
         Assert.Equal("完整同传", viewModel.InputDraft);
         Assert.Equal("部分发送失败：1/2 段接口已接受", viewModel.DraftSendStatus);
-        Assert.True(viewModel.IsDraftSendRejected);
+        Assert.True(viewModel.IsDraftSendFailed);
         Assert.Equal("接口已接受，无法确认", sendService.Records[0].Status);
         Assert.Equal("第二段失败", sendService.Records[1].Status);
     }
@@ -895,18 +957,254 @@ public class LiveRoomTabViewModelTests
         viewModel.InputDraft = "待发送";
         viewModel.StartListening();
 
-        await viewModel.SendDraftAsync();
-        socketFactory.Socket.EmitDanmu(new()
+        try
         {
-            Uid = 42,
-            UserName = "自己",
-            Content = "【待发送】"
-        });
-        await WaitForAsync(() => viewModel.DraftSendStatus == "已在弹幕流确认");
+            await viewModel.SendDraftAsync();
+            Assert.Equal("待发送", viewModel.InputDraft);
+            Assert.False(viewModel.IsDraftSendFailed);
+            socketFactory.Socket.EmitDanmu(new()
+            {
+                Uid = 42,
+                UserName = "自己",
+                Content = "【待发送】"
+            });
+            await WaitForAsync(() => viewModel.DraftSendStatus == "已在弹幕流确认");
 
-        Assert.Equal("已在弹幕流确认", Assert.Single(sendService.Records).Status);
-        Assert.False(viewModel.IsDraftSendRejected);
-        viewModel.StopListening();
+            Assert.Equal("已在弹幕流确认", Assert.Single(sendService.Records).Status);
+            Assert.Equal("", viewModel.InputDraft);
+            Assert.False(viewModel.IsDraftSendFailed);
+        }
+        finally
+        {
+            viewModel.StopListening();
+        }
+    }
+
+    /// <summary>
+    /// 所有或部分分段未在弹幕流确认时，保留草稿并显示失败描边。
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SendDraftUnconfirmedEchoKeepsInputAndHighlights(bool confirmFirstPart)
+    {
+        var sendService = new FakeDanmuSendService { MessageParts = ["第一段", "第二段"] };
+        var socketFactory = new FakeLiveDanmuSocketFactory();
+        socketFactory.Socket.KeepRunning = true;
+        var viewModel = CreateConfiguredViewModel(new(), sendService,
+            resolveAccount: _ => new() { Cookie = "DedeUserID=42" },
+            liveDanmuSocketFactory: socketFactory);
+        viewModel.RoomId = "100";
+        viewModel.InputDraft = "完整同传";
+        viewModel.StartListening();
+
+        try
+        {
+            await viewModel.SendDraftAsync();
+            Assert.Equal("完整同传", viewModel.InputDraft);
+
+            if (confirmFirstPart)
+            {
+                socketFactory.Socket.EmitDanmu(new() { Uid = 42, Content = "第一段" });
+            }
+
+            await WaitForAsync(() => sendService.Records[1].Status == "接口已接受，未确认显示", 7000);
+
+            Assert.True(viewModel.IsDraftSendFailed);
+            Assert.Equal("完整同传", viewModel.InputDraft);
+            Assert.Equal(confirmFirstPart ? "接口已接受，1/2 段已确认" : "接口已接受，未确认显示",
+                viewModel.DraftSendStatus);
+        }
+        finally
+        {
+            viewModel.StopListening();
+        }
+    }
+
+    /// <summary>
+    /// 所有分段均回显确认后才清空草稿。
+    /// </summary>
+    [Fact]
+    public async Task SendDraftAllPartsMustBeConfirmedBeforeClearingInput()
+    {
+        var sendService = new FakeDanmuSendService { MessageParts = ["第一段", "第二段"] };
+        var socketFactory = new FakeLiveDanmuSocketFactory();
+        socketFactory.Socket.KeepRunning = true;
+        var viewModel = CreateConfiguredViewModel(new(), sendService,
+            resolveAccount: _ => new() { Cookie = "DedeUserID=42" },
+            liveDanmuSocketFactory: socketFactory);
+        viewModel.RoomId = "100";
+        viewModel.InputDraft = "完整同传";
+        viewModel.StartListening();
+
+        try
+        {
+            await viewModel.SendDraftAsync();
+            socketFactory.Socket.EmitDanmu(new() { Uid = 42, Content = "第一段" });
+            await WaitForAsync(() => sendService.Records[0].Status == "已在弹幕流确认");
+            Assert.Equal("完整同传", viewModel.InputDraft);
+
+            socketFactory.Socket.EmitDanmu(new() { Uid = 42, Content = "第二段" });
+            await WaitForAsync(() => viewModel.DraftSendStatus == "已在弹幕流确认");
+
+            Assert.Equal("", viewModel.InputDraft);
+            Assert.False(viewModel.IsDraftSendFailed);
+        }
+        finally
+        {
+            viewModel.StopListening();
+        }
+    }
+
+    /// <summary>
+    /// 接口部分失败时，已接受部分的回显成功不能移除失败描边或清空草稿。
+    /// </summary>
+    [Fact]
+    public async Task SendDraftPartialApiFailureRemainsFailedAfterEchoConfirmation()
+    {
+        var sendService = new FakeDanmuSendService { MessageParts = ["第一段", "第二段"] };
+        sendService.AcceptanceResults.Enqueue(true);
+        sendService.AcceptanceResults.Enqueue(false);
+        var socketFactory = new FakeLiveDanmuSocketFactory();
+        socketFactory.Socket.KeepRunning = true;
+        var viewModel = CreateConfiguredViewModel(new(), sendService,
+            resolveAccount: _ => new() { Cookie = "DedeUserID=42" },
+            liveDanmuSocketFactory: socketFactory);
+        viewModel.RoomId = "100";
+        viewModel.InputDraft = "完整同传";
+        viewModel.StartListening();
+
+        try
+        {
+            await viewModel.SendDraftAsync();
+            socketFactory.Socket.EmitDanmu(new() { Uid = 42, Content = "第一段" });
+            await WaitForAsync(() => viewModel.DraftSendStatus == "部分发送失败：1/2 段接口已接受，1/1 段已确认");
+
+            Assert.True(viewModel.IsDraftSendFailed);
+            Assert.Equal("完整同传", viewModel.InputDraft);
+        }
+        finally
+        {
+            viewModel.StopListening();
+        }
+    }
+
+    /// <summary>
+    /// 编辑期间的旧回显成功或超时不能清空新草稿、覆盖状态或触发描边。
+    /// </summary>
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    [InlineData(false, true)]
+    public async Task SendDraftOldEchoDoesNotChangeEditedDraft(bool confirmed, bool restoreOriginal)
+    {
+        var sendService = new FakeDanmuSendService();
+        var socketFactory = new FakeLiveDanmuSocketFactory();
+        socketFactory.Socket.KeepRunning = true;
+        var viewModel = CreateConfiguredViewModel(new(), sendService,
+            resolveAccount: _ => new() { Cookie = "DedeUserID=42" },
+            liveDanmuSocketFactory: socketFactory);
+        viewModel.RoomId = "100";
+        viewModel.InputDraft = "原始内容";
+        viewModel.StartListening();
+
+        try
+        {
+            await viewModel.SendDraftAsync();
+            viewModel.InputDraft = "新内容";
+
+            if (restoreOriginal)
+            {
+                viewModel.InputDraft = "原始内容";
+            }
+
+            var statusBeforeEcho = viewModel.DraftSendStatus;
+
+            if (confirmed)
+            {
+                socketFactory.Socket.EmitDanmu(new() { Uid = 42, Content = "【原始内容】" });
+            }
+
+            await WaitForAsync(() => sendService.Records[0].Status ==
+                                    (confirmed ? "已在弹幕流确认" : "接口已接受，未确认显示"), 7000);
+
+            Assert.Equal(restoreOriginal ? "原始内容" : "新内容", viewModel.InputDraft);
+            Assert.False(viewModel.IsDraftSendFailed);
+            Assert.Equal(statusBeforeEcho, viewModel.DraftSendStatus);
+        }
+        finally
+        {
+            viewModel.StopListening();
+        }
+    }
+
+    /// <summary>
+    /// 旧请求的确认超时不会覆盖后一次发送的回显成功。
+    /// </summary>
+    [Fact]
+    public async Task SendDraftOlderEchoTimeoutCannotOverwriteNewerSuccess()
+    {
+        var sendService = new FakeDanmuSendService();
+        var socketFactory = new FakeLiveDanmuSocketFactory();
+        socketFactory.Socket.KeepRunning = true;
+        var viewModel = CreateConfiguredViewModel(new(), sendService,
+            resolveAccount: _ => new() { Cookie = "DedeUserID=42" },
+            liveDanmuSocketFactory: socketFactory);
+        viewModel.RoomId = "100";
+        viewModel.InputDraft = "第一次内容";
+        viewModel.StartListening();
+
+        try
+        {
+            await viewModel.SendDraftAsync();
+            viewModel.InputDraft = "第二次内容";
+            await viewModel.SendDraftAsync();
+            socketFactory.Socket.EmitDanmu(new() { Uid = 42, Content = "【第二次内容】" });
+            await WaitForAsync(() => viewModel.DraftSendStatus == "已在弹幕流确认");
+            await WaitForAsync(() => sendService.Records[0].Status == "接口已接受，未确认显示", 7000);
+
+            Assert.Equal("", viewModel.InputDraft);
+            Assert.False(viewModel.IsDraftSendFailed);
+            Assert.Equal("已在弹幕流确认", viewModel.DraftSendStatus);
+        }
+        finally
+        {
+            viewModel.StopListening();
+        }
+    }
+
+    /// <summary>
+    /// 切换房间后的旧回显超时不会触发新房间输入区的失败描边。
+    /// </summary>
+    [Fact]
+    public async Task SendDraftRoomChangeInvalidatesOldEcho()
+    {
+        var sendService = new FakeDanmuSendService();
+        var socketFactory = new FakeLiveDanmuSocketFactory();
+        socketFactory.Socket.KeepRunning = true;
+        var viewModel = CreateConfiguredViewModel(new(), sendService,
+            resolveAccount: _ => new() { Cookie = "DedeUserID=42" },
+            liveDanmuSocketFactory: socketFactory);
+        viewModel.RoomId = "100";
+        viewModel.InputDraft = "房间内容";
+        viewModel.StartListening();
+
+        try
+        {
+            await viewModel.SendDraftAsync();
+            viewModel.RoomId = "200";
+            var statusBeforeEcho = viewModel.DraftSendStatus;
+            await WaitForAsync(() => sendService.Records[0].Status == "接口已接受，未确认显示", 7000);
+
+            Assert.Equal("房间内容", viewModel.InputDraft);
+            Assert.False(viewModel.IsDraftSendFailed);
+            Assert.Equal(statusBeforeEcho, viewModel.DraftSendStatus);
+        }
+        finally
+        {
+            viewModel.StopListening();
+        }
     }
 
     [Fact]
@@ -1480,9 +1778,9 @@ public class LiveRoomTabViewModelTests
         };
     }
 
-    private static async Task WaitForAsync(Func<bool> predicate)
+    private static async Task WaitForAsync(Func<bool> predicate, int timeoutMilliseconds = 1000)
     {
-        for (var index = 0; index < 50; index++)
+        for (var index = 0; index < timeoutMilliseconds / 20; index++)
         {
             if (predicate())
             {
