@@ -34,10 +34,12 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <components:WorkspaceSidebarView Grid.Column="0" />
+            <components:WorkspaceSidebarView Grid.Column="0"
+                                             IsVisible="{Binding !IsSidebarCollapsed}" />
 
             <GridSplitter Grid.Column="1" Width="2"
                           Classes="sidebarSplitter"
+                          IsVisible="{Binding !IsSidebarCollapsed}"
                           ResizeDirection="Columns"
                           ResizeBehavior="PreviousAndNext"
                           PointerReleased="SidebarSplitter_OnPointerReleased" />

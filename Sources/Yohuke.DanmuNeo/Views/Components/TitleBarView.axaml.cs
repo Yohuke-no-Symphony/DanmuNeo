@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.VisualTree;
 
 namespace Yohuke.DanmuNeo.Views.Components;
 
@@ -45,7 +46,7 @@ public partial class TitleBarView : UserControl
 
     private void TitleBar_OnPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (e.Source is Button)
+        if (e.Source is Control source && (source is Button || source.FindAncestorOfType<Button>() is not null))
         {
             return;
         }

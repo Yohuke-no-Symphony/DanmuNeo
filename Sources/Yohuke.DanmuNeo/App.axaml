@@ -3,6 +3,7 @@
              x:Class="Yohuke.DanmuNeo.App"
              xmlns:local="using:Yohuke.DanmuNeo"
              xmlns:danmuNeo="clr-namespace:Yohuke.DanmuNeo"
+             Name="Danmu Neo"
              RequestedThemeVariant="Default">
              <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
 

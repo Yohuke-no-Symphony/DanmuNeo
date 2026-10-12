@@ -764,6 +764,17 @@
         <Setter Property="Padding" Value="12,6" />
     </Style>
 
+    <Style Selector="Button.lyricTitleButton">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+
     <Style Selector="ListBox.lyricLineList">
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />
@@ -1002,6 +1013,22 @@
 
     <Style Selector="Grid.compactDanmu components|HoverMarqueeTextBlock.compactFeedContent">
         <Setter Property="IsVisible" Value="True" />
+    </Style>
+
+    <Style Selector="Grid.compactDanmu.compactDanmuWrap Button.danmuFeedButton TextBlock.regularFeedContent">
+        <Setter Property="IsVisible" Value="True" />
+    </Style>
+
+    <Style Selector="Grid.compactDanmu.compactDanmuWrap Button.danmuFeedButton components|HoverMarqueeTextBlock.compactFeedContent">
+        <Setter Property="IsVisible" Value="False" />
+    </Style>
+
+    <Style Selector="Grid.compactDanmu.compactSuperChatWrap Button.scFeedButton TextBlock.regularFeedContent">
+        <Setter Property="IsVisible" Value="True" />
+    </Style>
+
+    <Style Selector="Grid.compactDanmu.compactSuperChatWrap Button.scFeedButton components|HoverMarqueeTextBlock.compactFeedContent">
+        <Setter Property="IsVisible" Value="False" />
     </Style>
 
     <Style Selector="Button.scFeedButton.guardPurchase">

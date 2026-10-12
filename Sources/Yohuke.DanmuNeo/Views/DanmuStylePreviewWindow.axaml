@@ -15,14 +15,15 @@
         <Border Classes="panel"
                 Margin="16,16,16,0"
                 Padding="14,10">
-            <Grid ColumnDefinitions="*,Auto"
-                  ColumnSpacing="12">
+            <Grid RowDefinitions="Auto,Auto"
+                  RowSpacing="10">
                 <StackPanel Spacing="2">
                     <TextBlock Text="弹幕、SC 与上舰样式测试"
                                FontSize="18"
                                FontWeight="SemiBold" />
                     <TextBlock Text="仅 DEBUG 入口可用；拖动窗口、列分隔条和上下分隔条检查响应式布局。"
-                               Classes="muted" />
+                               Classes="muted"
+                               TextWrapping="Wrap" />
                     <StackPanel x:Name="CurrentMarkGroupPanel"
                                 IsVisible="False"
                                 Orientation="Horizontal"
@@ -35,15 +36,27 @@
                                    TextTrimming="CharacterEllipsis" />
                     </StackPanel>
                 </StackPanel>
-                <StackPanel Grid.Column="1"
-                             Orientation="Horizontal"
-                             Spacing="8"
-                             VerticalAlignment="Center">
+                <WrapPanel Grid.Row="1"
+                           Orientation="Horizontal">
                     <CheckBox Content="紧凑模式"
                               IsChecked="{Binding IsCompactDanmuDisplay}"
+                              Margin="0,0,16,0"
+                              VerticalAlignment="Center" />
+                    <CheckBox x:Name="CompactDanmuWrapCheckBox"
+                              Content="弹幕自动换行"
+                              IsChecked="{Binding IsCompactDanmuWrap}"
+                              IsEnabled="{Binding IsCompactDanmuDisplay}"
+                              Margin="0,0,16,0"
+                              VerticalAlignment="Center" />
+                    <CheckBox x:Name="CompactSuperChatWrapCheckBox"
+                              Content="SC 自动换行"
+                              IsChecked="{Binding IsCompactSuperChatWrap}"
+                              IsEnabled="{Binding IsCompactDanmuDisplay}"
+                              Margin="0,0,16,0"
                               VerticalAlignment="Center" />
                     <TextBlock Text="主题"
                                Classes="muted"
+                               Margin="0,0,8,0"
                                VerticalAlignment="Center" />
                     <ComboBox x:Name="ThemeModeComboBox"
                               Width="120"
@@ -52,7 +65,7 @@
                         <ComboBoxItem Content="浅色" />
                         <ComboBoxItem Content="深色" />
                     </ComboBox>
-                </StackPanel>
+                </WrapPanel>
             </Grid>
         </Border>
 
@@ -66,7 +79,9 @@
 
             <Border Classes="panel"
                     Padding="14">
-                <Grid Classes.compactDanmu="{Binding IsCompactDanmuDisplay}">
+                <Grid Classes.compactDanmu="{Binding IsCompactDanmuDisplay}"
+                      Classes.compactDanmuWrap="{Binding IsCompactDanmuWrap}"
+                      Classes.compactSuperChatWrap="{Binding IsCompactSuperChatWrap}">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="35*" MinHeight="110" />

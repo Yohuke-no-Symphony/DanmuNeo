@@ -149,7 +149,10 @@ public class DanmuStylePreviewWindowTests
             scroll.Offset = new Vector(0, 180);
             PumpLayout(window);
             Assert.True(scroll.Offset.Y > 1);
-            scroll.Offset = default;
+            var point = scroll.TranslatePoint(new Point(scroll.Bounds.Width / 2, scroll.Bounds.Height / 2), window)!.Value;
+            window.MouseMove(point);
+            window.MouseWheel(point, new Vector(0, 1000));
+            PumpLayout(window);
             viewModel.AddDanmu();
             PumpLayout(window);
             Assert.Equal(0, scroll.Offset.Y);

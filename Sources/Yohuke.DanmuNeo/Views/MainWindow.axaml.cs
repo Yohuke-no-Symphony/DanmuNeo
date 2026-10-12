@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -16,6 +17,9 @@ namespace Yohuke.DanmuNeo.Views;
 public partial class MainWindow : Window
 {
     private readonly AttachedDialogCoordinator dialogCoordinator;
+    private readonly double expandedSidebarMinWidth;
+    private readonly GridLength expandedSidebarSplitterWidth;
+    private MainWindowViewModel? sidebarViewModel;
     private DispatcherTimer? lyricSeekRepeatTimer;
     private Key? lyricSeekRepeatKey;
     private double lyricSeekRepeatOffsetSeconds;
@@ -28,6 +32,8 @@ public partial class MainWindow : Window
     {
         StartupLog.Append("MainWindow ctor begin");
         InitializeComponent();
+        expandedSidebarMinWidth = GetSidebarColumn().MinWidth;
+        expandedSidebarSplitterWidth = MainColumns.ColumnDefinitions[1].Width;
         StartupLog.Append("MainWindow InitializeComponent end");
         dialogCoordinator = new(this, MainColumns);
         DataContextChanged += OnDataContextChanged;
@@ -38,12 +44,18 @@ public partial class MainWindow : Window
             if (DataContext is MainWindowViewModel viewModel)
             {
                 SaveWindowSize(viewModel);
-                viewModel.Settings.SidebarWidth = AppStateService.ClampSidebarWidth(GetSidebarColumn().ActualWidth);
+
+                if (!viewModel.IsSidebarCollapsed)
+                {
+                    CaptureSidebarWidth(viewModel);
+                }
+
                 await viewModel.SaveAsync();
             }
         };
         Closed += (_, _) =>
         {
+            AttachSidebarViewModel(null);
             dialogCoordinator.Dispose();
 
             if (DataContext is IDisposable disposable)
@@ -55,14 +67,63 @@ public partial class MainWindow : Window
 
     private void OnDataContextChanged(object? sender, EventArgs e)
     {
+        AttachSidebarViewModel(DataContext as MainWindowViewModel);
         dialogCoordinator.Attach(DataContext as MainWindowViewModel);
 
         if (DataContext is MainWindowViewModel viewModel)
         {
             Width = AppStateService.ClampWindowWidth(viewModel.Settings.WindowWidth);
             Height = AppStateService.ClampWindowHeight(viewModel.Settings.WindowHeight);
-            GetSidebarColumn().Width = new(AppStateService.ClampSidebarWidth(viewModel.Settings.SidebarWidth));
+            UpdateSidebarLayout(viewModel);
         }
+    }
+
+    private void AttachSidebarViewModel(MainWindowViewModel? viewModel)
+    {
+        if (sidebarViewModel is not null)
+        {
+            sidebarViewModel.PropertyChanged -= SidebarViewModel_OnPropertyChanged;
+        }
+
+        sidebarViewModel = viewModel;
+
+        if (sidebarViewModel is not null)
+        {
+            sidebarViewModel.PropertyChanged += SidebarViewModel_OnPropertyChanged;
+        }
+    }
+
+    private void SidebarViewModel_OnPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(MainWindowViewModel.IsSidebarCollapsed) ||
+            sender is not MainWindowViewModel viewModel)
+        {
+            return;
+        }
+
+        if (viewModel.IsSidebarCollapsed)
+        {
+            CaptureSidebarWidth(viewModel);
+        }
+
+        UpdateSidebarLayout(viewModel);
+    }
+
+    private void UpdateSidebarLayout(MainWindowViewModel viewModel)
+    {
+        var sidebarColumn = GetSidebarColumn();
+        sidebarColumn.MinWidth = viewModel.IsSidebarCollapsed ? 0 : expandedSidebarMinWidth;
+        sidebarColumn.Width = new(viewModel.IsSidebarCollapsed
+            ? 0
+            : AppStateService.ClampSidebarWidth(viewModel.Settings.SidebarWidth));
+        MainColumns.ColumnDefinitions[1].Width = viewModel.IsSidebarCollapsed ? new(0) : expandedSidebarSplitterWidth;
+    }
+
+    private void CaptureSidebarWidth(MainWindowViewModel viewModel)
+    {
+        var sidebarColumn = GetSidebarColumn();
+        var width = sidebarColumn.ActualWidth > 0 ? sidebarColumn.ActualWidth : sidebarColumn.Width.Value;
+        viewModel.Settings.SidebarWidth = AppStateService.ClampSidebarWidth(width);
     }
 
     private void MainWindow_OnPreviewKeyDown(object? sender, KeyEventArgs e)
@@ -85,9 +146,9 @@ public partial class MainWindow : Window
 
     private async void SidebarSplitter_OnPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
-        if (DataContext is MainWindowViewModel viewModel)
+        if (DataContext is MainWindowViewModel { IsSidebarCollapsed: false } viewModel)
         {
-            viewModel.Settings.SidebarWidth = AppStateService.ClampSidebarWidth(GetSidebarColumn().ActualWidth);
+            CaptureSidebarWidth(viewModel);
             GetSidebarColumn().Width = new(viewModel.Settings.SidebarWidth);
             await viewModel.SaveAsync();
         }

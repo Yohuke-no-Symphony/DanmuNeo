@@ -86,6 +86,16 @@ public class AppSettings
     public bool CompactDanmuDisplay { get; set; }
 
     /// <summary>
+    /// 紧凑模式下是否允许普通弹幕自动换行。
+    /// </summary>
+    public bool CompactDanmuWrap { get; set; }
+
+    /// <summary>
+    /// 紧凑模式下是否允许醒目留言自动换行。
+    /// </summary>
+    public bool CompactSuperChatWrap { get; set; } = true;
+
+    /// <summary>
     /// 是否屏蔽仅包含表情标记的普通弹幕。
     /// </summary>
     public bool HideEmoticonDanmu { get; set; }
@@ -131,6 +141,11 @@ public class AppSettings
     /// 左侧栏宽度。
     /// </summary>
     public double SidebarWidth { get; set; } = 240;
+
+    /// <summary>
+    /// 是否折叠整个工作区侧栏。
+    /// </summary>
+    public bool IsSidebarCollapsed { get; set; }
 
     /// <summary>
     /// 主窗口宽度。

@@ -411,7 +411,12 @@ public partial class LiveRoomTabViewModel : ViewModelBase
     /// <summary>
     /// 当前歌词标题展示文本。
     /// </summary>
-    public string CurrentLyricTitleText => string.IsNullOrWhiteSpace(LyricTitle) ? "未选择歌词" : LyricTitle;
+    public string CurrentLyricTitleText => HasLyricTitle ? LyricTitle : "未选择歌词";
+
+    /// <summary>
+    /// 当前是否存在可复制的歌词标题。
+    /// </summary>
+    public bool HasLyricTitle => !string.IsNullOrWhiteSpace(LyricTitle);
 
     /// <summary>
     /// 是否存在同传历史。
@@ -432,6 +437,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
     {
         State.LyricTitle = value;
         OnPropertyChanged(nameof(CurrentLyricTitleText));
+        OnPropertyChanged(nameof(HasLyricTitle));
     }
 
     partial void OnLyricPlaybackRateChanged(double value)

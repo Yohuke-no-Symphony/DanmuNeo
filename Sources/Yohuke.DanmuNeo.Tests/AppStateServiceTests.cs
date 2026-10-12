@@ -88,6 +88,54 @@ public class AppStateServiceTests
         Assert.Equal(ShortcutActionCatalog.Actions.Count, loaded.Settings.ShortcutBindings.Count);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void SaveAndLoadKeepsSidebarLayout(bool isCollapsed)
+    {
+        var directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            var service = new AppStateService(directory);
+            service.Save(new()
+            {
+                Settings = new() { IsSidebarCollapsed = isCollapsed, SidebarWidth = 316 }
+            });
+
+            var loaded = service.Load();
+
+            Assert.Equal(isCollapsed, loaded.Settings.IsSidebarCollapsed);
+            Assert.Equal(316, loaded.Settings.SidebarWidth);
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
+    [Fact]
+    public void LoadSettingsWithoutSidebarStateKeepsExpandedLayout()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(directory);
+            var service = new AppStateService(directory);
+            File.WriteAllText(service.SettingsFilePath, """{"SidebarWidth":316}""");
+
+            var loaded = service.Load();
+
+            Assert.False(loaded.Settings.IsSidebarCollapsed);
+            Assert.Equal(316, loaded.Settings.SidebarWidth);
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
+    }
+
     [Fact]
     public void SaveAndLoadNormalizesShortcutBindings()
     {

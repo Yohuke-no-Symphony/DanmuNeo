@@ -20,6 +20,7 @@ $projectPath = Join-Path $repoRoot "Sources/Yohuke.DanmuNeo/Yohuke.DanmuNeo.cspr
 $iconPath = Join-Path $repoRoot "Sources/Yohuke.DanmuNeo/Assets/favicon.ico"
 $macReadmePath = Join-Path $repoRoot "Packaging/macOS/README.txt"
 $appName = "Yohuke Danmu Neo"
+$appDisplayName = "Danmu Neo"
 $executableName = "Yohuke.DanmuNeo"
 $bundleIdentifier = "com.yohuke.danmuneo"
 
@@ -243,7 +244,9 @@ function New-MacAppBundle
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>$appName</string>
+    <string>$appDisplayName</string>
+    <key>CFBundleDisplayName</key>
+    <string>$appDisplayName</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>

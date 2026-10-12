@@ -102,6 +102,40 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     public AppSettings Settings { get; }
 
     /// <summary>
+    /// 是否折叠整个工作区侧栏。
+    /// </summary>
+    public bool IsSidebarCollapsed
+    {
+        get => Settings.IsSidebarCollapsed;
+        set
+        {
+            if (Settings.IsSidebarCollapsed == value)
+            {
+                return;
+            }
+
+            Settings.IsSidebarCollapsed = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(SidebarToggleToolTip));
+        }
+    }
+
+    /// <summary>
+    /// 侧栏折叠按钮提示。
+    /// </summary>
+    public string SidebarToggleToolTip => IsSidebarCollapsed ? "展开工作区侧栏" : "折叠工作区侧栏";
+
+    /// <summary>
+    /// 切换并保存工作区侧栏的折叠状态。
+    /// </summary>
+    [RelayCommand]
+    public async Task ToggleSidebarAsync()
+    {
+        IsSidebarCollapsed = !IsSidebarCollapsed;
+        await SaveAsync();
+    }
+
+    /// <summary>
     /// 是否使用紧凑弹幕显示。
     /// </summary>
     public bool IsCompactDanmuDisplay
@@ -115,6 +149,42 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             }
 
             Settings.CompactDanmuDisplay = value;
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>
+    /// 紧凑模式下是否允许普通弹幕自动换行。
+    /// </summary>
+    public bool IsCompactDanmuWrap
+    {
+        get => Settings.CompactDanmuWrap;
+        set
+        {
+            if (Settings.CompactDanmuWrap == value)
+            {
+                return;
+            }
+
+            Settings.CompactDanmuWrap = value;
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>
+    /// 紧凑模式下是否允许醒目留言自动换行。
+    /// </summary>
+    public bool IsCompactSuperChatWrap
+    {
+        get => Settings.CompactSuperChatWrap;
+        set
+        {
+            if (Settings.CompactSuperChatWrap == value)
+            {
+                return;
+            }
+
+            Settings.CompactSuperChatWrap = value;
             OnPropertyChanged();
         }
     }

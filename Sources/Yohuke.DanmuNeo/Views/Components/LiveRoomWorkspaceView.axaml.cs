@@ -327,6 +327,14 @@ public partial class LiveRoomWorkspaceView : UserControl
         }
     }
 
+    private async void LyricTitle_OnClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is LiveRoomTabViewModel { HasLyricTitle: true } room)
+        {
+            await CopyToClipboardAsync(room.LyricTitle);
+        }
+    }
+
     private void LyricLine_OnDoubleTapped(object? sender, TappedEventArgs e)
     {
         if ((sender as Control)?.DataContext is not LyricLineState line ||
@@ -350,8 +358,29 @@ public partial class LiveRoomWorkspaceView : UserControl
         SuspendLyricAutoFollow();
     }
 
-    private void LyricListBox_OnKeyDown(object? sender, KeyEventArgs e)
+    private async void LyricListBox_OnKeyDown(object? sender, KeyEventArgs e)
     {
+        if (e.Handled)
+        {
+            return;
+        }
+
+        var hotkeys = TopLevel.GetTopLevel(this)?.PlatformSettings?.HotkeyConfiguration;
+
+        if (hotkeys?.Copy.Any(gesture => gesture.Matches(e)) == true &&
+            LyricListBox.SelectedItem is LyricLineState line)
+        {
+            e.Handled = true;
+            var text = line.HasTranslatedContent ? line.TranslatedContent : line.Content;
+
+            if (!string.IsNullOrWhiteSpace(text))
+            {
+                await CopyToClipboardAsync(text);
+            }
+
+            return;
+        }
+
         if (e.Key is Key.PageUp or Key.PageDown or Key.Home or Key.End or Key.Up or Key.Down)
         {
             SuspendLyricAutoFollow();

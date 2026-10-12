@@ -1,7 +1,9 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
+using Avalonia.Input;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Yohuke.DanmuNeo.Models.Workspace;
@@ -87,6 +89,254 @@ public class LiveRoomDanmuScrollTests
     }
 
     /// <summary>
+    /// 新消息布局期间的临时偏移归零不能覆盖用户的历史阅读位置。
+    /// </summary>
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void PlatformOffsetResetDuringIncomingDanmuPreservesReadingAnchor(bool compact)
+    {
+        using var context = new LiveRoomFeedViewTestContext();
+        var view = CreateView(context, compact);
+        var window = CreateWindow(context, view);
+
+        try
+        {
+            ShowWindow(window);
+            var scroll = view.FindControl<ScrollViewer>("DanmuScrollViewer")!;
+            WheelDown(window, scroll);
+            PumpLayout(window);
+            var anchor = GetReadingAnchor(view, scroll);
+            var item = anchor.DataContext;
+            var before = anchor.TranslatePoint(default, scroll)!.Value.Y;
+
+            context.Room.AddDanmu(new() { RoomId = "100", Content = new string('长', 180) });
+            scroll.Offset = default;
+            context.Room.AddDanmu(new() { RoomId = "100", Content = "同一次布局中的第二条弹幕" });
+            PumpLayout(window);
+
+            Assert.Same(item, anchor.DataContext);
+            Assert.InRange(anchor.TranslatePoint(default, scroll)!.Value.Y, before - 0.5, before + 0.5);
+            Assert.True(scroll.Offset.Y > 1);
+            Assert.Equal(300, context.Room.DanmuItems.Count);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>
+    /// 无用户滚动输入的焦点回迁不能恢复自动跟随或拉回列表顶部。
+    /// </summary>
+    [AvaloniaTheory]
+    [InlineData(false, 0)]
+    [InlineData(false, 1)]
+    [InlineData(true, 0)]
+    [InlineData(true, 1)]
+    public void FocusChangeWhileReadingDoesNotResumeFollowing(bool compact, int focusIndex)
+    {
+        using var context = new LiveRoomFeedViewTestContext();
+        var view = CreateView(context, compact);
+        var window = CreateWindow(context, view);
+
+        try
+        {
+            ShowWindow(window);
+            var scroll = view.FindControl<ScrollViewer>("DanmuScrollViewer")!;
+            var latest = view.GetVisualDescendants().OfType<Button>()
+                .Where(control => control.Classes.Contains("danmuFeedButton"))
+                .ElementAt(focusIndex);
+            WheelDown(window, scroll);
+            PumpLayout(window);
+            var anchor = GetReadingAnchor(view, scroll);
+            var before = anchor.TranslatePoint(default, scroll)!.Value.Y;
+
+            Assert.False(latest.IsFocused);
+            Assert.True(latest.Focus());
+            context.Room.AddDanmu(new() { RoomId = "100", Content = "焦点变化后到达的新弹幕" });
+            PumpLayout(window);
+
+            Assert.InRange(anchor.TranslatePoint(default, scroll)!.Value.Y, before - 0.5, before + 0.5);
+            Assert.True(scroll.Offset.Y > 1);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>
+    /// 新消息之间再次滚动时，后续布局以用户新选择的位置为准。
+    /// </summary>
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void WheelBetweenIncomingMessagesPreservesNewReadingPosition(bool compact)
+    {
+        using var context = new LiveRoomFeedViewTestContext();
+        var view = CreateView(context, compact);
+        var window = CreateWindow(context, view);
+
+        try
+        {
+            ShowWindow(window);
+            var scroll = view.FindControl<ScrollViewer>("DanmuScrollViewer")!;
+            WheelDown(window, scroll);
+            PumpLayout(window);
+            context.Room.AddDanmu(new() { RoomId = "100", Content = "再次滚动前的新弹幕" });
+            WheelDown(window, scroll);
+            var anchor = GetReadingAnchor(view, scroll);
+            var item = anchor.DataContext;
+            var before = anchor.TranslatePoint(default, scroll)!.Value.Y;
+            context.Room.AddDanmu(new() { RoomId = "100", Content = new string('长', 180) });
+            PumpLayout(window);
+
+            Assert.Same(item, anchor.DataContext);
+            Assert.InRange(anchor.TranslatePoint(default, scroll)!.Value.Y, before - 0.5, before + 0.5);
+            Assert.True(scroll.Offset.Y > 300);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>
+    /// 真实滚动条拖动期间的新消息与临时归零保留锚点，拖回顶部后恢复跟随。
+    /// </summary>
+    [AvaloniaFact]
+    public void ScrollbarDragPreservesReadingAcrossIncomingMessagesAndRestoresFollowing()
+    {
+        using var context = new LiveRoomFeedViewTestContext();
+        var view = CreateView(context, false);
+        var window = CreateWindow(context, view);
+
+        try
+        {
+            ShowWindow(window);
+            var scroll = view.FindControl<ScrollViewer>("DanmuScrollViewer")!;
+            var scrollBar = scroll.GetVisualDescendants().OfType<ScrollBar>()
+                .Single(control => control.Orientation == Avalonia.Layout.Orientation.Vertical);
+            scrollBar.AllowAutoHide = false;
+            PumpLayout(window);
+            var thumb = scrollBar.GetVisualDescendants().OfType<Thumb>().Single();
+            var start = thumb.TranslatePoint(new Point(thumb.Bounds.Width / 2, thumb.Bounds.Height / 2), window)!.Value;
+            var target = start + new Vector(0, 60);
+            window.MouseMove(start);
+            window.MouseDown(start, MouseButton.Left);
+            window.MouseMove(target, RawInputModifiers.LeftMouseButton);
+            PumpLayout(window);
+            Assert.True(scroll.Offset.Y > 1);
+            var anchor = GetReadingAnchor(view, scroll);
+            var before = anchor.TranslatePoint(default, scroll)!.Value.Y;
+            context.Room.AddDanmu(new() { RoomId = "100", Content = "拖动滚动条期间的新消息" });
+            scroll.Offset = default;
+            context.Room.AddDanmu(new() { RoomId = "100", Content = new string('长', 180) });
+            PumpLayout(window);
+            window.MouseUp(target, MouseButton.Left);
+            PumpLayout(window);
+
+            Assert.InRange(anchor.TranslatePoint(default, scroll)!.Value.Y, before - 0.5, before + 0.5);
+            Assert.True(scroll.Offset.Y > 1);
+
+            start = thumb.TranslatePoint(new Point(thumb.Bounds.Width / 2, thumb.Bounds.Height / 2), window)!.Value;
+            target = start - new Vector(0, scroll.Viewport.Height);
+            window.MouseMove(start);
+            window.MouseDown(start, MouseButton.Left);
+            window.MouseMove(target, RawInputModifiers.LeftMouseButton);
+            window.MouseUp(target, MouseButton.Left);
+            PumpLayout(window);
+            Assert.Equal(0, scroll.Offset.Y);
+            context.Room.AddDanmu(new() { RoomId = "100", Content = "拖回顶部后跟随新弹幕" });
+            PumpLayout(window);
+            Assert.Equal(0, scroll.Offset.Y);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>
+    /// 真实滚轮撤销旧回顶请求，后续批量插入继续保留阅读锚点。
+    /// </summary>
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void WheelCancelsQueuedFollowingAndPreservesAnchorAcrossBurst(bool compact)
+    {
+        using var context = new LiveRoomFeedViewTestContext();
+        var view = CreateView(context, compact);
+        var window = CreateWindow(context, view);
+
+        try
+        {
+            ShowWindow(window);
+            var scroll = view.FindControl<ScrollViewer>("DanmuScrollViewer")!;
+            context.Room.AddDanmu(new() { RoomId = "100", Content = "滚轮之前排队的新消息" });
+            WheelDown(window, scroll);
+            PumpLayout(window);
+            Assert.True(scroll.Offset.Y > 1);
+            var anchor = GetReadingAnchor(view, scroll);
+            var before = anchor.TranslatePoint(default, scroll)!.Value.Y;
+
+            for (var index = 0; index < 12; index++)
+            {
+                context.Room.AddDanmu(new() { RoomId = "100", Content = new string('长', index * 9 + 1) });
+            }
+
+            PumpLayout(window);
+
+            Assert.InRange(anchor.TranslatePoint(default, scroll)!.Value.Y, before - 0.5, before + 0.5);
+            Assert.True(scroll.Offset.Y > 1);
+            Assert.Equal(300, context.Room.DanmuItems.Count);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>
+    /// 键盘翻阅与滚轮回到顶部后均使用实际用户输入更新跟随状态。
+    /// </summary>
+    [AvaloniaFact]
+    public void KeyboardReadingAndWheelReturnToLatestUpdateFollowing()
+    {
+        using var context = new LiveRoomFeedViewTestContext();
+        var view = CreateView(context, false);
+        var window = CreateWindow(context, view);
+
+        try
+        {
+            ShowWindow(window);
+            var scroll = view.FindControl<ScrollViewer>("DanmuScrollViewer")!;
+            var latest = view.GetVisualDescendants().OfType<Button>()
+                .First(control => control.Classes.Contains("danmuFeedButton"));
+            latest.Focus();
+            window.KeyPressQwerty(PhysicalKey.PageDown, RawInputModifiers.None);
+            window.KeyReleaseQwerty(PhysicalKey.PageDown, RawInputModifiers.None);
+            PumpLayout(window);
+            Assert.True(scroll.Offset.Y > 1);
+            context.Room.AddDanmu(new() { RoomId = "100", Content = "键盘翻阅中的新弹幕" });
+            PumpLayout(window);
+            Assert.True(scroll.Offset.Y > 1);
+
+            WheelUp(window, scroll);
+            PumpLayout(window);
+            context.Room.AddDanmu(new() { RoomId = "100", Content = "用户回到顶部后的新弹幕" });
+            PumpLayout(window);
+
+            Assert.Equal(0, scroll.Offset.Y);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>
     /// 回到顶部后恢复跟随，清空列表也复位到最新位置。
     /// </summary>
     [AvaloniaFact]
@@ -102,7 +352,7 @@ public class LiveRoomDanmuScrollTests
             var scroll = view.FindControl<ScrollViewer>("DanmuScrollViewer")!;
             WheelDown(window, scroll);
             PumpLayout(window);
-            scroll.Offset = default;
+            WheelUp(window, scroll);
             PumpLayout(window);
             context.Room.AddDanmu(new() { RoomId = "100", Uid = 30, Content = "恢复跟随" });
             PumpLayout(window);
@@ -206,5 +456,19 @@ public class LiveRoomDanmuScrollTests
         var point = scroll.TranslatePoint(new Point(scroll.Bounds.Width / 2, scroll.Bounds.Height / 2), window)!.Value;
         window.MouseMove(point);
         window.MouseWheel(point, new Vector(0, -6));
+    }
+
+    private static void WheelUp(Window window, ScrollViewer scroll)
+    {
+        var point = scroll.TranslatePoint(new Point(scroll.Bounds.Width / 2, scroll.Bounds.Height / 2), window)!.Value;
+        window.MouseMove(point);
+        window.MouseWheel(point, new Vector(0, 1000));
+    }
+
+    private static Button GetReadingAnchor(LiveRoomWorkspaceView view, ScrollViewer scroll)
+    {
+        return view.GetVisualDescendants().OfType<Button>()
+            .Where(control => control.Classes.Contains("danmuFeedButton"))
+            .First(control => control.TranslatePoint(default, scroll)!.Value.Y >= 0);
     }
 }

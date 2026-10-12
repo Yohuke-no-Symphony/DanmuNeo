@@ -63,6 +63,19 @@
                            Classes="sectionTitle" />
                 <CheckBox Content="紧凑弹幕显示"
                           IsChecked="{Binding IsCompactDanmuDisplay}" />
+                <StackPanel Margin="16,0,0,0"
+                            Spacing="8"
+                            IsEnabled="{Binding IsCompactDanmuDisplay}">
+                    <CheckBox x:Name="CompactDanmuWrapCheckBox"
+                              Content="弹幕自动换行"
+                              IsChecked="{Binding IsCompactDanmuWrap}" />
+                    <CheckBox x:Name="CompactSuperChatWrapCheckBox"
+                              Content="SC 自动换行"
+                              IsChecked="{Binding IsCompactSuperChatWrap}" />
+                </StackPanel>
+                <TextBlock Text="宽松模式始终自动换行。"
+                           Classes="muted"
+                           TextWrapping="Wrap" />
                 <CheckBox Content="屏蔽表情弹幕"
                           IsChecked="{Binding IsHideEmoticonDanmu}" />
             </StackPanel>

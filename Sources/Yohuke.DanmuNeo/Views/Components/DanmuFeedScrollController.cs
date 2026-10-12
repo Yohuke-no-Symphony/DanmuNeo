@@ -1,6 +1,12 @@
 using System.Collections.Specialized;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.Layout;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 
 namespace Yohuke.DanmuNeo.Views.Components;
 
@@ -13,8 +19,17 @@ internal sealed class DanmuFeedScrollController : IDisposable
     private readonly ScrollViewer scrollViewer;
     private readonly ItemsControl itemsControl;
     private INotifyCollectionChanged? items;
+    private ScrollBar? verticalScrollBar;
+    private Control? readingAnchor;
+    private object? readingItem;
+    private double readingAnchorY;
+    private double readingOffset;
     private long session;
     private bool isScrollPending;
+    private bool isFollowingLatest = true;
+    private bool isUserScrollPending;
+    private bool isScrollUpdateRequired;
+    private bool isUpdatingScroll;
     private bool isDisposed;
 
     /// <summary>
@@ -26,6 +41,16 @@ internal sealed class DanmuFeedScrollController : IDisposable
         this.itemsControl = itemsControl;
         itemsControl.ContainerPrepared += OnContainerPrepared;
         itemsControl.ContainerClearing += OnContainerClearing;
+        scrollViewer.PropertyChanged += OnScrollPropertyChanged;
+        scrollViewer.LayoutUpdated += OnLayoutUpdated;
+        scrollViewer.TemplateApplied += OnScrollTemplateApplied;
+        scrollViewer.AddHandler(InputElement.PointerWheelChangedEvent, OnPointerWheelChanged,
+            RoutingStrategies.Tunnel | RoutingStrategies.Bubble, true);
+        scrollViewer.AddHandler(InputElement.KeyDownEvent, OnKeyDown,
+            RoutingStrategies.Tunnel | RoutingStrategies.Bubble, true);
+        scrollViewer.AddHandler(Gestures.ScrollGestureEvent, OnScrollGesture, RoutingStrategies.Bubble, true);
+        AttachScrollBar(scrollViewer.GetVisualDescendants().OfType<ScrollBar>()
+            .FirstOrDefault(control => control.Orientation == Orientation.Vertical));
     }
 
     /// <summary>
@@ -43,6 +68,10 @@ internal sealed class DanmuFeedScrollController : IDisposable
         items = collection;
         session++;
         isScrollPending = false;
+        isUserScrollPending = false;
+        isScrollUpdateRequired = false;
+        readingAnchor = null;
+        readingItem = null;
 
         if (items is not null)
         {
@@ -62,6 +91,13 @@ internal sealed class DanmuFeedScrollController : IDisposable
         Attach(null);
         itemsControl.ContainerPrepared -= OnContainerPrepared;
         itemsControl.ContainerClearing -= OnContainerClearing;
+        scrollViewer.PropertyChanged -= OnScrollPropertyChanged;
+        scrollViewer.LayoutUpdated -= OnLayoutUpdated;
+        scrollViewer.TemplateApplied -= OnScrollTemplateApplied;
+        AttachScrollBar(null);
+        scrollViewer.RemoveHandler(InputElement.PointerWheelChangedEvent, OnPointerWheelChanged);
+        scrollViewer.RemoveHandler(InputElement.KeyDownEvent, OnKeyDown);
+        scrollViewer.RemoveHandler(Gestures.ScrollGestureEvent, OnScrollGesture);
 
         foreach (var container in itemsControl.GetRealizedContainers())
         {
@@ -77,9 +113,176 @@ internal sealed class DanmuFeedScrollController : IDisposable
         {
             ResetToLatest();
         }
-        else if (e.Action == NotifyCollectionChangedAction.Add && e.NewStartingIndex == 0 && IsAtLatest())
+        else
         {
-            QueueScrollToLatest();
+            QueueScrollUpdate();
+        }
+    }
+
+    private void OnScrollPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
+    {
+        if (e.Property != ScrollViewer.OffsetProperty || items is null || isUpdatingScroll)
+        {
+            return;
+        }
+
+        if (isUserScrollPending)
+        {
+            UpdateFollowingFromUserScroll();
+        }
+        else if (isFollowingLatest && !IsAtLatest())
+        {
+            isFollowingLatest = false;
+            CaptureReadingAnchor();
+        }
+        else if (!isFollowingLatest && !isScrollPending)
+        {
+            QueueScrollUpdate();
+        }
+    }
+
+    private void OnLayoutUpdated(object? sender, EventArgs e)
+    {
+        if (items is not null && !isFollowingLatest && !isScrollPending && !isUpdatingScroll)
+        {
+            CaptureReadingAnchor();
+        }
+    }
+
+    private void OnPointerWheelChanged(object? sender, PointerWheelEventArgs e)
+    {
+        if (e.Delta.Y != 0 && e.KeyModifiers != KeyModifiers.Shift)
+        {
+            if (e.Route == RoutingStrategies.Tunnel)
+            {
+                BeginUserScroll();
+            }
+            else
+            {
+                CompleteUserScroll();
+            }
+        }
+    }
+
+    private void OnKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key is Key.PageUp or Key.PageDown or Key.Home or Key.End or Key.Up or Key.Down)
+        {
+            if (e.Route == RoutingStrategies.Tunnel)
+            {
+                BeginUserScroll();
+            }
+            else
+            {
+                CompleteUserScroll();
+            }
+        }
+    }
+
+    private void OnScrollTemplateApplied(object? sender, TemplateAppliedEventArgs e)
+    {
+        AttachScrollBar(e.NameScope.Find<ScrollBar>("PART_VerticalScrollBar"));
+    }
+
+    private void AttachScrollBar(ScrollBar? scrollBar)
+    {
+        if (verticalScrollBar is not null)
+        {
+            verticalScrollBar.Scroll -= OnScrollbarScroll;
+        }
+
+        verticalScrollBar = scrollBar;
+
+        if (verticalScrollBar is not null)
+        {
+            verticalScrollBar.Scroll += OnScrollbarScroll;
+        }
+    }
+
+    private void OnScrollbarScroll(object? sender, ScrollEventArgs e)
+    {
+        if (items is not null && e.ScrollEventType != ScrollEventType.EndScroll)
+        {
+            BeginUserScroll();
+            CompleteUserScroll();
+        }
+    }
+
+    private void OnScrollGesture(object? sender, ScrollGestureEventArgs e)
+    {
+        if (e.Delta.Y != 0)
+        {
+            BeginUserScroll();
+            CompleteUserScroll();
+        }
+    }
+
+    private void BeginUserScroll()
+    {
+        if (items is null)
+        {
+            return;
+        }
+
+        session++;
+        isScrollUpdateRequired |= isScrollPending;
+        isScrollPending = false;
+        isUserScrollPending = true;
+    }
+
+    private void CompleteUserScroll()
+    {
+        if (items is not null && isUserScrollPending)
+        {
+            UpdateFollowingFromUserScroll();
+            isUserScrollPending = false;
+
+            if (isScrollUpdateRequired)
+            {
+                isScrollUpdateRequired = false;
+                QueueScrollUpdate();
+            }
+        }
+    }
+
+    private void UpdateFollowingFromUserScroll()
+    {
+        isFollowingLatest = IsAtLatest();
+
+        if (isFollowingLatest)
+        {
+            readingAnchor = null;
+            readingItem = null;
+        }
+        else
+        {
+            CaptureReadingAnchor();
+        }
+    }
+
+    private void CaptureReadingAnchor()
+    {
+        readingOffset = scrollViewer.Offset.Y;
+        readingAnchor = null;
+        readingItem = null;
+        var firstY = double.PositiveInfinity;
+
+        foreach (var container in itemsControl.GetRealizedContainers())
+        {
+            if (container.TranslatePoint(default, itemsControl) is not { } position || container.Bounds.Height <= 0)
+            {
+                continue;
+            }
+
+            var y = position.Y - readingOffset;
+
+            if (y + container.Bounds.Height > 0 && y < scrollViewer.Viewport.Height && y < firstY)
+            {
+                readingAnchor = container;
+                readingItem = itemsControl.ItemFromContainer(container);
+                readingAnchorY = y;
+                firstY = y;
+            }
         }
     }
 
@@ -102,11 +305,16 @@ internal sealed class DanmuFeedScrollController : IDisposable
     {
         session++;
         isScrollPending = false;
-        scrollViewer.Offset = new(scrollViewer.Offset.X, 0);
-        QueueScrollToLatest();
+        isUserScrollPending = false;
+        isScrollUpdateRequired = false;
+        isFollowingLatest = true;
+        readingAnchor = null;
+        readingItem = null;
+        SetVerticalOffset(0);
+        QueueScrollUpdate();
     }
 
-    private void QueueScrollToLatest()
+    private void QueueScrollUpdate()
     {
         if (isScrollPending)
         {
@@ -122,12 +330,58 @@ internal sealed class DanmuFeedScrollController : IDisposable
                 return;
             }
 
-            isScrollPending = false;
+            isUpdatingScroll = true;
 
-            if (items is not null && IsAtLatest())
+            try
             {
-                scrollViewer.Offset = new(scrollViewer.Offset.X, 0);
+                scrollViewer.UpdateLayout();
+
+                if (requestedSession != session || isDisposed || items is null)
+                {
+                    return;
+                }
+
+                var offset = isFollowingLatest ? 0 : readingOffset;
+
+                if (!isFollowingLatest && readingAnchor is not null &&
+                    itemsControl.IndexFromContainer(readingAnchor) >= 0 &&
+                    ReferenceEquals(readingItem, itemsControl.ItemFromContainer(readingAnchor)) &&
+                    readingAnchor.TranslatePoint(default, itemsControl) is { } position)
+                {
+                    offset = position.Y - readingAnchorY;
+                }
+
+                scrollViewer.Offset = new(scrollViewer.Offset.X, offset);
+                scrollViewer.UpdateLayout();
+            }
+            finally
+            {
+                isUpdatingScroll = false;
+
+                if (requestedSession == session)
+                {
+                    isScrollPending = false;
+                }
+            }
+
+            if (requestedSession == session && !isDisposed && items is not null && !isFollowingLatest)
+            {
+                CaptureReadingAnchor();
             }
         }, DispatcherPriority.Background);
+    }
+
+    private void SetVerticalOffset(double offset)
+    {
+        isUpdatingScroll = true;
+
+        try
+        {
+            scrollViewer.Offset = new(scrollViewer.Offset.X, offset);
+        }
+        finally
+        {
+            isUpdatingScroll = false;
+        }
     }
 }

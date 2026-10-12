@@ -184,7 +184,9 @@
                 <TabControl Classes="workspaceToolTabs">
                     <TabItem Header="弹幕">
                         <Grid Margin="0,10,0,0"
-                              Classes.compactDanmu="{Binding DataContext.IsCompactDanmuDisplay, RelativeSource={RelativeSource AncestorType=Window}}">
+                              Classes.compactDanmu="{Binding DataContext.IsCompactDanmuDisplay, RelativeSource={RelativeSource AncestorType=Window}}"
+                              Classes.compactDanmuWrap="{Binding DataContext.IsCompactDanmuWrap, RelativeSource={RelativeSource AncestorType=Window}}"
+                              Classes.compactSuperChatWrap="{Binding DataContext.IsCompactSuperChatWrap, RelativeSource={RelativeSource AncestorType=Window}}">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="35*" MinHeight="100" />
                                 <RowDefinition Height="4" />
@@ -369,10 +371,16 @@
                               Margin="0,10,0,0">
                             <Grid ColumnDefinitions="*,Auto,Auto"
                                   ColumnSpacing="8">
-                                <TextBlock Text="{Binding CurrentLyricTitleText}"
-                                           VerticalAlignment="Center"
-                                           TextTrimming="CharacterEllipsis"
-                                           FontWeight="SemiBold" />
+                                <Button x:Name="LyricTitleButton"
+                                        Classes="lyricTitleButton"
+                                        IsEnabled="{Binding HasLyricTitle}"
+                                        ToolTip.Tip="点击复制歌词标题"
+                                        VerticalAlignment="Center"
+                                        Click="LyricTitle_OnClick">
+                                    <TextBlock Text="{Binding CurrentLyricTitleText}"
+                                               TextTrimming="CharacterEllipsis"
+                                               FontWeight="SemiBold" />
+                                </Button>
                                 <Button Grid.Column="1"
                                         ToolTip.Tip="打开歌词库"
                                         Classes="iconButton"
@@ -479,8 +487,9 @@
                                 </Button>
                             </Grid>
                             <ListBox x:Name="LyricListBox"
-                                     Grid.Row="4"
-                                     Classes="lyricLineList"
+                                      Grid.Row="4"
+                                      Classes="lyricLineList"
+                                      ToolTip.Tip="选中歌词后，使用复制快捷键复制翻译；无翻译时复制原文"
                                      ItemsSource="{Binding Lyrics}"
                                      SelectedItem="{Binding ActiveLyricLine, Mode=OneWay}">
                                 <ListBox.ItemTemplate>

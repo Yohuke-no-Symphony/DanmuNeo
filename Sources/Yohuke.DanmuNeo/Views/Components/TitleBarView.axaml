@@ -13,6 +13,17 @@
                     Spacing="10"
                     Margin="14,0,0,0"
                     VerticalAlignment="Center">
+            <Button x:Name="SidebarToggleButton"
+                    Classes="iconButton"
+                    ToolTip.Tip="{Binding SidebarToggleToolTip}"
+                    Command="{Binding ToggleSidebarCommand}">
+                <Grid>
+                    <LucideIcon Kind="PanelLeftClose"
+                                IsVisible="{Binding !IsSidebarCollapsed}" />
+                    <LucideIcon Kind="PanelLeftOpen"
+                                IsVisible="{Binding IsSidebarCollapsed}" />
+                </Grid>
+            </Button>
             <TextBlock Text="夜半同传"
                        FontWeight="SemiBold"
                        FontSize="13" />

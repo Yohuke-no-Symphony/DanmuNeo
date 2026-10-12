@@ -16,6 +16,8 @@ internal sealed class DanmuStylePreviewViewModel : ViewModelBase
     private int medalLevel = 25;
     private string superChatColorText = "";
     private bool isCompactDanmuDisplay;
+    private bool isCompactDanmuWrap;
+    private bool isCompactSuperChatWrap = true;
     private SuperChatStylePreset? selectedSuperChatPreset;
     private GuardStylePreset? selectedGuardPreset;
     private GuardStylePreset? selectedMedalGuardPreset;
@@ -88,6 +90,24 @@ internal sealed class DanmuStylePreviewViewModel : ViewModelBase
     {
         get => isCompactDanmuDisplay;
         set => SetProperty(ref isCompactDanmuDisplay, value);
+    }
+
+    /// <summary>
+    /// 紧凑预览中是否允许普通弹幕自动换行。
+    /// </summary>
+    public bool IsCompactDanmuWrap
+    {
+        get => isCompactDanmuWrap;
+        set => SetProperty(ref isCompactDanmuWrap, value);
+    }
+
+    /// <summary>
+    /// 紧凑预览中是否允许醒目留言自动换行。
+    /// </summary>
+    public bool IsCompactSuperChatWrap
+    {
+        get => isCompactSuperChatWrap;
+        set => SetProperty(ref isCompactSuperChatWrap, value);
     }
 
     public string UserName
