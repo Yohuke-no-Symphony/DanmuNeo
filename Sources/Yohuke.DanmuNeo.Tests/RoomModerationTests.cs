@@ -37,7 +37,7 @@ public class RoomModerationTests
         for (var index = 0; index < 2; index++)
         {
             handler.Responses.Enqueue("""{"code":0,"data":{"info":{"uid":10},"badge":{"is_room_admin":true}}}""");
-            handler.Responses.Enqueue("""{"code":0,"data":{"room_info":{"room_id":100,"uid":20}}}""");
+            handler.Responses.Enqueue("""{"code":0,"data":{"room_id":100,"uid":20}}""");
         }
 
         handler.Responses.Enqueue("""{"code":0,"message":"","data":[]}""");
@@ -49,6 +49,7 @@ public class RoomModerationTests
         await context.Room.MuteDanmuCommand.ExecuteAsync(context.Item);
 
         Assert.Equal(5, handler.Requests.Count);
+        Assert.DoesNotContain(handler.Requests, request => request.AbsolutePath.EndsWith("/getInfoByRoom"));
         Assert.Equal("100", handler.FormParameters["room_id"]);
         Assert.Equal("30", handler.FormParameters["tuid"]);
         Assert.Equal(context.Item.Content, handler.FormParameters["msg"]);

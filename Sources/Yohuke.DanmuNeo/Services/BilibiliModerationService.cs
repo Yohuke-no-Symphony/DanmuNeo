@@ -46,14 +46,15 @@ public class BilibiliModerationService : IBilibiliModerationService
             throw new InvalidOperationException("未获取到登录身份，请重新登录账号");
         }
 
-        var roomResponse = await api.GetRoomInfoAsync(parsedRoomId, timeout, cancellationToken);
+        var roomResponse = await api.GetRoomPlayInfoAsync(parsedRoomId, cookie: cookie, timeout: timeout,
+            cancellationToken: cancellationToken);
 
         if (roomResponse.Code != 0)
         {
             throw new InvalidOperationException(GetErrorMessage(roomResponse.Message, roomResponse.Msg, "直播间资料查询失败"));
         }
 
-        var roomInfo = roomResponse.Data?.RoomInfo;
+        var roomInfo = roomResponse.Data;
 
         if (roomInfo is null || roomInfo.Uid <= 0 || roomInfo.RoomId <= 0)
         {

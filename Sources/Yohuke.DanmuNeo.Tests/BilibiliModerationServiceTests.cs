@@ -8,7 +8,7 @@ namespace Yohuke.DanmuNeo.Tests;
 public class BilibiliModerationServiceTests
 {
     /// <summary>
-    /// 主播与房管具有权限，普通登录用户没有权限。
+    /// 沿用原项目的用户和播放信息接口，未开播时也能确认主播与房管身份。
     /// </summary>
     [Theory]
     [InlineData(20, false, true)]
@@ -22,7 +22,7 @@ public class BilibiliModerationServiceTests
             code = 0,
             data = new { uid = 999, info = new { uid }, badge = new { is_room_admin = isAdmin } }
         }));
-        handler.Responses.Enqueue("""{"code":0,"data":{"room_info":{"room_id":100,"uid":20}}}""");
+        handler.Responses.Enqueue("""{"code":0,"data":{"room_id":100,"uid":20,"live_status":0,"playurl_info":null}}""");
         using var client = new HttpClient(handler);
         var service = new BilibiliModerationService(client);
 
@@ -32,6 +32,38 @@ public class BilibiliModerationServiceTests
         Assert.Equal(uid, permission.AccountUid);
         Assert.Equal(100, permission.RoomId);
         Assert.Equal(20, permission.OwnerUid);
+        Assert.Equal(
+            new[]
+            {
+                "/xlive/web-room/v1/index/getInfoByUser",
+                "/xlive/web-room/v2/index/getRoomPlayInfo"
+            },
+            handler.Requests.Select(request => request.AbsolutePath));
+        Assert.All(handler.Requests, request => Assert.Contains("room_id=1", request.Query));
+        Assert.Equal(2, handler.RequestCookies.Count);
+        Assert.All(handler.RequestCookies, cookie => Assert.Contains("SESSDATA=test", cookie));
+    }
+
+    /// <summary>
+    /// 播放信息查询失败或缺少主播身份时不能授权。
+    /// </summary>
+    [Theory]
+    [InlineData("{\"code\":-352,\"message\":\"-352\"}")]
+    [InlineData("{\"code\":0,\"data\":{\"room_id\":100,\"uid\":0}}")]
+    [InlineData("{\"code\":0,\"data\":{\"room_id\":0,\"uid\":20}}")]
+    [InlineData("{\"code\":0,\"data\":null}")]
+    public async Task MissingRoomIdentityOrApiFailureRejectsPermission(string response)
+    {
+        using var handler = new ModerationHttpHandler();
+        handler.Responses.Enqueue("""{"code":0,"data":{"info":{"uid":10},"badge":{"is_room_admin":true}}}""");
+        handler.Responses.Enqueue(response);
+        using var client = new HttpClient(handler);
+        var service = new BilibiliModerationService(client);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.GetPermissionAsync("100", "SESSDATA=test"));
+
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.Equal("/xlive/web-room/v2/index/getRoomPlayInfo", handler.Requests[1].AbsolutePath);
     }
 
     /// <summary>

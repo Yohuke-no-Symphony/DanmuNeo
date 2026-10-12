@@ -19,6 +19,11 @@ public class ModerationHttpHandler : HttpMessageHandler
     public List<Uri> Requests { get; } = [];
 
     /// <summary>
+    /// 各次请求携带的 Cookie。
+    /// </summary>
+    public List<string> RequestCookies { get; } = [];
+
+    /// <summary>
     /// 最后请求的表单。
     /// </summary>
     public string Form { get; private set; } = "";
@@ -54,6 +59,7 @@ public class ModerationHttpHandler : HttpMessageHandler
         Method = request.Method;
         ContentType = request.Content?.Headers.ContentType?.MediaType;
         Cookie = request.Headers.TryGetValues("Cookie", out var values) ? string.Join(";", values) : "";
+        RequestCookies.Add(Cookie);
         Form = request.Content is null ? "" : await request.Content.ReadAsStringAsync(cancellationToken);
         return new(HttpStatusCode.OK) { Content = new StringContent(Responses.Dequeue()) };
     }
