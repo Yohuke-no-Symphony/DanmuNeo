@@ -36,9 +36,6 @@
                                        FontWeight="SemiBold" />
                             <TextBlock Text="{Binding RoomId}"
                                        Classes="muted" />
-                            <TextBlock Text="{Binding ModerationStatus}"
-                                       Classes="muted"
-                                       TextWrapping="Wrap" />
                         </StackPanel>
                     </Grid>
                     <Button Grid.Column="1"
