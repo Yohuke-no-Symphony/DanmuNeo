@@ -146,6 +146,109 @@ public class LiveRoomFeedViewTests
     }
 
     /// <summary>
+    /// 两种模式下点击 SC 和弹幕姓名复制完整长名字，正文仍插入草稿。
+    /// </summary>
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UserNameClickCopiesFullNameAndContentClickStillInserts(bool compact)
+    {
+        using var context = new LiveRoomFeedViewTestContext();
+        context.ViewModel.IsCompactDanmuDisplay = compact;
+        context.Room.DanmuItems.Clear();
+        context.Room.SuperChats.Clear();
+        var feeds = new[]
+        {
+            (FeedClass: "danmuFeedButton", UserName: "这是一个很长的弹幕用户名，用于检查省略显示后仍复制完整名字 🎉",
+                Content: "普通弹幕正文"),
+            (FeedClass: "scFeedButton", UserName: "这是一个很长的 SC 用户名，用于检查省略显示后仍复制完整名字 ✨",
+                Content: "醒目留言正文")
+        };
+        context.Room.AddDanmu(new()
+        {
+            RoomId = "100", Uid = 30, UserName = feeds[0].UserName, Content = feeds[0].Content
+        });
+        context.Room.AddSuperChat(new()
+        {
+            RoomId = "100", MessageId = "name-copy-sc", UserName = feeds[1].UserName, Content = feeds[1].Content,
+            PriceText = "¥30"
+        });
+        var view = new LiveRoomWorkspaceView { DataContext = context.Room };
+        var window = CreateWindow(context, view);
+
+        try
+        {
+            ShowWindow(window);
+            var clipboard = window.Clipboard!;
+
+            foreach (var feed in feeds)
+            {
+                context.Room.InputDraft = "原有草稿";
+                Dispatcher.UIThread.RunJobs();
+                await clipboard.SetTextAsync("原剪贴板");
+                var button = view.GetVisualDescendants().OfType<Button>()
+                    .Single(control => control.Classes.Contains(feed.FeedClass));
+                var name = button.GetVisualDescendants().OfType<TextBlock>()
+                    .Single(control => control.Classes.Contains("danmuFeedUser"));
+
+                Click(name);
+
+                Assert.Equal(feed.UserName, await clipboard.TryGetTextAsync());
+                Assert.Equal("原有草稿", context.Room.InputDraft);
+
+                context.Room.InputDraft = "";
+                Dispatcher.UIThread.RunJobs();
+                var content = button.GetVisualDescendants().OfType<Control>()
+                    .Single(control => control.Classes.Contains(compact ? "compactFeedContent" : "regularFeedContent"));
+                Click(content);
+
+                Assert.Contains(feed.Content, context.Room.InputDraft);
+                Assert.Equal(feed.UserName, await clipboard.TryGetTextAsync());
+            }
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>
+    /// 右键用户名保留剪贴板和草稿，并继续打开弹幕菜单。
+    /// </summary>
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RightClickingUserNameKeepsDanmuContextMenu(bool compact)
+    {
+        using var context = new LiveRoomFeedViewTestContext();
+        context.ViewModel.IsCompactDanmuDisplay = compact;
+        context.Room.InputDraft = "原有草稿";
+        var view = new LiveRoomWorkspaceView { DataContext = context.Room };
+        var window = CreateWindow(context, view);
+
+        try
+        {
+            ShowWindow(window);
+            await window.Clipboard!.SetTextAsync("原剪贴板");
+            var name = FindMedalDanmuButton(view).GetVisualDescendants().OfType<TextBlock>()
+                .Single(control => control.Classes.Contains("danmuFeedUser"));
+            var point = name.TranslatePoint(new Point(name.Bounds.Width / 2, name.Bounds.Height / 2), window)!.Value;
+            window.MouseMove(point);
+            window.MouseDown(point, MouseButton.Right);
+            window.MouseUp(point, MouseButton.Right);
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.Equal("原剪贴板", await window.Clipboard.TryGetTextAsync());
+            Assert.Equal("原有草稿", context.Room.InputDraft);
+            Assert.Equal(1, context.ModerationService.PermissionRequestCount);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>
     /// 点击上舰卡片复制完整用户名并保留草稿，点击 SC 卡片仍可插入留言。
     /// </summary>
     [AvaloniaFact]

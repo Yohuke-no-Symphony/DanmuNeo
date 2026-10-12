@@ -151,6 +151,16 @@ public partial class LiveRoomWorkspaceView : UserControl
         room.SendDraftCommand.Execute(null);
     }
 
+    private async void FeedUserName_OnClick(object? sender, RoutedEventArgs e)
+    {
+        e.Handled = true;
+
+        if (sender is Button { Content: TextBlock { Text: { } userName } })
+        {
+            await CopyToClipboardAsync(userName);
+        }
+    }
+
     private void Danmu_OnClick(object? sender, RoutedEventArgs e)
     {
         if (sender is not Button { DataContext: DanmuFeedItem item } ||
@@ -390,10 +400,11 @@ public partial class LiveRoomWorkspaceView : UserControl
         var hotkeys = TopLevel.GetTopLevel(this)?.PlatformSettings?.HotkeyConfiguration;
 
         if (hotkeys?.Copy.Any(gesture => gesture.Matches(e)) == true &&
+            DataContext is LiveRoomTabViewModel room &&
             LyricListBox.SelectedItem is LyricLineState line)
         {
             e.Handled = true;
-            var text = line.HasTranslatedContent ? line.TranslatedContent : line.Content;
+            var text = LyricTimelineService.CreateContent(line.Content, line.TranslatedContent, room.LyricSendMode);
 
             if (!string.IsNullOrWhiteSpace(text))
             {

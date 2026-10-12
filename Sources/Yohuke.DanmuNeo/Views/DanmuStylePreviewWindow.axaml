@@ -118,9 +118,12 @@
                                             <Grid ColumnDefinitions="*,Auto"
                                                   ColumnSpacing="8">
                                                 <StackPanel Spacing="1">
-                                                    <TextBlock Text="{Binding UserName}"
-                                                               Classes="danmuFeedUser"
-                                                               TextTrimming="CharacterEllipsis" />
+                                                    <Button Classes="feedUserNameButton"
+                                                            Click="FeedUserName_OnClick">
+                                                        <TextBlock Text="{Binding UserName}"
+                                                                   Classes="danmuFeedUser"
+                                                                   TextTrimming="CharacterEllipsis" />
+                                                    </Button>
                                                     <TextBlock Text="{Binding DisplayTime}"
                                                                Classes="danmuFeedMeta" />
                                                 </StackPanel>
@@ -186,9 +189,12 @@
                                                                    TextTrimming="CharacterEllipsis" />
                                                     </Grid>
                                                 </Border>
-                                                <TextBlock Text="{Binding UserName}"
-                                                           Classes="danmuFeedUser"
-                                                           TextTrimming="CharacterEllipsis" />
+                                                <Button Classes="feedUserNameButton"
+                                                        Click="FeedUserName_OnClick">
+                                                    <TextBlock Text="{Binding UserName}"
+                                                               Classes="danmuFeedUser"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                </Button>
                                             </DockPanel>
                                             <TextBlock Grid.Row="1"
                                                        Text="{Binding DetailLine}"

@@ -278,6 +278,45 @@ public class DanmuStylePreviewWindowTests
         }
     }
 
+    /// <summary>
+    /// 样式预览的两种模式均支持点击 SC 和弹幕姓名复制完整长名字。
+    /// </summary>
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task FeedUserNameClickCopiesFullName(bool compact)
+    {
+        var window = new DanmuStylePreviewWindow();
+        var viewModel = Assert.IsType<DanmuStylePreviewViewModel>(window.DataContext);
+        viewModel.IsCompactDanmuDisplay = compact;
+        viewModel.ClearSamples();
+        viewModel.UserName = "这是一个很长的预览用户名，用于检查省略显示后仍复制完整名字 🎉";
+        viewModel.AddDanmu();
+        viewModel.AddSuperChat();
+
+        try
+        {
+            ShowWindow(window);
+
+            foreach (var feedClass in new[] { "danmuFeedButton", "scFeedButton" })
+            {
+                await window.Clipboard!.SetTextAsync("原剪贴板");
+                var button = window.GetVisualDescendants().OfType<Button>()
+                    .Single(control => control.Classes.Contains(feedClass));
+                var name = button.GetVisualDescendants().OfType<TextBlock>()
+                    .Single(control => control.Classes.Contains("danmuFeedUser"));
+
+                Click(window, name);
+
+                Assert.Equal(viewModel.UserName, await window.Clipboard.TryGetTextAsync());
+            }
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
     private static void ShowWindow(Window window)
     {
         window.Show();

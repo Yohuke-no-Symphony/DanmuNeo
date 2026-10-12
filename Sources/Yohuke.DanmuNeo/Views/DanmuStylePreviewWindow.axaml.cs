@@ -90,6 +90,16 @@ public partial class DanmuStylePreviewWindow : Window
         viewModel.AddSuperChat();
     }
 
+    private async void FeedUserName_OnClick(object? sender, RoutedEventArgs e)
+    {
+        e.Handled = true;
+
+        if (sender is Button { Content: TextBlock { Text: { } userName } } && Clipboard is { } clipboard)
+        {
+            await clipboard.SetTextAsync(userName);
+        }
+    }
+
     private async void SuperChat_OnClick(object? sender, RoutedEventArgs e)
     {
         if (sender is Button { DataContext: SuperChatItem { IsGuardPurchase: true } item } &&

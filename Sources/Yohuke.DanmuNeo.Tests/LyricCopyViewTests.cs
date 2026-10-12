@@ -6,6 +6,7 @@ using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using Yohuke.DanmuNeo.Models.State;
 using Yohuke.DanmuNeo.Views.Components;
 
 namespace Yohuke.DanmuNeo.Tests;
@@ -60,20 +61,33 @@ public class LyricCopyViewTests
     }
 
     /// <summary>
-    /// 平台复制手势优先复制手动选中行的翻译，缺少翻译时复制原文。
+    /// 平台复制手势按发送模式复制手动选中的歌词行。
     /// </summary>
     [AvaloniaTheory]
-    [InlineData(KeyModifiers.Control, RawInputModifiers.Control, "选中句的翻译", "选中句的翻译")]
-    [InlineData(KeyModifiers.Meta, RawInputModifiers.Meta, "选中句的翻译", "选中句的翻译")]
-    [InlineData(KeyModifiers.Control, RawInputModifiers.Control, "", "第二句原文")]
-    [InlineData(KeyModifiers.Meta, RawInputModifiers.Meta, "", "第二句原文")]
-    [InlineData(KeyModifiers.Control, RawInputModifiers.Control, " \t", "第二句原文")]
-    [InlineData(KeyModifiers.Meta, RawInputModifiers.Meta, " \t", "第二句原文")]
+    [InlineData(KeyModifiers.Control, RawInputModifiers.Control, LyricSendMode.TranslationOnly,
+        "选中句的翻译", "选中句的翻译")]
+    [InlineData(KeyModifiers.Meta, RawInputModifiers.Meta, LyricSendMode.TranslationOnly,
+        "选中句的翻译", "选中句的翻译")]
+    [InlineData(KeyModifiers.Control, RawInputModifiers.Control, LyricSendMode.OriginalOnly,
+        "选中句的翻译", "第二句原文")]
+    [InlineData(KeyModifiers.Meta, RawInputModifiers.Meta, LyricSendMode.OriginalOnly,
+        "选中句的翻译", "第二句原文")]
+    [InlineData(KeyModifiers.Control, RawInputModifiers.Control, LyricSendMode.Bilingual,
+        "选中句的翻译", "第二句原文 / 选中句的翻译")]
+    [InlineData(KeyModifiers.Meta, RawInputModifiers.Meta, LyricSendMode.Bilingual,
+        "选中句的翻译", "第二句原文 / 选中句的翻译")]
+    [InlineData(KeyModifiers.Control, RawInputModifiers.Control, LyricSendMode.TranslationOnly, "", "原剪贴板")]
+    [InlineData(KeyModifiers.Meta, RawInputModifiers.Meta, LyricSendMode.TranslationOnly, "", "原剪贴板")]
+    [InlineData(KeyModifiers.Control, RawInputModifiers.Control, LyricSendMode.Bilingual, "", "第二句原文")]
+    [InlineData(KeyModifiers.Meta, RawInputModifiers.Meta, LyricSendMode.Bilingual, "", "第二句原文")]
+    [InlineData(KeyModifiers.Control, RawInputModifiers.Control, LyricSendMode.TranslationOnly, " \t", "原剪贴板")]
+    [InlineData(KeyModifiers.Meta, RawInputModifiers.Meta, LyricSendMode.Bilingual, " \t", "第二句原文")]
     public async Task CopyGestureUsesSelectedLineInsteadOfPlayingLine(KeyModifiers modifiers,
-        RawInputModifiers rawModifiers, string translation, string expected)
+        RawInputModifiers rawModifiers, LyricSendMode mode, string translation, string expected)
     {
         using var context = new LiveRoomFeedViewTestContext();
         var view = CreateView(context);
+        context.Room.LyricSendMode = mode;
         context.Room.Lyrics[1].TranslatedContent = translation;
         var window = CreateWindow(context, view);
         var hotkeys = window.PlatformSettings!.HotkeyConfiguration;
@@ -121,7 +135,7 @@ public class LyricCopyViewTests
             var list = view.FindControl<ListBox>("LyricListBox")!;
             Click(window, list.ContainerFromIndex(1)!);
             PressCopy(window, PhysicalKey.Insert, RawInputModifiers.Control);
-            Assert.Equal("第二句翻译", await window.Clipboard!.TryGetTextAsync());
+            Assert.Equal("第二句原文 / 第二句翻译", await window.Clipboard!.TryGetTextAsync());
 
             context.Room.ClearLyric();
             PumpLayout(window);
@@ -167,6 +181,55 @@ public class LyricCopyViewTests
             Assert.Equal("输入框", await window.Clipboard!.TryGetTextAsync());
             Assert.Equal("输入框中的文字", input.Text);
             Assert.Same(context.Room.Lyrics[1], list.SelectedItem);
+        }
+        finally
+        {
+            hotkeys.Copy = originalCopy;
+            window.Close();
+        }
+    }
+
+    /// <summary>
+    /// 切换发送内容下拉框后，复制立即使用新模式；仅原文缺失时保留剪贴板。
+    /// </summary>
+    [AvaloniaFact]
+    public async Task CopyTracksSendModeSelectionImmediately()
+    {
+        using var context = new LiveRoomFeedViewTestContext();
+        var view = CreateView(context);
+        var window = CreateWindow(context, view);
+        var hotkeys = window.PlatformSettings!.HotkeyConfiguration;
+        var originalCopy = hotkeys.Copy;
+        hotkeys.Copy = [new(Key.C, KeyModifiers.Control)];
+
+        try
+        {
+            ShowWindow(window, view);
+            var list = view.FindControl<ListBox>("LyricListBox")!;
+            Click(window, list.ContainerFromIndex(1)!);
+            var modeSelector = view.GetVisualDescendants().OfType<ComboBox>()
+                .Single(control => ReferenceEquals(control.ItemsSource, context.Room.LyricSendModeOptions));
+
+            foreach (var mode in new[] { LyricSendMode.TranslationOnly, LyricSendMode.OriginalOnly, LyricSendMode.Bilingual })
+            {
+                modeSelector.SelectedValue = mode;
+                PumpLayout(window);
+                Assert.Equal(mode, context.Room.LyricSendMode);
+                PressCopy(window, PhysicalKey.C, RawInputModifiers.Control);
+                var expected = mode switch
+                {
+                    LyricSendMode.TranslationOnly => "第二句翻译",
+                    LyricSendMode.OriginalOnly => "第二句原文",
+                    _ => "第二句原文 / 第二句翻译"
+                };
+                Assert.Equal(expected, await window.Clipboard!.TryGetTextAsync());
+            }
+
+            modeSelector.SelectedValue = LyricSendMode.OriginalOnly;
+            context.Room.Lyrics[1].Content = " \t";
+            await window.Clipboard!.SetTextAsync("原剪贴板");
+            PressCopy(window, PhysicalKey.C, RawInputModifiers.Control);
+            Assert.Equal("原剪贴板", await window.Clipboard.TryGetTextAsync());
         }
         finally
         {

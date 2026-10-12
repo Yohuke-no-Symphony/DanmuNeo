@@ -215,9 +215,12 @@
                                                         <Grid ColumnDefinitions="*,Auto"
                                                               ColumnSpacing="8">
                                                             <StackPanel Spacing="1">
-                                                                <TextBlock Text="{Binding UserName}"
-                                                                           Classes="danmuFeedUser"
-                                                                           TextTrimming="CharacterEllipsis" />
+                                                                <Button Classes="feedUserNameButton"
+                                                                        Click="FeedUserName_OnClick">
+                                                                    <TextBlock Text="{Binding UserName}"
+                                                                               Classes="danmuFeedUser"
+                                                                               TextTrimming="CharacterEllipsis" />
+                                                                </Button>
                                                                 <TextBlock Text="{Binding DisplayTime}"
                                                                            Classes="danmuFeedMeta" />
                                                             </StackPanel>
@@ -287,9 +290,12 @@
                                                                            TextTrimming="CharacterEllipsis" />
                                                             </Grid>
                                                         </Border>
-                                                        <TextBlock Text="{Binding UserName}"
-                                                                   Classes="danmuFeedUser"
-                                                                   TextTrimming="CharacterEllipsis" />
+                                                        <Button Classes="feedUserNameButton"
+                                                                Click="FeedUserName_OnClick">
+                                                            <TextBlock Text="{Binding UserName}"
+                                                                       Classes="danmuFeedUser"
+                                                                       TextTrimming="CharacterEllipsis" />
+                                                        </Button>
                                                     </DockPanel>
                                                     <TextBlock Grid.Row="1"
                                                                Text="{Binding DetailLine}"
@@ -498,7 +504,7 @@
                             <ListBox x:Name="LyricListBox"
                                       Grid.Row="4"
                                       Classes="lyricLineList"
-                                      ToolTip.Tip="选中歌词后，使用复制快捷键复制翻译；无翻译时复制原文"
+                                      ToolTip.Tip="选中歌词后，使用复制快捷键按当前发送内容设置复制"
                                      ItemsSource="{Binding Lyrics}"
                                      SelectedItem="{Binding ActiveLyricLine, Mode=OneWay}">
                                 <ListBox.ItemTemplate>
