@@ -342,11 +342,28 @@ public partial class LiveRoomTabViewModel
         RefreshDanmuConfigurationAvailability();
     }
 
-    private async Task WaitForDanmuConfigurationSaveAsync(string roomId, BilibiliAccount? account,
+    private async Task<BilibiliAccount?> PrepareDanmuSendingAccountAsync(string roomId, BilibiliAccount? account,
         CancellationToken cancellationToken)
     {
-        while (IsSavingDanmuConfiguration && roomId == danmuConfigurationRoomId &&
-               account?.Id == danmuConfigurationAccountId && account?.Cookie == danmuConfigurationCookie)
+        if (account is null)
+        {
+            return null;
+        }
+
+        var accountId = account.Id;
+        var cookie = account.Cookie;
+
+        if (!RequiresDanmuConfigurationSaveWait(roomId, accountId, cookie))
+        {
+            return account;
+        }
+
+        var sendingAccount = new BilibiliAccount
+        {
+            Id = accountId, Name = account.Name, Cookie = cookie, IsGlobalDefault = account.IsGlobalDefault
+        };
+
+        while (RequiresDanmuConfigurationSaveWait(roomId, accountId, cookie))
         {
             var contextToken = danmuConfigurationCancellationToken;
             using var waitingTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, contextToken);
@@ -358,9 +375,17 @@ public partial class LiveRoomTabViewModel
             catch (OperationCanceledException) when (contextToken.IsCancellationRequested &&
                                                       !cancellationToken.IsCancellationRequested)
             {
-                return;
+                return sendingAccount;
             }
         }
+
+        return sendingAccount;
+    }
+
+    private bool RequiresDanmuConfigurationSaveWait(string roomId, string accountId, string cookie)
+    {
+        return IsSavingDanmuConfiguration && roomId == danmuConfigurationRoomId &&
+               accountId == danmuConfigurationAccountId && cookie == danmuConfigurationCookie;
     }
 
     private TimeSpan GetDanmuConfigurationTimeout()

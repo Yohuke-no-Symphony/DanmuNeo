@@ -1925,11 +1925,11 @@ public partial class LiveRoomTabViewModel : ViewModelBase
 
         var results = new List<DanmuSendResult>();
         var roomId = RoomId;
-        await WaitForDanmuConfigurationSaveAsync(roomId, account, cancellationToken);
+        var sendingAccount = await PrepareDanmuSendingAccountAsync(roomId, account, cancellationToken);
 
         foreach (var part in sendService.SplitMessage(message, 30))
         {
-            results.Add(await sendService.SendAsync(roomId, part, account, settings, cancellationToken));
+            results.Add(await sendService.SendAsync(roomId, part, sendingAccount, settings, cancellationToken));
         }
 
         return results;

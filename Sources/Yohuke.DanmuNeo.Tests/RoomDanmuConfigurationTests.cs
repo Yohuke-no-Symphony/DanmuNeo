@@ -365,6 +365,53 @@ public class RoomDanmuConfigurationTests
         }
     }
 
+    /// <summary>
+    /// 等待保存时 Cookie 原地变更，本次已点击的发送仍使用原始身份。
+    /// </summary>
+    [AvaloniaFact]
+    public async Task SendingKeepsIdentityWhenCookieChangesDuringSave()
+    {
+        var service = new FakeBilibiliDanmuConfigService();
+        var pendingSave = new TaskCompletionSource<DanmuRoomConfig>();
+        service.WriteAsync = (_, _, _, _) => pendingSave.Task;
+        service.ResolveConfig = (_, cookie) => service.Config with
+        {
+            Current = cookie.Contains("beta", StringComparison.Ordinal) ? new() { Color = 0xFF0000, Mode = 5 } : new()
+        };
+        using var handler = new DanmuSendHttpHandler { ResponseJson = "{\"code\":0,\"data\":{}}" };
+        using var client = new HttpClient(handler);
+        var sender = new DanmuSendService(client, service);
+        var account = new BilibiliAccount { Cookie = "SESSDATA=alpha;bili_jct=test" };
+        var room = CreateRoom(service, () => account, sender);
+
+        try
+        {
+            await room.ActivateDanmuConfigurationAsync();
+            room.SelectedDanmuColor = room.DanmuColorOptions[1];
+            var oldSave = room.DanmuConfigurationTask;
+            room.InputDraft = "切换身份前点击发送";
+            var sending = room.SendDraftAsync();
+            Assert.Equal(0, handler.RequestCount);
+            account.Cookie = "SESSDATA=beta;bili_jct=test";
+            await room.DanmuConfigurationTask;
+            await sending;
+
+            Assert.Contains("SESSDATA=alpha", Assert.Single(handler.Cookies));
+            Assert.Equal(2, service.GetRequests.Count(request => request.Cookie == "SESSDATA=alpha;bili_jct=test"));
+            Assert.Single(service.GetRequests, request => request.Cookie == "SESSDATA=beta;bili_jct=test");
+            Assert.Equal("1", Assert.Single(handler.Forms)["mode"]);
+            Assert.Equal(5, room.SelectedDanmuMode?.Value);
+            pendingSave.SetResult(service.Config);
+            await oldSave;
+            Assert.Equal(5, room.SelectedDanmuMode?.Value);
+        }
+        finally
+        {
+            pendingSave.TrySetResult(service.Config);
+            room.DeactivateDanmuConfiguration();
+        }
+    }
+
     private static LiveRoomTabViewModel CreateRoom(FakeBilibiliDanmuConfigService service, Func<BilibiliAccount?> account,
         IDanmuSendService? sender = null, AppSettings? settings = null)
     {
