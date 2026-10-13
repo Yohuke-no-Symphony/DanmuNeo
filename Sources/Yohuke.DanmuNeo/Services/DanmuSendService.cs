@@ -38,11 +38,10 @@ public class DanmuSendService : IDanmuSendService
     {
         if (account is null || string.IsNullOrWhiteSpace(account.Cookie))
         {
-            return CreateResult(roomId, message, "未配置账号", false, DateTimeOffset.UtcNow);
+            return CreateResult(roomId, message, "未配置账号", false);
         }
 
         await sendLock.WaitAsync(cancellationToken);
-        var requestedAt = DateTimeOffset.UtcNow;
 
         try
         {
@@ -54,7 +53,6 @@ public class DanmuSendService : IDanmuSendService
             }
 
             using var api = new BilibiliApi(account.Cookie, TimeSpan.FromSeconds(settings.TimeoutSeconds), httpClient);
-            requestedAt = DateTimeOffset.UtcNow;
             var response = await api.SendDanmuAsync(long.Parse(roomId), message, cancellationToken: cancellationToken);
             lastSentAt = DateTimeOffset.Now;
 
@@ -62,13 +60,13 @@ public class DanmuSendService : IDanmuSendService
 
             if (response.Code == 0 && !isBlocked)
             {
-                return CreateResult(roomId, message, "接口已接受", true, requestedAt, response.Code);
+                return CreateResult(roomId, message, "接口已接受", true, response.Code);
             }
 
             var errorMessage = isBlocked
                 ? "弹幕被屏蔽"
                 : response.Message ?? response.Msg ?? $"发送失败：{response.Code}";
-            return CreateResult(roomId, message, errorMessage, false, requestedAt, response.Code);
+            return CreateResult(roomId, message, errorMessage, false, response.Code);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -76,7 +74,7 @@ public class DanmuSendService : IDanmuSendService
         }
         catch (Exception exception)
         {
-            return CreateResult(roomId, message, exception.Message, false, requestedAt);
+            return CreateResult(roomId, message, exception.Message, false);
         }
         finally
         {
@@ -117,7 +115,6 @@ public class DanmuSendService : IDanmuSendService
         string message,
         string status,
         bool isAccepted,
-        DateTimeOffset requestedAt,
         int? apiCode = null)
     {
         var record = new DanmuFeedItem
@@ -135,7 +132,6 @@ public class DanmuSendService : IDanmuSendService
             IsAccepted = isAccepted,
             ApiCode = apiCode,
             ErrorMessage = isAccepted ? "" : status,
-            RequestedAt = requestedAt,
             Record = record
         };
     }

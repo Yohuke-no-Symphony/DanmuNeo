@@ -28,11 +28,6 @@ public class DanmuSendResult
     public string ErrorMessage { get; init; } = "";
 
     /// <summary>
-    /// 本次接口请求开始时间。
-    /// </summary>
-    public DateTimeOffset RequestedAt { get; init; }
-
-    /// <summary>
     /// 对应的本地发送记录。
     /// </summary>
     public DanmuFeedItem Record { get; init; } = new();

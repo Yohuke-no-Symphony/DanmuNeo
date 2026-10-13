@@ -6,7 +6,6 @@ using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Yohuke.DanmuNeo.Apis;
 using Yohuke.DanmuNeo.Apis.Models.Bilibili;
 using Yohuke.DanmuNeo.Models.State;
 using Yohuke.DanmuNeo.Models.Workspace;
@@ -66,7 +65,6 @@ public partial class LiveRoomTabViewModel : ViewModelBase
     private readonly DanmuForwardService forwardService = new();
     private readonly LyricTimelineService lyricTimelineService = new();
     private readonly TranslateHistoryExportService translateHistoryExportService = new();
-    private readonly DanmuEchoTracker danmuEchoTracker = new();
 
     /// <summary>
     /// 初始化直播间标签页视图模型。
@@ -727,18 +725,17 @@ public partial class LiveRoomTabViewModel : ViewModelBase
             return;
         }
 
-        var uid = GetAccountUid(account);
-
-        if (!CanConfirmDanmuEcho(uid))
+        if (failedResults.Count > 0)
         {
-            SetAcceptedRecordStatus(acceptedResults, "接口已接受，无法确认");
-            TrySetDraftSendFeedback(operationId, revision, failedResults.Count == 0
-                ? "接口已接受，无法确认"
-                : $"部分发送失败：{acceptedResults.Count}/{results.Count} 段接口已接受", true);
+            TrySetDraftSendFeedback(operationId, revision,
+                $"部分发送失败：{acceptedResults.Count}/{results.Count} 段接口已接受", true);
             return;
         }
 
-        _ = ConfirmDraftEchoesAsync(operationId, revision, uid, acceptedResults, failedResults.Count);
+        if (TrySetDraftSendFeedback(operationId, revision, "接口已接受", false))
+        {
+            InputDraft = "";
+        }
     }
 
     /// <summary>
@@ -1920,82 +1917,6 @@ public partial class LiveRoomTabViewModel : ViewModelBase
         return results;
     }
 
-    private async Task ConfirmDraftEchoesAsync(
-        long operationId,
-        long revision,
-        long uid,
-        IReadOnlyList<DanmuSendResult> acceptedResults,
-        int failedCount)
-    {
-        try
-        {
-            SetAcceptedRecordStatus(acceptedResults, "接口已接受，等待弹幕流确认");
-            TrySetDraftSendFeedback(operationId, revision, "接口已接受，等待弹幕流确认", failedCount > 0);
-            var confirmationTasks = acceptedResults
-                .Select(result => danmuEchoTracker.WaitAsync(
-                    uid,
-                    result.Record.Content,
-                    result.RequestedAt,
-                    TimeSpan.FromSeconds(5)))
-                .ToArray();
-            var confirmedCount = 0;
-
-            for (var index = 0; index < confirmationTasks.Length; index++)
-            {
-                var confirmed = await confirmationTasks[index];
-                var record = acceptedResults[index].Record;
-                record.Status = confirmed ? "已在弹幕流确认" : "接口已接受，未确认显示";
-
-                if (confirmed)
-                {
-                    confirmedCount++;
-                }
-            }
-
-            var status = failedCount > 0
-                ? $"部分发送失败：{acceptedResults.Count}/{acceptedResults.Count + failedCount} 段接口已接受，{confirmedCount}/{acceptedResults.Count} 段已确认"
-                : confirmedCount == acceptedResults.Count
-                    ? "已在弹幕流确认"
-                    : confirmedCount == 0
-                        ? "接口已接受，未确认显示"
-                        : $"接口已接受，{confirmedCount}/{acceptedResults.Count} 段已确认";
-            var failed = failedCount > 0 || confirmedCount != acceptedResults.Count;
-
-            if (TrySetDraftSendFeedback(operationId, revision, status, failed) && !failed)
-            {
-                InputDraft = "";
-            }
-        }
-        catch (Exception exception)
-        {
-            StartupLog.Append($"Danmu echo confirmation failed roomId={RoomId} exception={exception}");
-            SetAcceptedRecordStatus(acceptedResults, "接口已接受，确认失败");
-            TrySetDraftSendFeedback(operationId, revision, "接口已接受，确认失败", true);
-        }
-    }
-
-    private void SetAcceptedRecordStatus(IEnumerable<DanmuSendResult> results, string status)
-    {
-        foreach (var result in results)
-        {
-            result.Record.Status = status;
-        }
-    }
-
-    private bool CanConfirmDanmuEcho(long uid)
-    {
-        return uid > 0 && IsListening && ConnectionStatus == "监听中";
-    }
-
-    private static long GetAccountUid(BilibiliAccount? account)
-    {
-        return long.TryParse(
-            account is null ? "" : ApiCookieHelper.GetValue(account.Cookie, "DedeUserID"),
-            out var uid)
-            ? uid
-            : 0;
-    }
-
     private bool TrySetDraftSendFeedback(long operationId, long revision, string status, bool failed)
     {
         if (operationId != draftSendOperationId || revision != draftRevision)
@@ -2074,8 +1995,6 @@ public partial class LiveRoomTabViewModel : ViewModelBase
             return;
         }
 
-        ObserveDanmuEcho(message);
-
         if (ShouldHideDanmu(message))
         {
             return;
@@ -2092,19 +2011,9 @@ public partial class LiveRoomTabViewModel : ViewModelBase
 
     internal void AddDanmu(BilibiliDanmuMessage message)
     {
-        ObserveDanmuEcho(message);
-
         if (!ShouldHideDanmu(message))
         {
             AddDanmuToFeed(message);
-        }
-    }
-
-    private void ObserveDanmuEcho(BilibiliDanmuMessage message)
-    {
-        if (message.Uid > 0)
-        {
-            danmuEchoTracker.Observe(message.Uid, message.Content);
         }
     }
 

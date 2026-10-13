@@ -2,14 +2,12 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
-using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Yohuke.DanmuNeo.Models.State;
 using Yohuke.DanmuNeo.Views.Components;
-using Yohuke.DanmuNeo.Services;
 using Yohuke.DanmuNeo.ViewModels.Items;
 
 namespace Yohuke.DanmuNeo.Tests;
@@ -132,41 +130,20 @@ public class DraftComposerViewTests
     }
 
     /// <summary>
-    /// 回显验证超时保留草稿并显示红框，重试确认成功后清空草稿并恢复正常边框。
+    /// 接口失败保留草稿并显示红框，重试成功后无需监听即可清空并恢复正常边框。
     /// </summary>
     [AvaloniaTheory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task EchoTimeoutHighlightsAndConfirmedRetryClearsDraft(bool dark)
+    public async Task ApiFailureHighlightsAndAcceptedRetryClearsDraft(bool dark)
     {
         using var context = new MarkGroupCycleTestContext();
-        var sendService = new FakeDanmuSendService();
-        var socketFactory = new FakeLiveDanmuSocketFactory();
-        socketFactory.Socket.KeepRunning = true;
+        var sendService = new FakeDanmuSendService { IsAccepted = false };
         var account = new BilibiliAccount { Cookie = "DedeUserID=42" };
         var room = new LiveRoomTabViewModel(new() { RoomId = "100", RoomName = "测试直播间" });
         room.Configure(_ => account, (_, _) => null, () => context.ViewModel.Settings,
             () => context.ViewModel.SelectedWorkspaceMarkGroup!, () => context.ViewModel.SymbolGroups,
-            _ => [], sendService, new FakeRoomAvatarService(), () => Task.CompletedTask,
-            liveDanmuSocketFactory: socketFactory);
-        var echoTimedOut = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var echoConfirmed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        room.PropertyChanged += (_, args) =>
-        {
-            if (args.PropertyName != nameof(room.DraftSendStatus))
-            {
-                return;
-            }
-
-            if (room.DraftSendStatus == "接口已接受，未确认显示")
-            {
-                echoTimedOut.TrySetResult();
-            }
-            else if (room.DraftSendStatus == "已在弹幕流确认")
-            {
-                echoConfirmed.TrySetResult();
-            }
-        };
+            _ => [], sendService, new FakeRoomAvatarService(), () => Task.CompletedTask);
         var view = new LiveRoomWorkspaceView { DataContext = room };
         var window = new Window
         {
@@ -180,35 +157,31 @@ public class DraftComposerViewTests
             var composer = view.GetVisualDescendants().OfType<Border>()
                 .Single(control => control.Classes.Contains("translateComposer"));
             var input = view.FindControl<TextBox>("InputDraftTextBox")!;
-            room.InputDraft = "回显核验内容";
+            room.InputDraft = "重试发送内容";
             input.Focus();
             window.MouseMove(input.TranslatePoint(new Point(8, 8), window)!.Value);
-            room.StartListening();
-            await socketFactory.Socket.StartedTask.WaitAsync(TimeSpan.FromSeconds(1));
-            await room.SendDraftAsync();
-            ShowWindow(window);
-            Assert.Equal("回显核验内容", input.Text);
-            AssertNoVisibleOutline(composer);
 
-            await echoTimedOut.Task.WaitAsync(TimeSpan.FromSeconds(7));
+            await room.SendDraftCommand.ExecuteAsync(null);
             ShowWindow(window);
+
             Assert.True(room.IsDraftSendFailed);
-            Assert.Equal("回显核验内容", input.Text);
+            Assert.Equal("重试发送内容", input.Text);
             Assert.Equal(Color.Parse("#EF4444"), Assert.IsAssignableFrom<ISolidColorBrush>(composer.BorderBrush).Color);
-            SaveFrame(window, dark ? "composer-echo-timeout-dark.png" : "composer-echo-timeout-light.png");
 
-            await room.SendDraftAsync();
-            socketFactory.Socket.EmitDanmu(new() { Uid = 42, Content = "【回显核验内容】" });
-            await echoConfirmed.Task.WaitAsync(TimeSpan.FromSeconds(1));
+            sendService.IsAccepted = true;
+            await room.SendDraftCommand.ExecuteAsync(null);
             ShowWindow(window);
+
             Assert.False(room.IsDraftSendFailed);
+            Assert.Equal("接口已接受", room.DraftSendStatus);
             Assert.Equal("", input.Text);
+            Assert.Equal("", room.State.InputDraft);
             AssertNoVisibleOutline(composer);
+            SaveFrame(window, dark ? "composer-accepted-retry-dark.png" : "composer-accepted-retry-light.png");
         }
         finally
         {
             window.Close();
-            room.StopListening();
         }
     }
 

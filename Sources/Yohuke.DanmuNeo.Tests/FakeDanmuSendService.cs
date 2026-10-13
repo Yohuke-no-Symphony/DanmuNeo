@@ -51,7 +51,6 @@ public class FakeDanmuSendService : IDanmuSendService
             IsAccepted = isAccepted,
             ApiCode = isAccepted ? 0 : FailureApiCode,
             ErrorMessage = isAccepted ? "" : ErrorMessage,
-            RequestedAt = DateTimeOffset.UtcNow,
             Record = record
         });
     }

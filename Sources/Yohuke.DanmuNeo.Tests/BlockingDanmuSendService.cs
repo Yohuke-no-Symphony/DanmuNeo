@@ -51,7 +51,6 @@ internal class BlockingDanmuSendService : IDanmuSendService
             IsAccepted = isAccepted,
             ApiCode = isAccepted ? 0 : -1,
             ErrorMessage = isAccepted ? "" : "测试接口拒绝",
-            RequestedAt = DateTimeOffset.UtcNow,
             Record = record
         };
     }
