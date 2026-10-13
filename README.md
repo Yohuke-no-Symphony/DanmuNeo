@@ -54,11 +54,18 @@ dotnet run --project Sources/Yohuke.DanmuNeo/Yohuke.DanmuNeo.csproj
 dotnet publish Sources/Yohuke.DanmuNeo/Yohuke.DanmuNeo.csproj -c Release
 ```
 
-生成 Windows x64 发布目录、macOS ARM64 App 和 DMG：
+生成 Windows x64 EXE、macOS ARM64 App 和 DMG：
 
 ```powershell
 pwsh -NoProfile -File ./Publish.ps1 -Clean
 ```
+
+两端发布文件使用统一的 `Yohuke-Danmu-Neo-{版本}-{平台架构}` 命名格式，默认输出路径为：
+
+- Windows：`Artifacts/Publish/win-x64/Yohuke-Danmu-Neo-{版本}-win-x64.exe`
+- macOS：`Artifacts/Publish/Yohuke-Danmu-Neo-{版本}-osx-arm64.dmg`
+
+版本默认读取项目的 `AssemblyVersion`，可通过 `-Version` 覆盖。
 
 DMG 默认使用 ad-hoc 签名，内含应用、`Applications` 快捷方式和中文首次打开说明。如需使用 Developer ID 证书签名，可执行：
 

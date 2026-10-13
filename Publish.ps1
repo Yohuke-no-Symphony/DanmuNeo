@@ -384,18 +384,21 @@ if (-not $SkipRestore)
 }
 
 $resolvedVersion = Resolve-PublishVersion
+$artifactBaseName = "$($appName.Replace(' ', '-'))-$resolvedVersion"
 $winPublishPath = Join-Path $publishRoot "win-x64"
+$winExecutablePath = Join-Path $winPublishPath "$artifactBaseName-win-x64.exe"
 $macRootPath = Join-Path $publishRoot "osx-arm64"
 $macPublishPath = Join-Path $macRootPath "publish"
 $macBundlePath = Join-Path $macRootPath "$appName.app"
-$macDmgPath = Join-Path $publishRoot "Yohuke-Danmu-Neo-$resolvedVersion-osx-arm64.dmg"
+$macDmgPath = Join-Path $publishRoot "$artifactBaseName-osx-arm64.dmg"
 
 Publish-Runtime -RuntimeIdentifier "win-x64" -OutputPath $winPublishPath -PublishVersion $resolvedVersion
+Move-Item -LiteralPath (Join-Path $winPublishPath "$executableName.exe") -Destination $winExecutablePath -Force
 Publish-Runtime -RuntimeIdentifier "osx-arm64" -OutputPath $macPublishPath -PublishVersion $resolvedVersion
 New-MacAppBundle -PublishPath $macPublishPath -BundlePath $macBundlePath -Version $resolvedVersion
 Sign-MacAppBundle -BundlePath $macBundlePath -Identity $MacCodeSignIdentity
 New-MacDmg -BundlePath $macBundlePath -ReadmePath $macReadmePath -OutputPath $macDmgPath
 
-Write-Host "Published Windows app: $winPublishPath"
+Write-Host "Published Windows app: $winExecutablePath"
 Write-Host "Published macOS app: $macBundlePath"
 Write-Host "Published macOS DMG: $macDmgPath"
