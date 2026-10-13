@@ -7,6 +7,7 @@ using Yohuke.DanmuNeo.ViewModels.Items;
 
 namespace Yohuke.DanmuNeo.Tests;
 
+[Collection(AvaloniaDispatcherTestCollection.NAME)]
 public class LiveRoomTabViewModelTests
 {
     [Fact]

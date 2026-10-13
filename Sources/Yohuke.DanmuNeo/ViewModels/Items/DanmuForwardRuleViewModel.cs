@@ -8,7 +8,7 @@ namespace Yohuke.DanmuNeo.ViewModels.Items;
 /// <summary>
 /// 弹幕转发规则视图模型。
 /// </summary>
-public partial class DanmuForwardRuleViewModel : ViewModelBase
+public partial class DanmuForwardRuleViewModel : ViewModelBase, IDisposable
 {
     private readonly Action<DanmuForwardRuleViewModel> onChanged;
     private IReadOnlyList<ForwardSourceRoomOption> sourceRoomOptions = [];
@@ -166,6 +166,7 @@ public partial class DanmuForwardRuleViewModel : ViewModelBase
 
             State.SenderUid = value;
             OnPropertyChanged();
+            ScheduleUserNameLookup();
             onChanged(this);
         }
     }

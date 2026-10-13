@@ -29,7 +29,8 @@ public sealed class LiveRoomFeedViewTestContext : IDisposable
             ],
             Workspaces = [new() { Name = "工作区", LiveRooms = [new() { RoomId = "100", RoomName = "测试直播间" }] }]
         });
-        ViewModel = new(stateService, new FakeLiveRoomSearchService(), new FakeRoomAvatarService(), ModerationService);
+        ViewModel = new(stateService, new FakeLiveRoomSearchService(), new FakeRoomAvatarService(), ModerationService,
+            new FakeBilibiliUserNameService());
         Room = ViewModel.Workspaces[0].Rooms[0];
         Room.AddDanmu(new()
             { RoomId = "100", Uid = 30, UserName = "带牌用户", Content = "粉丝牌弹幕", MedalName = "夜更", MedalLevel = 25 });

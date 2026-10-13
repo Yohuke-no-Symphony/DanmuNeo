@@ -47,6 +47,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
     private Func<IEnumerable<MarkSymbolGroup>>? getSymbolGroups;
     private Func<LiveRoomTabViewModel, IEnumerable<ForwardSourceRoomOption>>? getForwardSourceRooms;
     private IReadOnlyList<ForwardAccountOption> forwardAccounts = [];
+    private IBilibiliUserNameService? userNameService;
     private Func<Task>? saveState;
     private IDanmuSendService? sendService;
     private IRoomAvatarService? avatarCacheService;
@@ -505,7 +506,8 @@ public partial class LiveRoomTabViewModel : ViewModelBase
         Func<string, BilibiliAccount?>? resolveAccountById = null,
         ILiveDanmuSocketFactory? liveDanmuSocketFactory = null,
         IBilibiliModerationService? moderationService = null,
-        IReadOnlyList<ForwardAccountOption>? forwardAccountOptions = null)
+        IReadOnlyList<ForwardAccountOption>? forwardAccountOptions = null,
+        IBilibiliUserNameService? userNameService = null)
     {
         this.resolveAccount = resolveAccount;
         this.resolveAccountByRoom = resolveAccountByRoom;
@@ -514,6 +516,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
         this.getSymbolGroups = getSymbolGroups;
         this.getForwardSourceRooms = getForwardSourceRooms;
         forwardAccounts = forwardAccountOptions ?? forwardAccounts;
+        this.userNameService = userNameService ?? this.userNameService;
         this.sendService = sendService;
         this.avatarCacheService = avatarCacheService;
         this.saveState = saveState;
@@ -524,7 +527,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
         this.moderationService = moderationService ?? new BilibiliModerationService();
         foreach (var rule in ForwardRules)
         {
-            rule.ConfigureOptions(ForwardSourceRooms, forwardAccounts, getSymbolGroups());
+            ConfigureForwardRule(rule);
         }
 
         sendService.RecordCreated += OnSendRecordCreated;
@@ -1361,6 +1364,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
         }
 
         StopForwardRule(rule);
+        rule.Dispose();
         State.ForwardRules.Remove(rule.State);
         ForwardRules.Remove(rule);
         await SaveStateAsync();
@@ -1400,6 +1404,18 @@ public partial class LiveRoomTabViewModel : ViewModelBase
         foreach (var rule in ForwardRules)
         {
             StopForwardRule(rule);
+        }
+    }
+
+    /// <summary>
+    /// 停止转发并释放规则拥有的后台查询。
+    /// </summary>
+    public void DisposeForwardRules()
+    {
+        foreach (var rule in ForwardRules)
+        {
+            StopForwardRule(rule);
+            rule.Dispose();
         }
     }
 
@@ -1652,8 +1668,20 @@ public partial class LiveRoomTabViewModel : ViewModelBase
     private DanmuForwardRuleViewModel CreateForwardRuleViewModel(DanmuForwardRuleState state)
     {
         var rule = new DanmuForwardRuleViewModel(state, OnForwardRuleChanged);
-        rule.ConfigureOptions(ForwardSourceRooms, forwardAccounts, getSymbolGroups?.Invoke() ?? []);
+        ConfigureForwardRule(rule);
         return rule;
+    }
+
+    private void ConfigureForwardRule(DanmuForwardRuleViewModel rule)
+    {
+        rule.ConfigureOptions(ForwardSourceRooms, forwardAccounts, getSymbolGroups?.Invoke() ?? []);
+
+        if (userNameService is not null)
+        {
+            rule.ConfigureUserNameLookup(userNameService, () => getSettings is null
+                ? null
+                : TimeSpan.FromSeconds(getSettings().TimeoutSeconds));
+        }
     }
 
     private void OnForwardRuleChanged(DanmuForwardRuleViewModel rule)

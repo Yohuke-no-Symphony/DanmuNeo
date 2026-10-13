@@ -40,6 +40,7 @@
 	                        Content="取消"
 	                        Click="Cancel_OnClick"/>
 	                <Button Grid.Column="5"
+	                        x:Name="CaptureButton"
 	                        Classes="primaryButton"
 	                        Click="Capture_OnClick">
 	                    <StackPanel Orientation="Horizontal"

@@ -28,6 +28,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly AvatarCacheService? ownedAvatarCacheService;
     private readonly IBilibiliLiveRoomSearchService liveRoomSearchService;
     private readonly IBilibiliModerationService moderationService;
+    private readonly IBilibiliUserNameService userNameService;
     private CancellationTokenSource? liveRoomSearchTokenSource;
     private string activeLiveRoomSearchKeyword = "";
     private int liveRoomSearchPage;
@@ -57,7 +58,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         AppStateService stateService,
         IBilibiliLiveRoomSearchService? liveRoomSearchService = null,
         IRoomAvatarService? avatarCacheService = null,
-        IBilibiliModerationService? moderationService = null)
+        IBilibiliModerationService? moderationService = null,
+        IBilibiliUserNameService? userNameService = null)
     {
         this.stateService = stateService;
         appDirectoryService = new(stateService.ConfigDirectory);
@@ -65,6 +67,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         appBackupService = new(appDirectoryService);
         this.liveRoomSearchService = liveRoomSearchService ?? new BilibiliLiveRoomSearchService();
         this.moderationService = moderationService ?? new BilibiliModerationService();
+        this.userNameService = userNameService ?? new BilibiliUserNameService();
         ownedAvatarCacheService = avatarCacheService is null ? new(appDirectoryService) : null;
         this.avatarCacheService = avatarCacheService ?? ownedAvatarCacheService!;
         State = stateService.Load();
@@ -1089,7 +1092,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         foreach (var room in workspace.Rooms)
         {
             room.StopListening();
-            room.StopForwarding();
+            room.DisposeForwardRules();
             room.StopLivePlayer();
         }
 
@@ -1133,7 +1136,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
 
         room.StopListening();
-        room.StopForwarding();
+        room.DisposeForwardRules();
         room.StopLivePlayer();
         workspace.RemoveRoom(room);
 
@@ -2082,7 +2085,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             livePlayerService,
             ResolveAccount,
             moderationService: moderationService,
-            forwardAccountOptions: ForwardAccountOptions);
+            forwardAccountOptions: ForwardAccountOptions,
+            userNameService: userNameService);
         _ = room.LoadAvatarAsync();
     }
 
@@ -2099,8 +2103,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         foreach (var room in Workspaces.SelectMany(workspace => workspace.Rooms))
         {
             room.StopListening();
-            room.StopForwarding();
+            room.DisposeForwardRules();
             room.StopLivePlayer();
+        }
+
+        foreach (var option in ForwardAccountOptions)
+        {
+            option.Dispose();
         }
 
         livePlayerService.Dispose();
@@ -2323,20 +2332,41 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private void RefreshForwardAccountOptions()
     {
-        ForwardAccountOptions.Clear();
-        ForwardAccountOptions.Add(new()
+        var nextOptions = new List<ForwardAccountOption>
         {
-            AccountId = "",
-            DisplayName = "使用目标直播间账号"
-        });
+            ForwardAccountOptions.FirstOrDefault(option => option.Account is null) ?? new()
+        };
 
         foreach (var account in Accounts)
         {
-            ForwardAccountOptions.Add(new()
+            var option = ForwardAccountOptions.FirstOrDefault(option => ReferenceEquals(option.Account, account))
+                         ?? new ForwardAccountOption(account);
+            nextOptions.Add(option);
+        }
+
+        for (var index = ForwardAccountOptions.Count - 1; index >= 0; index--)
+        {
+            var option = ForwardAccountOptions[index];
+
+            if (!nextOptions.Contains(option))
             {
-                AccountId = account.Id,
-                DisplayName = account.Name
-            });
+                ForwardAccountOptions.RemoveAt(index);
+                option.Dispose();
+            }
+        }
+
+        for (var index = 0; index < nextOptions.Count; index++)
+        {
+            var currentIndex = ForwardAccountOptions.IndexOf(nextOptions[index]);
+
+            if (currentIndex < 0)
+            {
+                ForwardAccountOptions.Insert(index, nextOptions[index]);
+            }
+            else if (currentIndex != index)
+            {
+                ForwardAccountOptions.Move(currentIndex, index);
+            }
         }
     }
 

@@ -593,9 +593,18 @@
                                                         </Button>
                                                     </Grid>
                                                     <Grid Grid.Row="1"
-                                                          ColumnDefinitions="*">
+                                                          ColumnDefinitions="*,Auto"
+                                                          ColumnSpacing="8">
                                                         <TextBox Watermark="发送人 UID"
                                                                  Text="{Binding SenderUid}" />
+                                                        <TextBlock Grid.Column="1"
+                                                                   x:Name="ForwardSenderUserNameText"
+                                                                   Classes="muted"
+                                                                   Text="{Binding SenderUserNameDisplayText}"
+                                                                   ToolTip.Tip="{Binding SenderUserNameDisplayText}"
+                                                                   VerticalAlignment="Center"
+                                                                   MaxWidth="120"
+                                                                   TextTrimming="CharacterEllipsis" />
                                                     </Grid>
                                                     <Grid Grid.Row="2"
                                                           ColumnDefinitions="*">

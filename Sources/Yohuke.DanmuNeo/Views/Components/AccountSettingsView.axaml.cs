@@ -4,7 +4,6 @@ using Yohuke.DanmuNeo.Models.BrowserLogin;
 using Yohuke.DanmuNeo.Models.State;
 using Yohuke.DanmuNeo.Services;
 using Yohuke.DanmuNeo.ViewModels;
-using Yohuke.DanmuNeo.Views;
 
 namespace Yohuke.DanmuNeo.Views.Components;
 
@@ -13,11 +12,20 @@ namespace Yohuke.DanmuNeo.Views.Components;
 /// </summary>
 public partial class AccountSettingsView : UserControl
 {
+    private readonly Func<BrowserLoginPlatform, Window, Task<BrowserCookieLoginResult?>> showBrowserLogin;
+    private bool isBrowserLoginOpen;
+
     /// <summary>
     /// 初始化账号登录设置页。
     /// </summary>
     public AccountSettingsView()
+        : this(ShowBrowserLoginDialogAsync)
     {
+    }
+
+    internal AccountSettingsView(Func<BrowserLoginPlatform, Window, Task<BrowserCookieLoginResult?>> showBrowserLogin)
+    {
+        this.showBrowserLogin = showBrowserLogin;
         InitializeComponent();
     }
 
@@ -79,17 +87,18 @@ public partial class AccountSettingsView : UserControl
         }
     }
 
-    private async Task<BrowserCookieLoginResult?> ShowBrowserLoginAsync(BrowserLoginPlatform platform)
+    internal async Task<BrowserCookieLoginResult?> ShowBrowserLoginAsync(BrowserLoginPlatform platform)
     {
+        if (isBrowserLoginOpen || TopLevel.GetTopLevel(this) is not Window owner)
+        {
+            return null;
+        }
+
+        isBrowserLoginOpen = true;
+
         try
         {
-            if (TopLevel.GetTopLevel(this) is not Window owner)
-            {
-                return null;
-            }
-
-            var window = new BrowserCookieLoginWindow(platform);
-            return await window.ShowDialog<BrowserCookieLoginResult?>(owner);
+            return await showBrowserLogin(platform, owner);
         }
         catch (Exception exception)
         {
@@ -101,6 +110,24 @@ public partial class AccountSettingsView : UserControl
             }
 
             return null;
+        }
+        finally
+        {
+            isBrowserLoginOpen = false;
+        }
+    }
+
+    private static async Task<BrowserCookieLoginResult?> ShowBrowserLoginDialogAsync(BrowserLoginPlatform platform, Window owner)
+    {
+        var window = new BrowserCookieLoginWindow(platform);
+
+        try
+        {
+            return await window.ShowDialog<BrowserCookieLoginResult?>(owner);
+        }
+        finally
+        {
+            window.Close();
         }
     }
 }

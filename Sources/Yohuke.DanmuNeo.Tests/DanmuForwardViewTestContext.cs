@@ -15,8 +15,9 @@ public sealed class DanmuForwardViewTestContext : IDisposable
     /// <summary>
     /// 创建有独立发送账号和符号组的转发规则。
     /// </summary>
-    public DanmuForwardViewTestContext()
+    public DanmuForwardViewTestContext(FakeBilibiliUserNameService? userNameService = null)
     {
+        UserNameService = userNameService ?? new();
         StateService = new(directory);
         StateService.Save(new()
         {
@@ -58,7 +59,8 @@ public sealed class DanmuForwardViewTestContext : IDisposable
             ]
         });
         var avatarService = new FakeRoomAvatarService();
-        ViewModel = new(StateService, new FakeLiveRoomSearchService(), avatarService, new FakeBilibiliModerationService());
+        ViewModel = new(StateService, new FakeLiveRoomSearchService(), avatarService, new FakeBilibiliModerationService(),
+            UserNameService);
         Room = ViewModel.Workspaces[0].Rooms.Single(room => room.Id == "target-room");
         Source = ViewModel.Workspaces[0].Rooms.Single(room => room.Id == "source-room");
         SocketFactory.Socket.KeepRunning = true;
@@ -82,7 +84,8 @@ public sealed class DanmuForwardViewTestContext : IDisposable
             resolveAccountById: accountId => ViewModel.Accounts.SingleOrDefault(account => account.Id == accountId),
             liveDanmuSocketFactory: SocketFactory,
             moderationService: new FakeBilibiliModerationService(),
-            forwardAccountOptions: ViewModel.ForwardAccountOptions);
+            forwardAccountOptions: ViewModel.ForwardAccountOptions,
+            userNameService: UserNameService);
         Room.RefreshForwardSourceRooms();
     }
 
@@ -115,6 +118,11 @@ public sealed class DanmuForwardViewTestContext : IDisposable
     /// 可保持运行并主动推送弹幕的离线连接工厂。
     /// </summary>
     public FakeLiveDanmuSocketFactory SocketFactory { get; } = new();
+
+    /// <summary>
+    /// 离线用户名查询服务。
+    /// </summary>
+    public FakeBilibiliUserNameService UserNameService { get; }
 
     /// <inheritdoc/>
     public void Dispose()

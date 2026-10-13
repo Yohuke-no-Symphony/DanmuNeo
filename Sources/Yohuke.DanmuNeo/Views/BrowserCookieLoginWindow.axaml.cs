@@ -1,3 +1,4 @@
+using System.Net;
 using Avalonia.Controls;
 using Avalonia.Platform;
 using Yohuke.DanmuNeo.Models.BrowserLogin;
@@ -12,7 +13,10 @@ public partial class BrowserCookieLoginWindow : Window
 {
     private readonly BrowserLoginPlatform platform;
     private readonly BrowserCookieLoginService loginService = new();
+    private readonly Func<NativeWebView> createWebView;
     private NativeWebView? webView;
+    private bool isClosed;
+    private bool isCapturing;
 
     /// <summary>
     /// 初始化内嵌浏览器登录窗口。
@@ -26,10 +30,17 @@ public partial class BrowserCookieLoginWindow : Window
     /// 初始化内嵌浏览器登录窗口。
     /// </summary>
     public BrowserCookieLoginWindow(BrowserLoginPlatform platform)
+        : this(platform, () => new())
+    {
+    }
+
+    internal BrowserCookieLoginWindow(BrowserLoginPlatform platform, Func<NativeWebView> createWebView)
     {
         this.platform = platform;
+        this.createWebView = createWebView;
         InitializeComponent();
         Opened += BrowserCookieLoginWindow_OnOpened;
+        Closed += BrowserCookieLoginWindow_OnClosed;
         ConfigureShell();
     }
 
@@ -45,7 +56,42 @@ public partial class BrowserCookieLoginWindow : Window
     private async void BrowserCookieLoginWindow_OnOpened(object? sender, EventArgs e)
     {
         await Task.Yield();
-        CreateBrowser();
+
+        if (!isClosed)
+        {
+            CreateBrowser();
+        }
+    }
+
+    private void BrowserCookieLoginWindow_OnClosed(object? sender, EventArgs e)
+    {
+        isClosed = true;
+        Opened -= BrowserCookieLoginWindow_OnOpened;
+        Closed -= BrowserCookieLoginWindow_OnClosed;
+        ReleaseBrowser();
+    }
+
+    private void ReleaseBrowser()
+    {
+        var currentWebView = webView;
+        webView = null;
+
+        if (currentWebView is not null)
+        {
+            currentWebView.EnvironmentRequested -= WebView_OnEnvironmentRequested;
+            currentWebView.NavigationCompleted -= WebView_OnNavigationCompleted;
+
+            try
+            {
+                currentWebView.Stop();
+            }
+            catch (Exception exception)
+            {
+                StartupLog.Append($"Browser login WebView stop failed platform={platform} exception={exception.GetType().Name}");
+            }
+        }
+
+        WebViewHost.Child = null;
     }
 
     private void CreateBrowser()
@@ -53,31 +99,32 @@ public partial class BrowserCookieLoginWindow : Window
         try
         {
             var loginUri = loginService.GetLoginUri(platform);
-            webView = new()
-            {
-                Source = loginUri
-            };
-
+            webView = createWebView();
             webView.EnvironmentRequested += WebView_OnEnvironmentRequested;
-            webView.NavigationCompleted += (_, _) =>
-            {
-                StatusText.Text = webView.Source?.ToString() ?? loginUri.ToString();
-            };
+            webView.NavigationCompleted += WebView_OnNavigationCompleted;
+            webView.Source = loginUri;
             WebViewHost.Child = webView;
             WebViewPlaceholderText.IsVisible = false;
             StartupLog.Append($"Browser login WebView created platform={platform}");
         }
         catch (Exception exception)
         {
-            var message = "当前平台 WebView 初始化失败，无法使用内嵌浏览器登录。";
-            StatusText.Text = $"{message} {exception.Message}";
-            WebViewPlaceholderText.Text = message;
+            ReleaseBrowser();
+            const string MESSAGE = "当前平台 WebView 初始化失败，无法使用内嵌浏览器登录。";
+            StatusText.Text = $"{MESSAGE} {exception.Message}";
+            WebViewPlaceholderText.Text = MESSAGE;
+            WebViewHost.Child = WebViewPlaceholderText;
             WebViewPlaceholderText.IsVisible = true;
             StartupLog.Append($"Browser login WebView create failed platform={platform} exception={exception}");
         }
     }
 
     private void WebView_OnEnvironmentRequested(object? sender, WebViewEnvironmentRequestedEventArgs e)
+    {
+        ConfigureBrowserEnvironment(e);
+    }
+
+    internal void ConfigureBrowserEnvironment(WebViewEnvironmentRequestedEventArgs e)
     {
         e.EnableDevTools = false;
 
@@ -91,6 +138,7 @@ public partial class BrowserCookieLoginWindow : Window
             case WindowsWebView2EnvironmentRequestedEventArgs windows:
                 windows.UserDataFolder = profileDirectory;
                 windows.ProfileName = $"YohukeDanmuNeo{platform}";
+                windows.IsInPrivateModeEnabled = platform == BrowserLoginPlatform.Bilibili;
                 break;
             case AppleWKWebViewEnvironmentRequestedEventArgs apple:
                 apple.NonPersistentDataStore = true;
@@ -103,6 +151,14 @@ public partial class BrowserCookieLoginWindow : Window
                 wpe.DataDirectory = profileDirectory;
                 wpe.CacheDirectory = cacheDirectory;
                 break;
+        }
+    }
+
+    private void WebView_OnNavigationCompleted(object? sender, WebViewNavigationCompletedEventArgs e)
+    {
+        if (!isClosed)
+        {
+            StatusText.Text = webView?.Source.ToString() ?? loginService.GetLoginUri(platform).ToString();
         }
     }
 
@@ -128,32 +184,61 @@ public partial class BrowserCookieLoginWindow : Window
 
     private async void Capture_OnClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
+        await CaptureCookiesAsync(ReadBrowserCookiesAsync);
+    }
+
+    internal async Task CaptureCookiesAsync(Func<Task<IEnumerable<Cookie>>> readCookies)
+    {
+        if (isClosed || isCapturing)
+        {
+            return;
+        }
+
+        isCapturing = true;
+        CaptureButton.IsEnabled = false;
+
         try
         {
-            var currentWebView = webView;
+            var cookies = await readCookies();
 
-            if (currentWebView is null)
+            if (isClosed)
             {
-                StatusText.Text = "内嵌浏览器尚未初始化完成。";
                 return;
             }
 
-            var cookieManager = currentWebView.TryGetCookieManager();
-
-            if (cookieManager is null)
-            {
-                StatusText.Text = "当前平台 WebView 暂不支持读取 Cookie。";
-                return;
-            }
-
-            var cookies = await cookieManager.GetCookiesAsync();
             var result = loginService.CreateResult(platform, cookies);
             Close(result);
         }
         catch (Exception exception)
         {
-            StatusText.Text = exception.Message;
-            StartupLog.Append($"Browser login capture failed platform={platform} exception={exception}");
+            if (!isClosed)
+            {
+                StatusText.Text = exception.Message;
+                StartupLog.Append($"Browser login capture failed platform={platform} exception={exception.GetType().Name}");
+            }
         }
+        finally
+        {
+            isCapturing = false;
+
+            if (!isClosed)
+            {
+                CaptureButton.IsEnabled = true;
+            }
+        }
+    }
+
+    private async Task<IEnumerable<Cookie>> ReadBrowserCookiesAsync()
+    {
+        var currentWebView = webView;
+
+        if (currentWebView is null)
+        {
+            throw new InvalidOperationException("内嵌浏览器尚未初始化完成。");
+        }
+
+        var cookieManager = currentWebView.TryGetCookieManager()
+                            ?? throw new InvalidOperationException("当前平台 WebView 暂不支持读取 Cookie。");
+        return await cookieManager.GetCookiesAsync();
     }
 }
