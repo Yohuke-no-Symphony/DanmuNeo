@@ -10,15 +10,17 @@ namespace Yohuke.DanmuNeo.Services;
 public class DanmuSendService : IDanmuSendService
 {
     private readonly HttpClient? httpClient;
+    private readonly IBilibiliDanmuConfigService danmuConfigService;
     private readonly SemaphoreSlim sendLock = new(1, 1);
     private DateTimeOffset lastSentAt = DateTimeOffset.MinValue;
 
     /// <summary>
     /// 初始化服务；注入的 HTTP 客户端由调用方管理。
     /// </summary>
-    public DanmuSendService(HttpClient? httpClient = null)
+    public DanmuSendService(HttpClient? httpClient = null, IBilibiliDanmuConfigService? danmuConfigService = null)
     {
         this.httpClient = httpClient;
+        this.danmuConfigService = danmuConfigService ?? new BilibiliDanmuConfigService(httpClient);
     }
 
     /// <summary>
@@ -41,6 +43,7 @@ public class DanmuSendService : IDanmuSendService
             return CreateResult(roomId, message, "未配置账号", false);
         }
 
+        var cookie = account.Cookie;
         await sendLock.WaitAsync(cancellationToken);
 
         try
@@ -52,8 +55,11 @@ public class DanmuSendService : IDanmuSendService
                 await Task.Delay(waitTime, cancellationToken);
             }
 
-            using var api = new BilibiliApi(account.Cookie, TimeSpan.FromSeconds(settings.TimeoutSeconds), httpClient);
-            var response = await api.SendDanmuAsync(long.Parse(roomId), message, cancellationToken: cancellationToken);
+            var timeout = TimeSpan.FromSeconds(settings.TimeoutSeconds);
+            var config = await danmuConfigService.GetConfigAsync(roomId, cookie, timeout, cancellationToken);
+            using var api = new BilibiliApi(cookie, timeout, httpClient);
+            var response = await api.SendDanmuAsync(long.Parse(roomId), message, config.Current.Mode,
+                cancellationToken: cancellationToken, color: config.Current.Color);
             lastSentAt = DateTimeOffset.Now;
 
             var isBlocked = response.Message is "f" || response.Msg is "f";

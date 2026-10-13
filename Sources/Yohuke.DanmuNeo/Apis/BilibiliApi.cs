@@ -204,7 +204,7 @@ public class BilibiliApi : BaseApi
     /// <summary>
     /// 设置用户在直播间内的弹幕颜色或弹幕位置。
     /// </summary>
-    public Task<ApiResponse<BilibiliOperationData>> SetDanmuConfigAsync(
+    public Task<ApiResponse<JToken>> SetDanmuConfigAsync(
         long roomId,
         string? color = null,
         int? mode = null,
@@ -212,7 +212,7 @@ public class BilibiliApi : BaseApi
         TimeSpan? timeout = null,
         CancellationToken cancellationToken = default)
     {
-        return PostFormJsonAsync<ApiResponse<BilibiliOperationData>>(
+        return PostFormJsonAsync<ApiResponse<JToken>>(
             "https://api.live.bilibili.com/xlive/web-room/v1/dM/AjaxSetConfig",
             new Dictionary<string, object?>
             {
@@ -236,13 +236,14 @@ public class BilibiliApi : BaseApi
         int mode = 1,
         int number = 0,
         TimeSpan? timeout = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        int color = 0xFFFFFF)
     {
         return PostFormJsonAsync<ApiResponse<BilibiliOperationData>>(
             "https://api.live.bilibili.com/msg/send",
             new Dictionary<string, object?>
             {
-                ["color"] = 16777215,
+                ["color"] = color,
                 ["fontsize"] = 25,
                 ["mode"] = mode,
                 ["bubble"] = 0,

@@ -9,6 +9,12 @@ namespace Yohuke.DanmuNeo.Apis.Models.Bilibili;
 public class BilibiliDanmuConfigData
 {
     /// <summary>
+    /// 按权限分组的颜色列表。
+    /// </summary>
+    [JsonProperty("group")]
+    public JToken? Group { get; set; }
+
+    /// <summary>
     /// 最大弹幕长度。
     /// </summary>
     [JsonProperty("length")]

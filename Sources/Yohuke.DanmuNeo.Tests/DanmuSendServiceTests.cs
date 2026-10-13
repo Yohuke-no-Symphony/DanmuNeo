@@ -22,7 +22,7 @@ public class DanmuSendServiceTests
     {
         using var handler = new DanmuSendHttpHandler { ResponseJson = json };
         using var client = new HttpClient(handler);
-        var service = new DanmuSendService(client);
+        var service = new DanmuSendService(client, new FakeBilibiliDanmuConfigService());
         DanmuFeedItem? record = null;
         service.RecordCreated += (_, item) => record = item;
 
@@ -46,7 +46,7 @@ public class DanmuSendServiceTests
     {
         using var handler = new DanmuSendHttpHandler { ResponseJson = json };
         using var client = new HttpClient(handler);
-        var service = new DanmuSendService(client);
+        var service = new DanmuSendService(client, new FakeBilibiliDanmuConfigService());
 
         var result = await service.SendAsync("100", "同传", CreateAccount(), new());
 
@@ -80,7 +80,7 @@ public class DanmuSendServiceTests
             ResponseJson = "损坏的响应"
         };
         using var client = new HttpClient(handler);
-        var service = new DanmuSendService(client);
+        var service = new DanmuSendService(client, new FakeBilibiliDanmuConfigService());
 
         var result = await service.SendAsync("100", "同传", CreateAccount(), new());
 
@@ -98,7 +98,7 @@ public class DanmuSendServiceTests
     {
         using var handler = new DanmuSendHttpHandler();
         using var client = new HttpClient(handler);
-        var service = new DanmuSendService(client);
+        var service = new DanmuSendService(client, new FakeBilibiliDanmuConfigService());
 
         var result = await service.SendAsync("100", "同传", null, new());
 
@@ -118,7 +118,7 @@ public class DanmuSendServiceTests
         using var handler = new DanmuSendHttpHandler();
         using var client = new HttpClient(handler);
         using var cancellation = new CancellationTokenSource();
-        var service = new DanmuSendService(client);
+        var service = new DanmuSendService(client, new FakeBilibiliDanmuConfigService());
         var records = new List<DanmuFeedItem>();
         service.RecordCreated += (_, item) => records.Add(item);
         cancellation.Cancel();
@@ -138,12 +138,96 @@ public class DanmuSendServiceTests
     {
         using var handler = new DanmuSendHttpHandler { ResponseJson = "{\"code\":0,\"data\":{}}" };
         using var client = new HttpClient(handler);
-        var service = new DanmuSendService(client);
+        var service = new DanmuSendService(client, new FakeBilibiliDanmuConfigService());
         var settings = new AppSettings { SendIntervalMs = 0 };
 
         Assert.True((await service.SendAsync("100", "第一条", CreateAccount(), settings)).IsAccepted);
         Assert.True((await service.SendAsync("100", "第二条", CreateAccount(), settings)).IsAccepted);
         Assert.Equal(2, handler.RequestCount);
+    }
+
+    /// <summary>
+    /// 不同发送账号与目标房间分别使用自己的颜色和位置。
+    /// </summary>
+    [Fact]
+    public async Task SendsOptionsOfActualAccountAndTargetRoom()
+    {
+        using var handler = new DanmuSendHttpHandler { ResponseJson = "{\"code\":0,\"data\":{}}" };
+        using var client = new HttpClient(handler);
+        var configService = new FakeBilibiliDanmuConfigService
+        {
+            ResolveConfig = (roomId, cookie) => new()
+            {
+                Current = roomId == "101"
+                    ? new()
+                    : cookie.Contains("SESSDATA=other")
+                        ? new() { Color = 65535, Mode = 1 }
+                        : new() { Color = 255, Mode = 5 }
+            }
+        };
+        var service = new DanmuSendService(client, configService);
+        var account = CreateAccount();
+        var other = new BilibiliAccount { Cookie = "SESSDATA=other;bili_jct=other-csrf;DedeUserID=43" };
+        var settings = new AppSettings { SendIntervalMs = 0 };
+
+        Assert.True((await service.SendAsync("100", "同传", account, settings)).IsAccepted);
+        Assert.True((await service.SendAsync("100", "转发", other, settings)).IsAccepted);
+        Assert.True((await service.SendAsync("101", "其他房间", account, settings)).IsAccepted);
+
+        Assert.Equal(new[] { "255", "65535", "16777215" }, handler.Forms.Select(form => form["color"]));
+        Assert.Equal(new[] { "5", "1", "1" }, handler.Forms.Select(form => form["mode"]));
+        Assert.Equal(new[] { "100", "100", "101" }, configService.GetRequests.Select(request => request.RoomId));
+        Assert.Equal(other.Cookie, configService.GetRequests[1].Cookie);
+        Assert.Contains("SESSDATA=other", handler.Cookies[1]);
+    }
+
+    /// <summary>
+    /// 配置读取失败时不给发送请求填入伪造的默认设置。
+    /// </summary>
+    [Fact]
+    public async Task ConfigurationFailurePreventsSend()
+    {
+        using var handler = new DanmuSendHttpHandler();
+        using var client = new HttpClient(handler);
+        var configService = new FakeBilibiliDanmuConfigService
+        {
+            Exception = new InvalidOperationException("弹幕配置读取失败")
+        };
+        var service = new DanmuSendService(client, configService);
+
+        var result = await service.SendAsync("100", "同传", CreateAccount(), new());
+
+        Assert.False(result.IsAccepted);
+        Assert.Null(result.ApiCode);
+        Assert.Equal("弹幕配置读取失败", result.ErrorMessage);
+        Assert.Equal(0, handler.RequestCount);
+    }
+
+    /// <summary>
+    /// Cookie 在查询期间变化时，单次发送仍使用同一身份的配置和凭据。
+    /// </summary>
+    [Fact]
+    public async Task CookieChangeDoesNotMixConfigurationAndSendingIdentity()
+    {
+        using var handler = new DanmuSendHttpHandler { ResponseJson = "{\"code\":0,\"data\":{}}" };
+        using var client = new HttpClient(handler);
+        var account = CreateAccount();
+        var originalCookie = account.Cookie;
+        var configService = new FakeBilibiliDanmuConfigService
+        {
+            ResolveConfig = (_, _) =>
+            {
+                account.Cookie = "SESSDATA=other;bili_jct=other-csrf;DedeUserID=43";
+                return new() { Current = new() { Color = 255, Mode = 5 } };
+            }
+        };
+        var service = new DanmuSendService(client, configService);
+
+        Assert.True((await service.SendAsync("100", "同传", account, new())).IsAccepted);
+
+        Assert.Equal(originalCookie, Assert.Single(configService.GetRequests).Cookie);
+        Assert.Contains("SESSDATA=test", Assert.Single(handler.Cookies));
+        Assert.Equal("test", Assert.Single(handler.Forms)["csrf"]);
     }
 
     private static BilibiliAccount CreateAccount()
