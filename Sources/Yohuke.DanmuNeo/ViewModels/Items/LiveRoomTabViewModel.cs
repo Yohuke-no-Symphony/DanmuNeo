@@ -46,6 +46,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
     private Func<MarkSymbolGroup>? getMarkSymbolGroup;
     private Func<IEnumerable<MarkSymbolGroup>>? getSymbolGroups;
     private Func<LiveRoomTabViewModel, IEnumerable<ForwardSourceRoomOption>>? getForwardSourceRooms;
+    private IReadOnlyList<ForwardAccountOption> forwardAccounts = [];
     private Func<Task>? saveState;
     private IDanmuSendService? sendService;
     private IRoomAvatarService? avatarCacheService;
@@ -86,8 +87,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
         isLivePlayerMuted = state.IsLivePlayerMuted;
         avatarPath = state.AvatarPath;
         RefreshAvatarImage();
-        ForwardRules =
-            new(state.ForwardRules.Select(rule => new DanmuForwardRuleViewModel(rule, OnForwardRuleChanged)));
+        ForwardRules = new(state.ForwardRules.Select(CreateForwardRuleViewModel));
     }
 
     /// <summary>
@@ -504,7 +504,8 @@ public partial class LiveRoomTabViewModel : ViewModelBase
         ILivePlayerService? livePlayerService = null,
         Func<string, BilibiliAccount?>? resolveAccountById = null,
         ILiveDanmuSocketFactory? liveDanmuSocketFactory = null,
-        IBilibiliModerationService? moderationService = null)
+        IBilibiliModerationService? moderationService = null,
+        IReadOnlyList<ForwardAccountOption>? forwardAccountOptions = null)
     {
         this.resolveAccount = resolveAccount;
         this.resolveAccountByRoom = resolveAccountByRoom;
@@ -512,6 +513,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
         this.getMarkSymbolGroup = getMarkSymbolGroup;
         this.getSymbolGroups = getSymbolGroups;
         this.getForwardSourceRooms = getForwardSourceRooms;
+        forwardAccounts = forwardAccountOptions ?? forwardAccounts;
         this.sendService = sendService;
         this.avatarCacheService = avatarCacheService;
         this.saveState = saveState;
@@ -520,6 +522,11 @@ public partial class LiveRoomTabViewModel : ViewModelBase
         this.resolveAccountById = resolveAccountById;
         this.liveDanmuSocketFactory = liveDanmuSocketFactory ?? new BilibiliLiveDanmuSocketFactory();
         this.moderationService = moderationService ?? new BilibiliModerationService();
+        foreach (var rule in ForwardRules)
+        {
+            rule.ConfigureOptions(ForwardSourceRooms, forwardAccounts, getSymbolGroups());
+        }
+
         sendService.RecordCreated += OnSendRecordCreated;
         ApplyLyric();
     }
@@ -1326,7 +1333,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
         }
 
         State.ForwardRules.Add(ruleState);
-        var rule = new DanmuForwardRuleViewModel(ruleState, OnForwardRuleChanged);
+        var rule = CreateForwardRuleViewModel(ruleState);
         ForwardRules.Add(rule);
         RefreshForwardSourceRooms();
 
@@ -1640,6 +1647,13 @@ public partial class LiveRoomTabViewModel : ViewModelBase
     private static LyricSendMode NormalizeLyricSendMode(LyricSendMode value)
     {
         return Enum.IsDefined(value) ? value : LyricSendMode.Bilingual;
+    }
+
+    private DanmuForwardRuleViewModel CreateForwardRuleViewModel(DanmuForwardRuleState state)
+    {
+        var rule = new DanmuForwardRuleViewModel(state, OnForwardRuleChanged);
+        rule.ConfigureOptions(ForwardSourceRooms, forwardAccounts, getSymbolGroups?.Invoke() ?? []);
+        return rule;
     }
 
     private void OnForwardRuleChanged(DanmuForwardRuleViewModel rule)

@@ -573,7 +573,7 @@
                                                                   VerticalAlignment="Center" />
                                                         <ComboBox Grid.Column="1"
                                                                   HorizontalAlignment="Stretch"
-                                                                  ItemsSource="{Binding DataContext.ForwardSourceRooms, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                  ItemsSource="{Binding SourceRoomOptions}"
                                                                   SelectedValue="{Binding SourceRoomKey}"
                                                                   SelectedValueBinding="{Binding Key}">
                                                             <ComboBox.ItemTemplate>
@@ -608,7 +608,7 @@
                                                         <ComboBox
                                                             HorizontalAlignment="Stretch"
                                                             ToolTip.Tip="转发发送账号"
-                                                            ItemsSource="{Binding DataContext.ForwardAccountOptions, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            ItemsSource="{Binding AccountOptions}"
                                                             SelectedValue="{Binding AccountOverrideId}"
                                                             SelectedValueBinding="{Binding AccountId}">
                                                             <ComboBox.ItemTemplate>
@@ -624,7 +624,7 @@
                                                         <ComboBox
                                                             HorizontalAlignment="Stretch"
                                                             ToolTip.Tip="转发开闭规则"
-                                                            ItemsSource="{Binding DataContext.SymbolGroups, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            ItemsSource="{Binding SymbolGroups}"
                                                             SelectedValue="{Binding MarkSymbolGroupId}"
                                                             SelectedValueBinding="{Binding Id}">
                                                             <ComboBox.ItemTemplate>

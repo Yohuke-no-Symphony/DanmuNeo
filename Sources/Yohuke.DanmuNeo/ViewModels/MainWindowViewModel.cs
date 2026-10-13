@@ -2081,7 +2081,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             liveStreamService,
             livePlayerService,
             ResolveAccount,
-            moderationService: moderationService);
+            moderationService: moderationService,
+            forwardAccountOptions: ForwardAccountOptions);
         _ = room.LoadAvatarAsync();
     }
 

@@ -1,5 +1,7 @@
+using System.Diagnostics.CodeAnalysis;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Yohuke.DanmuNeo.Models.State;
+using Yohuke.DanmuNeo.Models.Workspace;
 
 namespace Yohuke.DanmuNeo.ViewModels.Items;
 
@@ -9,6 +11,9 @@ namespace Yohuke.DanmuNeo.ViewModels.Items;
 public partial class DanmuForwardRuleViewModel : ViewModelBase
 {
     private readonly Action<DanmuForwardRuleViewModel> onChanged;
+    private IReadOnlyList<ForwardSourceRoomOption> sourceRoomOptions = [];
+    private IReadOnlyList<ForwardAccountOption> accountOptions = [];
+    private IEnumerable<MarkSymbolGroup> symbolGroups = [];
 
     /// <summary>
     /// 初始化弹幕转发规则视图模型。
@@ -29,6 +34,33 @@ public partial class DanmuForwardRuleViewModel : ViewModelBase
     /// 规则 ID。
     /// </summary>
     public string Id => State.Id;
+
+    /// <summary>
+    /// 与目标直播间共享的来源选项。
+    /// </summary>
+    public IReadOnlyList<ForwardSourceRoomOption> SourceRoomOptions
+    {
+        get => sourceRoomOptions;
+        private set => SetProperty(ref sourceRoomOptions, value);
+    }
+
+    /// <summary>
+    /// 与主窗口共享的转发发送账号选项。
+    /// </summary>
+    public IReadOnlyList<ForwardAccountOption> AccountOptions
+    {
+        get => accountOptions;
+        private set => SetProperty(ref accountOptions, value);
+    }
+
+    /// <summary>
+    /// 与主窗口共享的符号组选项。
+    /// </summary>
+    public IEnumerable<MarkSymbolGroup> SymbolGroups
+    {
+        get => symbolGroups;
+        private set => SetProperty(ref symbolGroups, value);
+    }
 
     /// <summary>
     /// 源直播间选项键。
@@ -82,12 +114,13 @@ public partial class DanmuForwardRuleViewModel : ViewModelBase
     /// <summary>
     /// 转发时使用的符号组 ID。
     /// </summary>
+    [AllowNull]
     public string MarkSymbolGroupId
     {
         get => State.MarkSymbolGroupId;
         set
         {
-            if (State.MarkSymbolGroupId == value)
+            if (value is null || State.MarkSymbolGroupId == value)
             {
                 return;
             }
@@ -101,19 +134,18 @@ public partial class DanmuForwardRuleViewModel : ViewModelBase
     /// <summary>
     /// 转发发送时指定的账号 ID。
     /// </summary>
+    [AllowNull]
     public string AccountOverrideId
     {
         get => State.AccountOverrideId ?? "";
         set
         {
-            var normalizedValue = value ?? "";
-
-            if (State.AccountOverrideId == normalizedValue)
+            if (value is null || State.AccountOverrideId == value)
             {
                 return;
             }
 
-            State.AccountOverrideId = normalizedValue;
+            State.AccountOverrideId = value;
             OnPropertyChanged();
             onChanged(this);
         }
@@ -158,4 +190,14 @@ public partial class DanmuForwardRuleViewModel : ViewModelBase
     }
 
     [ObservableProperty] private string statusText;
+
+    internal void ConfigureOptions(
+        IReadOnlyList<ForwardSourceRoomOption> sources,
+        IReadOnlyList<ForwardAccountOption> accounts,
+        IEnumerable<MarkSymbolGroup> groups)
+    {
+        SourceRoomOptions = sources;
+        AccountOptions = accounts;
+        SymbolGroups = groups;
+    }
 }

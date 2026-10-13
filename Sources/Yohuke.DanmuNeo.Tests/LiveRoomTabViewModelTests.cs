@@ -1408,6 +1408,50 @@ public class LiveRoomTabViewModelTests
         Assert.Equal("room", state.SourceRoomStateId);
     }
 
+    /// <summary>
+    /// 下拉选项的临时空值不清除账号或符号组，也不触发规则重启。
+    /// </summary>
+    [Fact]
+    public void ForwardRuleIgnoresNullAccountAndSymbolGroup()
+    {
+        var state = new DanmuForwardRuleState
+        {
+            AccountOverrideId = "account",
+            MarkSymbolGroupId = "group"
+        };
+        var changed = false;
+        var viewModel = new DanmuForwardRuleViewModel(state, _ => changed = true);
+
+        viewModel.AccountOverrideId = null;
+        viewModel.MarkSymbolGroupId = null;
+
+        Assert.False(changed);
+        Assert.Equal("account", state.AccountOverrideId);
+        Assert.Equal("group", state.MarkSymbolGroupId);
+    }
+
+    /// <summary>
+    /// 显式清空账号和符号组仍可恢复默认转发设置。
+    /// </summary>
+    [Fact]
+    public void ForwardRuleAllowsClearingAccountAndSymbolGroup()
+    {
+        var state = new DanmuForwardRuleState
+        {
+            AccountOverrideId = "account",
+            MarkSymbolGroupId = "group"
+        };
+        var changeCount = 0;
+        var viewModel = new DanmuForwardRuleViewModel(state, _ => changeCount++);
+
+        viewModel.AccountOverrideId = "";
+        viewModel.MarkSymbolGroupId = "";
+
+        Assert.Equal(2, changeCount);
+        Assert.Equal("", state.AccountOverrideId);
+        Assert.Equal("", state.MarkSymbolGroupId);
+    }
+
     [Fact]
     public void ForwardRuleUpdatesSourceRoomKey()
     {
