@@ -69,6 +69,12 @@ public partial class WorkspaceViewModel : ViewModelBase
             }
 
             State.AccountOverrideId = value;
+
+            foreach (var room in Rooms)
+            {
+                room.NotifyDanmuConfigurationAccountChanged();
+            }
+
             OnPropertyChanged();
             OnPropertyChanged(nameof(AccountLabel));
         }

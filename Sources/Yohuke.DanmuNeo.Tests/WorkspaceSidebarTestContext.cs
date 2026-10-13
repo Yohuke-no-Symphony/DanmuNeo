@@ -33,7 +33,7 @@ public sealed class WorkspaceSidebarTestContext : IDisposable
             SidebarWidth = sidebarWidth,
             IsSidebarCollapsed = isSidebarCollapsed
         }));
-        ViewModel = new(StateService, new FakeLiveRoomSearchService(), new FakeRoomAvatarService());
+        ViewModel = new(StateService, new FakeLiveRoomSearchService(), new FakeRoomAvatarService(), danmuConfigService: new FakeBilibiliDanmuConfigService());
     }
 
     /// <summary>

@@ -37,7 +37,7 @@ public sealed class LyricNavigationViewTestContext : IDisposable
         });
         var avatarService = new FakeRoomAvatarService();
         var moderationService = new FakeBilibiliModerationService();
-        ViewModel = new(stateService, new FakeLiveRoomSearchService(), avatarService, moderationService);
+        ViewModel = new(stateService, new FakeLiveRoomSearchService(), avatarService, moderationService, danmuConfigService: new FakeBilibiliDanmuConfigService());
         Room = ViewModel.Workspaces[0].Rooms[0];
         Room.Configure(
             _ => null,

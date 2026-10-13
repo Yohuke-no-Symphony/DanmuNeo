@@ -18,7 +18,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly AppStateService stateService;
     private readonly WorkspaceShareService workspaceShareService = new();
     private readonly AccountSelectionService accountSelectionService = new();
-    private readonly DanmuSendService danmuSendService = new();
+    private readonly DanmuSendService danmuSendService;
+    private readonly IBilibiliDanmuConfigService danmuConfigService;
     private readonly MarkSymbolService markSymbolService = new();
     private readonly LyricLibraryService lyricLibraryService = new();
     private readonly MusicLyricImportService musicLyricImportService = new();
@@ -59,7 +60,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         IBilibiliLiveRoomSearchService? liveRoomSearchService = null,
         IRoomAvatarService? avatarCacheService = null,
         IBilibiliModerationService? moderationService = null,
-        IBilibiliUserNameService? userNameService = null)
+        IBilibiliUserNameService? userNameService = null,
+        IBilibiliDanmuConfigService? danmuConfigService = null)
     {
         this.stateService = stateService;
         appDirectoryService = new(stateService.ConfigDirectory);
@@ -68,6 +70,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         this.liveRoomSearchService = liveRoomSearchService ?? new BilibiliLiveRoomSearchService();
         this.moderationService = moderationService ?? new BilibiliModerationService();
         this.userNameService = userNameService ?? new BilibiliUserNameService();
+        this.danmuConfigService = danmuConfigService ?? new BilibiliDanmuConfigService();
+        danmuSendService = new(danmuConfigService: this.danmuConfigService);
         ownedAvatarCacheService = avatarCacheService is null ? new(appDirectoryService) : null;
         this.avatarCacheService = avatarCacheService ?? ownedAvatarCacheService!;
         State = stateService.Load();
@@ -1094,6 +1098,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             room.StopListening();
             room.DisposeForwardRules();
             room.StopLivePlayer();
+            room.DeactivateDanmuConfiguration();
         }
 
         State.Workspaces.Remove(workspace.State);
@@ -1138,6 +1143,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         room.StopListening();
         room.DisposeForwardRules();
         room.StopLivePlayer();
+        room.DeactivateDanmuConfiguration();
         workspace.RemoveRoom(room);
 
         if (SelectedWorkspace == workspace)
@@ -2086,7 +2092,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             ResolveAccount,
             moderationService: moderationService,
             forwardAccountOptions: ForwardAccountOptions,
-            userNameService: userNameService);
+            userNameService: userNameService,
+            danmuConfigService: danmuConfigService);
         _ = room.LoadAvatarAsync();
     }
 
@@ -2105,6 +2112,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             room.StopListening();
             room.DisposeForwardRules();
             room.StopLivePlayer();
+            room.DeactivateDanmuConfiguration();
         }
 
         foreach (var option in ForwardAccountOptions)
@@ -2322,6 +2330,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         foreach (var room in Workspaces.SelectMany(workspace => workspace.Rooms))
         {
             room.InvalidateModerationPermission();
+            room.NotifyDanmuConfigurationAccountChanged();
         }
 
         foreach (var workspace in Workspaces)

@@ -30,7 +30,7 @@ public sealed class LiveRoomFeedViewTestContext : IDisposable
             Workspaces = [new() { Name = "工作区", LiveRooms = [new() { RoomId = "100", RoomName = "测试直播间" }] }]
         });
         ViewModel = new(stateService, new FakeLiveRoomSearchService(), new FakeRoomAvatarService(), ModerationService,
-            new FakeBilibiliUserNameService());
+            new FakeBilibiliUserNameService(), DanmuConfigService);
         Room = ViewModel.Workspaces[0].Rooms[0];
         Room.AddDanmu(new()
             { RoomId = "100", Uid = 30, UserName = "带牌用户", Content = "粉丝牌弹幕", MedalName = "夜更", MedalLevel = 25 });
@@ -61,6 +61,11 @@ public sealed class LiveRoomFeedViewTestContext : IDisposable
     /// 可控制权限响应的离线服务。
     /// </summary>
     public FakeBilibiliModerationService ModerationService { get; } = new();
+
+    /// <summary>
+    /// 可控制弹幕颜色和位置的离线服务。
+    /// </summary>
+    public FakeBilibiliDanmuConfigService DanmuConfigService { get; } = new();
 
     /// <inheritdoc/>
     public void Dispose()

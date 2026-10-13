@@ -30,6 +30,7 @@ public partial class LiveRoomWorkspaceView : UserControl
     private double lyricSeekRepeatOffsetSeconds;
     private bool isLyricSeekRepeating;
     private bool isLyricAutoFollowEnabled = true;
+    private bool isViewAttached;
 
     /// <summary>
     /// 初始化直播间工作页面。
@@ -63,6 +64,7 @@ public partial class LiveRoomWorkspaceView : UserControl
     /// <inheritdoc/>
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
+        isViewAttached = false;
         lyricNextShortcutKey = null;
         currentRoom?.StopLivePlayer();
         DetachDanmuItems();
@@ -149,6 +151,14 @@ public partial class LiveRoomWorkspaceView : UserControl
 
         e.Handled = true;
         room.SendDraftCommand.Execute(null);
+    }
+
+    private async void DanmuConfigSelector_OnDropDownOpened(object? sender, EventArgs e)
+    {
+        if (currentRoom is not null)
+        {
+            await currentRoom.RetryDanmuConfigurationAsync();
+        }
     }
 
     private async void FeedUserName_OnClick(object? sender, RoutedEventArgs e)
@@ -449,11 +459,17 @@ public partial class LiveRoomWorkspaceView : UserControl
 
     private void LiveRoomWorkspaceView_OnAttachedToVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
     {
+        isViewAttached = true;
         ApplySavedWorkspaceColumnWidths();
 
         if (currentRoom is null)
         {
             AttachDanmuItems(DataContext as LiveRoomTabViewModel);
+        }
+
+        if (currentRoom is not null)
+        {
+            _ = currentRoom.ActivateDanmuConfigurationAsync();
         }
     }
 
@@ -472,6 +488,11 @@ public partial class LiveRoomWorkspaceView : UserControl
         danmuScrollController.Attach(currentRoom.DanmuItems);
         currentRoom.PropertyChanged += CurrentRoom_OnPropertyChanged;
         UpdateLivePlayerHost();
+
+        if (isViewAttached)
+        {
+            _ = currentRoom.ActivateDanmuConfigurationAsync();
+        }
     }
 
     private void DetachDanmuItems()
@@ -483,6 +504,7 @@ public partial class LiveRoomWorkspaceView : UserControl
 
         danmuScrollController.Attach(null);
         currentRoom.PropertyChanged -= CurrentRoom_OnPropertyChanged;
+        currentRoom.DeactivateDanmuConfiguration();
         currentRoom = null;
         ClearLivePlayerHost();
     }

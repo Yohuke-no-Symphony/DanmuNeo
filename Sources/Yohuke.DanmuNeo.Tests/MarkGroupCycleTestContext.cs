@@ -37,7 +37,7 @@ public sealed class MarkGroupCycleTestContext : IDisposable
                 new() { Name = "其他工作区", SelectedMarkGroupId = "c", SortOrder = 1 }
             ]
         });
-        ViewModel = new(StateService, new FakeLiveRoomSearchService(), new FakeRoomAvatarService());
+        ViewModel = new(StateService, new FakeLiveRoomSearchService(), new FakeRoomAvatarService(), danmuConfigService: new FakeBilibiliDanmuConfigService());
     }
 
     /// <summary>

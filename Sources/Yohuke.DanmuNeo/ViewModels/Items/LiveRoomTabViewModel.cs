@@ -159,6 +159,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
 
             StopListening();
             State.RoomId = value;
+            NotifyDanmuConfigurationAccountChanged();
             InvalidateDraftSendFeedback();
             AvatarPath = "";
             OnPropertyChanged();
@@ -228,6 +229,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
 
             State.AccountOverrideId = value;
             InvalidateModerationPermission();
+            NotifyDanmuConfigurationAccountChanged();
             OnPropertyChanged();
         }
     }
@@ -505,8 +507,16 @@ public partial class LiveRoomTabViewModel : ViewModelBase
         ILiveDanmuSocketFactory? liveDanmuSocketFactory = null,
         IBilibiliModerationService? moderationService = null,
         IReadOnlyList<ForwardAccountOption>? forwardAccountOptions = null,
-        IBilibiliUserNameService? userNameService = null)
+        IBilibiliUserNameService? userNameService = null,
+        IBilibiliDanmuConfigService? danmuConfigService = null)
     {
+        var wasConfigurationActive = isDanmuConfigurationActive;
+
+        if (wasConfigurationActive)
+        {
+            DeactivateDanmuConfiguration();
+        }
+
         this.resolveAccount = resolveAccount;
         this.resolveAccountByRoom = resolveAccountByRoom;
         this.getSettings = getSettings;
@@ -515,6 +525,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
         this.getForwardSourceRooms = getForwardSourceRooms;
         forwardAccounts = forwardAccountOptions ?? forwardAccounts;
         this.userNameService = userNameService ?? this.userNameService;
+        this.danmuConfigService = danmuConfigService ?? this.danmuConfigService ?? new BilibiliDanmuConfigService();
         this.sendService = sendService;
         this.avatarCacheService = avatarCacheService;
         this.saveState = saveState;
@@ -530,6 +541,11 @@ public partial class LiveRoomTabViewModel : ViewModelBase
 
         sendService.RecordCreated += OnSendRecordCreated;
         ApplyLyric();
+
+        if (wasConfigurationActive)
+        {
+            _ = ActivateDanmuConfigurationAsync();
+        }
     }
 
     /// <summary>
@@ -1908,10 +1924,12 @@ public partial class LiveRoomTabViewModel : ViewModelBase
         }
 
         var results = new List<DanmuSendResult>();
+        var roomId = RoomId;
+        await WaitForDanmuConfigurationSaveAsync(roomId, account, cancellationToken);
 
         foreach (var part in sendService.SplitMessage(message, 30))
         {
-            results.Add(await sendService.SendAsync(RoomId, part, account, settings, cancellationToken));
+            results.Add(await sendService.SendAsync(roomId, part, account, settings, cancellationToken));
         }
 
         return results;

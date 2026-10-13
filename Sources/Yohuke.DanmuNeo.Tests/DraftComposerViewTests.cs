@@ -80,7 +80,8 @@ public class DraftComposerViewTests
         var room = new LiveRoomTabViewModel(new() { RoomId = "100", RoomName = "测试直播间" });
         room.Configure(_ => null, (_, _) => null, () => context.ViewModel.Settings,
             () => context.ViewModel.SelectedWorkspaceMarkGroup!, () => context.ViewModel.SymbolGroups,
-            _ => [], sendService, new FakeRoomAvatarService(), () => Task.CompletedTask);
+            _ => [], sendService, new FakeRoomAvatarService(), () => Task.CompletedTask,
+            danmuConfigService: new FakeBilibiliDanmuConfigService());
         var view = new LiveRoomWorkspaceView { DataContext = room };
         var window = new Window
         {
@@ -143,7 +144,8 @@ public class DraftComposerViewTests
         var room = new LiveRoomTabViewModel(new() { RoomId = "100", RoomName = "测试直播间" });
         room.Configure(_ => account, (_, _) => null, () => context.ViewModel.Settings,
             () => context.ViewModel.SelectedWorkspaceMarkGroup!, () => context.ViewModel.SymbolGroups,
-            _ => [], sendService, new FakeRoomAvatarService(), () => Task.CompletedTask);
+            _ => [], sendService, new FakeRoomAvatarService(), () => Task.CompletedTask,
+            danmuConfigService: new FakeBilibiliDanmuConfigService());
         var view = new LiveRoomWorkspaceView { DataContext = room };
         var window = new Window
         {

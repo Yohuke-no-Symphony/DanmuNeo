@@ -23,7 +23,7 @@ public sealed class LiveRoomSearchTestContext : IDisposable
             Accounts = [new() { Id = "account", Cookie = "buvid3=test-account", IsGlobalDefault = true }],
             Workspaces = [new() { Name = "目标工作区", SortOrder = 0 }, new() { Name = "其他工作区", SortOrder = 1 }]
         });
-        ViewModel = new(StateService, SearchService, AvatarService);
+        ViewModel = new(StateService, SearchService, AvatarService, danmuConfigService: new FakeBilibiliDanmuConfigService());
     }
 
     /// <summary>

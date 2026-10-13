@@ -42,7 +42,7 @@ public sealed class LyricViewTestContext : IDisposable
 
         var service = new AppStateService(directory);
         service.Save(state);
-        ViewModel = new(service);
+        ViewModel = new(service, danmuConfigService: new FakeBilibiliDanmuConfigService());
 
         foreach (var item in state.LyricLibrary)
         {

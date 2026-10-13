@@ -60,7 +60,7 @@ public sealed class DanmuForwardViewTestContext : IDisposable
         });
         var avatarService = new FakeRoomAvatarService();
         ViewModel = new(StateService, new FakeLiveRoomSearchService(), avatarService, new FakeBilibiliModerationService(),
-            UserNameService);
+            UserNameService, DanmuConfigService);
         Room = ViewModel.Workspaces[0].Rooms.Single(room => room.Id == "target-room");
         Source = ViewModel.Workspaces[0].Rooms.Single(room => room.Id == "source-room");
         SocketFactory.Socket.KeepRunning = true;
@@ -85,7 +85,7 @@ public sealed class DanmuForwardViewTestContext : IDisposable
             liveDanmuSocketFactory: SocketFactory,
             moderationService: new FakeBilibiliModerationService(),
             forwardAccountOptions: ViewModel.ForwardAccountOptions,
-            userNameService: UserNameService);
+            userNameService: UserNameService, danmuConfigService: DanmuConfigService);
         Room.RefreshForwardSourceRooms();
     }
 
@@ -123,6 +123,11 @@ public sealed class DanmuForwardViewTestContext : IDisposable
     /// 离线用户名查询服务。
     /// </summary>
     public FakeBilibiliUserNameService UserNameService { get; }
+
+    /// <summary>
+    /// 离线弹幕配置服务。
+    /// </summary>
+    public FakeBilibiliDanmuConfigService DanmuConfigService { get; } = new();
 
     /// <inheritdoc/>
     public void Dispose()
