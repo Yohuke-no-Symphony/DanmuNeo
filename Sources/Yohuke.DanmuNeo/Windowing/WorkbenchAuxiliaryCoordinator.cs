@@ -3,6 +3,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Layout;
+using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
 using Yohuke.DanmuNeo.Layouts;
 using Yohuke.DanmuNeo.ViewModels;
@@ -62,18 +63,23 @@ internal sealed class WorkbenchAuxiliaryCoordinator : IDisposable
                     error.IsVisible = true;
                 }
             };
-            return new StackPanel
+            return CreateDialogSurface(new StackPanel
             {
-                Margin = new(24), Spacing = 16,
+                Spacing = 16,
                 Children =
                 {
-                    new TextBlock { Text = "Yohuke Danmu Neo", FontSize = 24, FontWeight = FontWeight.SemiBold, TextWrapping = TextWrapping.Wrap },
+                    new TextBlock
+                    {
+                        Text = "Yohuke Danmu Neo", FontSize = 24, FontWeight = FontWeight.SemiBold,
+                        TextWrapping = TextWrapping.Wrap
+                    },
                     new TextBlock { Text = $"版本 {application.AppVersion}", TextWrapping = TextWrapping.Wrap },
                     new TextBlock { Text = "开发者：Yohuke no Symphony", TextWrapping = TextWrapping.Wrap },
-                    new TextBlock { Text = "https://github.com/Yohuke-no-Symphony/DanmuNeo", TextWrapping = TextWrapping.Wrap },
+                    new TextBlock
+                        { Text = "https://github.com/Yohuke-no-Symphony/DanmuNeo", TextWrapping = TextWrapping.Wrap },
                     link, error
                 }
-            };
+            });
         }, width: 560, sizing: WorkbenchAuxiliarySizing.ContentHeight);
     }
 
@@ -104,7 +110,7 @@ internal sealed class WorkbenchAuxiliaryCoordinator : IDisposable
                     error.IsVisible = true;
                 }
             };
-            return new StackPanel { Margin = new(24), Spacing = 16, Children = { name, error, save } };
+            return CreateDialogSurface(new StackPanel { Spacing = 16, Children = { name, error, save } });
         }, true, width: 480, sizing: WorkbenchAuxiliarySizing.ContentHeight);
     }
 
@@ -128,7 +134,8 @@ internal sealed class WorkbenchAuxiliaryCoordinator : IDisposable
                 var selectedId = (selection.SelectedItem as WorkspaceLayoutPreset)?.Id;
                 var presets = layouts.CaptureFile().UserPresets;
                 selection.ItemsSource = presets;
-                selection.SelectedItem = presets.FirstOrDefault(preset => preset.Id == selectedId) ?? presets.FirstOrDefault();
+                selection.SelectedItem = presets.FirstOrDefault(preset => preset.Id == selectedId) ??
+                                         presets.FirstOrDefault();
                 rename.IsEnabled = delete.IsEnabled = presets.Count > 0;
             }
 
@@ -159,38 +166,41 @@ internal sealed class WorkbenchAuxiliaryCoordinator : IDisposable
                 }
 
                 windows.OpenAuxiliary("delete-layout", "删除布局", () =>
-                {
-                    var confirm = new Button { Content = "删除" };
-                    var cancel = new Button { Content = "取消" };
-                    cancel.Click += (_, _) => windows.CloseAuxiliary("delete-layout");
-                    confirm.Click += (_, _) =>
                     {
-                        layouts.Delete(preset.Id);
-                        windows.CloseAuxiliary("delete-layout");
-                        Refresh();
-                    };
-                    return new StackPanel
-                    {
-                        Margin = new(24), Spacing = 20,
-                        Children =
+                        var confirm = new Button { Content = "删除" };
+                        var cancel = new Button { Content = "取消" };
+                        cancel.Click += (_, _) => windows.CloseAuxiliary("delete-layout");
+                        confirm.Click += (_, _) =>
                         {
-                            new TextBlock { Text = $"删除布局“{preset.Name}”？", TextWrapping = TextWrapping.Wrap },
-                            new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, Children = { cancel, confirm } }
-                        }
-                    };
-                }, true, owner: windows.FindAuxiliary("manage-layouts"), width: 440,
+                            layouts.Delete(preset.Id);
+                            windows.CloseAuxiliary("delete-layout");
+                            Refresh();
+                        };
+                        return CreateDialogSurface(new StackPanel
+                        {
+                            Spacing = 20,
+                            Children =
+                            {
+                                new TextBlock { Text = $"删除布局“{preset.Name}”？", TextWrapping = TextWrapping.Wrap },
+                                new StackPanel
+                                {
+                                    Orientation = Orientation.Horizontal, Spacing = 12, Children = { cancel, confirm }
+                                }
+                            }
+                        });
+                    }, true, owner: windows.FindAuxiliary("manage-layouts"), width: 440,
                     sizing: WorkbenchAuxiliarySizing.ContentHeight);
             };
             Refresh();
-            return new StackPanel
+            return CreateDialogSurface(new StackPanel
             {
-                Margin = new(24), Spacing = 16,
+                Spacing = 16,
                 Children =
                 {
                     new TextBlock { Text = "自定义布局", FontSize = 20 }, selection, name, error,
                     new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, Children = { rename, delete } }
                 }
-            };
+            });
         }, true, width: 540, height: 350);
     }
 
@@ -199,6 +209,13 @@ internal sealed class WorkbenchAuxiliaryCoordinator : IDisposable
     {
         disposed = true;
         application.PropertyChanged -= OnApplicationChanged;
+    }
+
+    private static Border CreateDialogSurface(Control content)
+    {
+        var surface = new Border { Name = "DialogSurface", Padding = new(24), Child = content };
+        surface.Bind(Border.BackgroundProperty, new DynamicResourceExtension("AppCardBrush"));
+        return surface;
     }
 
     private void OnApplicationChanged(object? sender, PropertyChangedEventArgs e)
@@ -221,11 +238,11 @@ internal sealed class WorkbenchAuxiliaryCoordinator : IDisposable
         if (application.IsSettingsOpen)
         {
             windows.OpenAuxiliary("settings", "设置", () =>
-            {
-                var view = new SettingsDialogView { DataContext = application };
-                view.CloseRequested += (_, _) => windows.CloseAuxiliary("settings");
-                return view;
-            }, true,
+                {
+                    var view = new SettingsDialogView { DataContext = application };
+                    view.CloseRequested += (_, _) => windows.CloseAuxiliary("settings");
+                    return view;
+                }, true,
                 () => application.IsSettingsOpen ? application.CloseSettingsAsync() : Task.CompletedTask,
                 width: 1000, height: 740);
         }
@@ -237,7 +254,12 @@ internal sealed class WorkbenchAuxiliaryCoordinator : IDisposable
         if (application.IsAddDialogOpen)
         {
             windows.OpenAuxiliary("add", "添加工作区或直播间", () => new AddWorkspaceDialogView { DataContext = application },
-                true, () => { application.CloseAddDialog(); return Task.CompletedTask; }, width: 760, height: 680);
+                true, () =>
+                {
+                    application.CloseAddDialog();
+                    return Task.CompletedTask;
+                }, width: 760,
+                sizing: WorkbenchAuxiliarySizing.ContentHeight);
         }
         else
         {
@@ -247,7 +269,11 @@ internal sealed class WorkbenchAuxiliaryCoordinator : IDisposable
         if (application.IsConfirmDeleteDialogOpen)
         {
             windows.OpenAuxiliary("confirm", "确认删除", () => new ConfirmDeleteDialogView { DataContext = application },
-                true, () => { application.CloseDeleteDialog(); return Task.CompletedTask; },
+                true, () =>
+                {
+                    application.CloseDeleteDialog();
+                    return Task.CompletedTask;
+                },
                 windows.CurrentDialogOwner, 600, sizing: WorkbenchAuxiliarySizing.ContentHeight);
         }
         else
@@ -258,7 +284,11 @@ internal sealed class WorkbenchAuxiliaryCoordinator : IDisposable
         if (application.IsUpdateDialogOpen)
         {
             windows.OpenAuxiliary("update", "检查更新", () => new AppUpdateDialogView { DataContext = application },
-                false, () => { application.CloseUpdateDialog(); return Task.CompletedTask; }, width: 620,
+                false, () =>
+                {
+                    application.CloseUpdateDialog();
+                    return Task.CompletedTask;
+                }, width: 620,
                 sizing: WorkbenchAuxiliarySizing.ContentHeight);
         }
         else

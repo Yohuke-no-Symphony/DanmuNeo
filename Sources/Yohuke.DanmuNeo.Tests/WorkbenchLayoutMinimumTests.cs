@@ -22,6 +22,50 @@ namespace Yohuke.DanmuNeo.Tests;
 public class WorkbenchLayoutMinimumTests
 {
     /// <summary>
+    /// Dock 新建分组的未赋值比例、隐藏组和未初始化分隔模板在两个方向均可测量。
+    /// </summary>
+    [AvaloniaTheory]
+    [InlineData(Avalonia.Layout.Orientation.Horizontal)]
+    [InlineData(Avalonia.Layout.Orientation.Vertical)]
+    public void UnassignedProportionsAndTransientEmptyGroupsHaveFiniteBounds(Avalonia.Layout.Orientation orientation)
+    {
+        var stack = new WorkbenchProportionalStackPanel { Orientation = orientation };
+        var first = new ContentPresenter { Content = new Border() };
+        var second = new ContentPresenter { Content = new Border() };
+        var splitter = new ContentPresenter { Content = new WorkbenchProportionalStackPanelSplitter() };
+        stack.Children.Add(first);
+        stack.Children.Add(splitter);
+        stack.Children.Add(second);
+
+        foreach (var collapsed in new[] { false, true, false })
+        {
+            ProportionalStackPanel.SetIsCollapsed(first, collapsed);
+            ProportionalStackPanel.SetProportion(first, double.NaN);
+            ProportionalStackPanel.SetCollapsedProportion(first, double.NaN);
+            ProportionalStackPanel.SetProportion(second, double.NaN);
+            ProportionalStackPanel.SetCollapsedProportion(second, double.NaN);
+            stack.InvalidateMeasure();
+            stack.Measure(new(400, 400));
+            stack.Arrange(new(0, 0, 400, 400));
+
+            Assert.All(stack.Children, child =>
+            {
+                Assert.True(double.IsFinite(child.Bounds.Width));
+                Assert.True(double.IsFinite(child.Bounds.Height));
+                Assert.True(double.IsFinite(child.Bounds.X));
+                Assert.True(double.IsFinite(child.Bounds.Y));
+            });
+        }
+
+        stack.Children.Remove(first);
+        stack.Children.Remove(second);
+        stack.Measure(new(400, 400));
+        stack.Arrange(new(0, 0, 400, 400));
+        Assert.True(double.IsFinite(splitter.Bounds.Width));
+        Assert.True(double.IsFinite(splitter.Bounds.Height));
+    }
+
+    /// <summary>
     /// 比例尚未赋值的首次测量和后续插入分隔条使用有限尺寸，重复布局不重建已有模板内容。
     /// </summary>
     [AvaloniaFact]

@@ -3,7 +3,8 @@
              x:Class="Yohuke.DanmuNeo.Views.Components.AppUpdateDialogView"
              x:CompileBindings="False"
              x:Name="Root">
-    <Border Background="{DynamicResource AppCardBrush}"
+    <Border x:Name="DialogSurface"
+            Background="{DynamicResource AppCardBrush}"
             Padding="24"
             IsVisible="{Binding IsUpdateDialogOpen}">
         <StackPanel Spacing="18">

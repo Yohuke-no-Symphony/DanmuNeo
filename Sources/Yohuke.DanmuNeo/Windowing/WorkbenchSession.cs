@@ -20,14 +20,16 @@ internal sealed class WorkbenchSession : IAsyncDisposable
     private readonly WorkbenchMenuCatalog menuCatalog;
     private readonly Dictionary<Window, WorkbenchMenuProjection> menuProjections = [];
     private readonly WorkbenchApplicationMenu? applicationMenu;
+    private readonly bool supportsNativeMenus;
     private bool disposed;
 
     private WorkbenchSession(Window mainWindow, Menu windowMenu, MainWindowViewModel application,
-        WorkspaceLayoutFile layout, WorkspaceLayoutStore store)
+        WorkspaceLayoutFile layout, WorkspaceLayoutStore store, bool supportsNativeMenus)
     {
         this.mainWindow = mainWindow;
         this.windowMenu = windowMenu;
         this.application = application;
+        this.supportsNativeMenus = supportsNativeMenus;
         Context = new(application);
         Panels = new(Context);
         windows = new(mainWindow);
@@ -52,7 +54,7 @@ internal sealed class WorkbenchSession : IAsyncDisposable
             AttachWindow(window);
         }
 
-        if (OperatingSystem.IsMacOS() && Application.Current is { } current)
+        if (supportsNativeMenus && Application.Current is { } current)
         {
             applicationMenu = new(current, menuCatalog);
         }
@@ -69,11 +71,12 @@ internal sealed class WorkbenchSession : IAsyncDisposable
     internal WorkbenchWindowRegistry Windows => windows;
     internal WorkbenchMenuCatalog MenuCatalog => menuCatalog;
 
-    internal static async Task<WorkbenchSession> CreateAsync(Window mainWindow, Menu menu, MainWindowViewModel application)
+    internal static async Task<WorkbenchSession> CreateAsync(Window mainWindow, Menu menu, MainWindowViewModel application,
+        bool? supportsNativeMenus = null)
     {
         var store = new WorkspaceLayoutStore(application.ConfigDirectory, () => application.Settings.BackupRetentionCount);
         var layout = await store.LoadAsync(application.Settings);
-        return new(mainWindow, menu, application, layout, store);
+        return new(mainWindow, menu, application, layout, store, supportsNativeMenus ?? OperatingSystem.IsMacOS());
     }
 
     internal async Task SaveForShutdownAsync()
@@ -127,9 +130,12 @@ internal sealed class WorkbenchSession : IAsyncDisposable
         shortcuts.Attach(window);
         var projection = new WorkbenchMenuProjection(menuCatalog, window == mainWindow ? windowMenu : null);
         menuProjections.Add(window, projection);
-        NativeMenu.SetMenu(window, OperatingSystem.IsMacOS() && !application.UseWindowMenuOnMac
-            ? projection.NativeMenu
-            : null);
+        projection.SetNativeMenuVisible(supportsNativeMenus && !application.UseWindowMenuOnMac);
+
+        if (supportsNativeMenus)
+        {
+            NativeMenu.SetMenu(window, projection.NativeMenu);
+        }
     }
 
     private void DetachWindow(Window window)
@@ -138,7 +144,6 @@ internal sealed class WorkbenchSession : IAsyncDisposable
 
         if (menuProjections.Remove(window, out var projection))
         {
-            NativeMenu.SetMenu(window, null);
             projection.Dispose();
         }
     }
@@ -172,12 +177,12 @@ internal sealed class WorkbenchSession : IAsyncDisposable
 
     private void UpdateMenuMode()
     {
-        var useNative = OperatingSystem.IsMacOS() && !application.UseWindowMenuOnMac;
+        var useNative = supportsNativeMenus && !application.UseWindowMenuOnMac;
         windowMenu.IsVisible = !useNative;
 
-        foreach (var (window, projection) in menuProjections)
+        foreach (var projection in menuProjections.Values)
         {
-            NativeMenu.SetMenu(window, useNative ? projection.NativeMenu : null);
+            projection.SetNativeMenuVisible(useNative);
         }
     }
 

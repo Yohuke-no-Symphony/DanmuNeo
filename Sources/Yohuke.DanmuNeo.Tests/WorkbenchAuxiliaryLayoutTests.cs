@@ -18,6 +18,143 @@ namespace Yohuke.DanmuNeo.Tests;
 public class WorkbenchAuxiliaryLayoutTests
 {
     /// <summary>
+    /// 新建工作区及直播间使用填满客户区的表面，窗口高度随表单展开和搜索结果调整。
+    /// </summary>
+    [AvaloniaFact]
+    public async Task AddDialogsFillClientAreaAndFollowFormHeight()
+    {
+        using var context = new WorkspaceSidebarTestContext(240);
+        var main = new MainWindow { DataContext = context.ViewModel };
+
+        try
+        {
+            main.Show();
+            await main.Initialization;
+            var workbench = Assert.IsType<WorkbenchSession>(main.Workbench);
+            context.ViewModel.OpenAddWorkspaceDialog();
+            var addWorkspace = Assert.IsAssignableFrom<Window>(workbench.Windows.FindAuxiliary("add"));
+            PumpLayout(addWorkspace);
+            Assert.Equal(SizeToContent.Height, addWorkspace.SizeToContent);
+            Assert.False(addWorkspace.CanResize);
+            Assert.InRange(addWorkspace.ClientSize.Height, 120, 349);
+            AssertSurfaceFillsClientArea(addWorkspace);
+            SaveFrame(addWorkspace, "surface-add-workspace.png");
+            context.ViewModel.CloseAddDialog();
+            Assert.Null(workbench.Windows.FindAuxiliary("add"));
+
+            context.ViewModel.OpenAddRoomDialog(context.ViewModel.SelectedWorkspace);
+            var addRoom = Assert.IsAssignableFrom<Window>(workbench.Windows.FindAuxiliary("add"));
+            PumpLayout(addRoom);
+            var initialHeight = addRoom.ClientSize.Height;
+            AssertSurfaceFillsClientArea(addRoom);
+            SaveFrame(addRoom, "surface-add-room.png");
+            var expander = addRoom.GetVisualDescendants().OfType<Expander>().Single();
+            expander.IsExpanded = true;
+            PumpLayout(addRoom);
+            Assert.True(addRoom.ClientSize.Height > initialHeight + 60);
+
+            for (var index = 0; index < 12; index++)
+            {
+                context.ViewModel.LiveRoomSearchResults.Add(new()
+                {
+                    RoomId = (200 + index).ToString(), OwnerName = $"测试主播 {index}", Title = "直播间搜索结果"
+                });
+            }
+
+            PumpLayout(addRoom);
+            AssertSurfaceFillsClientArea(addRoom);
+            Assert.True(addRoom.ClientSize.Height <= addRoom.MaxHeight + 0.5);
+            var results = addRoom.GetVisualDescendants().OfType<ItemsControl>()
+                .Single(control => control.Name == "LiveRoomSearchResultsControl");
+            var resultsScroll = results.GetVisualAncestors().OfType<ScrollViewer>().First();
+            Assert.True(resultsScroll.Extent.Height > resultsScroll.Viewport.Height);
+            Assert.True(resultsScroll.Extent.Width <= resultsScroll.Viewport.Width + 0.5);
+            AssertFullyVisible(addRoom.GetVisualDescendants().OfType<Button>()
+                .Single(button => Equals(button.Content, "取消")), addRoom);
+            SaveFrame(addRoom, "surface-add-room-expanded.png");
+        }
+        finally
+        {
+            await main.CloseWorkbenchAsync();
+        }
+    }
+
+    /// <summary>
+    /// 设置和歌词库窗口的根表面随客户区伸缩，不留下旧遮罩外边距。
+    /// </summary>
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ResizableDialogSurfacesFillClientArea(bool lyricLibrary)
+    {
+        using var context = new WorkspaceSidebarTestContext(240);
+        var main = new MainWindow { DataContext = context.ViewModel };
+
+        try
+        {
+            main.Show();
+            await main.Initialization;
+            var workbench = Assert.IsType<WorkbenchSession>(main.Workbench);
+
+            if (lyricLibrary)
+            {
+                workbench.Panels.Lyrics.OpenLyricLibraryPickerCommand.Execute(null);
+            }
+            else
+            {
+                workbench.MenuCatalog.SettingsCommand.Execute(null);
+            }
+
+            var key = lyricLibrary ? "lyric-library" : "settings";
+            var dialog = Assert.IsAssignableFrom<Window>(workbench.Windows.FindAuxiliary(key));
+            PumpLayout(dialog);
+            Assert.Equal(SizeToContent.Manual, dialog.SizeToContent);
+            Assert.True(dialog.CanResize);
+            AssertSurfaceFillsClientArea(dialog);
+            SaveFrame(dialog, $"surface-{key}.png");
+            dialog.Width = 900;
+            dialog.Height = 680;
+            PumpLayout(dialog);
+            AssertSurfaceFillsClientArea(dialog);
+            SaveFrame(dialog, $"surface-{key}-resized.png");
+        }
+        finally
+        {
+            await main.CloseWorkbenchAsync();
+        }
+    }
+
+    /// <summary>
+    /// 已有独立歌词编辑窗在默认及放大尺寸下均铺满表面，编辑区和底部操作仍在窗口内。
+    /// </summary>
+    [AvaloniaFact]
+    public void LyricEditorSurfaceFillsResizedClientArea()
+    {
+        var owner = new Window { Width = 1000, Height = 740 };
+        var editor = new LyricEditDialogWindow(new() { Title = "歌词表面测试", LyricText = "[00:01]测试歌词" });
+
+        try
+        {
+            owner.Show();
+            editor.Show(owner);
+            PumpLayout(editor);
+            AssertSurfaceFillsClientArea(editor);
+            editor.Width = 1060;
+            editor.Height = 720;
+            PumpLayout(editor);
+            AssertSurfaceFillsClientArea(editor);
+            AssertFullyVisible(editor.GetVisualDescendants().OfType<Button>()
+                .Single(button => Equals(button.Content, "保存")), editor);
+            SaveFrame(editor, "surface-lyric-editor-resized.png");
+        }
+        finally
+        {
+            editor.Close();
+            owner.Close();
+        }
+    }
+
+    /// <summary>
     /// 检查中、更新结果和长错误文案在同一窗口内增减高度，短消息不再保留固定空白。
     /// </summary>
     [AvaloniaFact]
@@ -40,6 +177,7 @@ public class WorkbenchAuxiliaryLayoutTests
             Assert.Equal(SizeToContent.Height, update.SizeToContent);
             Assert.False(update.CanResize);
             Assert.InRange(checkingHeight, 80, 299);
+            AssertSurfaceFillsClientArea(update);
             Assert.Equal("正在检查更新…", message.Text);
             AssertFullyVisible(view.FindControl<Button>("DismissUpdateButton")!, update);
             Assert.False(workbench.Windows.IsModal);
@@ -93,7 +231,11 @@ public class WorkbenchAuxiliaryLayoutTests
             windows.RegisterBusinessWindow(owner);
             var view = new AppUpdateDialogView(_ => Task.FromResult(false)) { DataContext = context.ViewModel };
             var update = windows.OpenAuxiliary("update", "检查更新", () => view,
-                beforeClose: () => { context.ViewModel.CloseUpdateDialog(); return Task.CompletedTask; },
+                beforeClose: () =>
+                {
+                    context.ViewModel.CloseUpdateDialog();
+                    return Task.CompletedTask;
+                },
                 width: 620, sizing: WorkbenchAuxiliarySizing.ContentHeight);
             PumpLayout(update);
             var resultHeight = update.ClientSize.Height;
@@ -103,7 +245,8 @@ public class WorkbenchAuxiliaryLayoutTests
             Assert.True(update.ClientSize.Height > resultHeight);
             AssertFullyVisible(view.FindControl<TextBlock>("LaunchErrorText")!, update);
 
-            context.ViewModel.UpdateCheckMessage = "检查更新失败：" + string.Concat(Enumerable.Repeat("服务器返回的错误详情，请检查网络连接后重试。", 300));
+            context.ViewModel.UpdateCheckMessage =
+                "检查更新失败：" + string.Concat(Enumerable.Repeat("服务器返回的错误详情，请检查网络连接后重试。", 300));
             PumpLayout(update);
             var scroll = Assert.IsType<ScrollViewer>(update.Content);
             var screen = update.Screens.ScreenFromWindow(update)!;
@@ -152,6 +295,8 @@ public class WorkbenchAuxiliaryLayoutTests
             var workbench = Assert.IsType<WorkbenchSession>(main.Workbench);
             workbench.MenuCatalog.SettingsCommand.Execute(null);
             var settings = Assert.IsAssignableFrom<Window>(workbench.Windows.FindAuxiliary("settings"));
+            PumpLayout(settings);
+            AssertSurfaceFillsClientArea(settings);
             Assert.Equal(SizeToContent.Manual, settings.SizeToContent);
             Assert.True(settings.CanResize);
             Assert.True(context.ViewModel.IsSettingsOpen);
@@ -161,6 +306,9 @@ public class WorkbenchAuxiliaryLayoutTests
             context.ViewModel.OpenDeleteWorkspaceDialog(workspace);
             Assert.True(context.ViewModel.IsConfirmDeleteDialogOpen);
             var confirm = Assert.IsAssignableFrom<Window>(workbench.Windows.FindAuxiliary("confirm"));
+            PumpLayout(confirm);
+            AssertSurfaceFillsClientArea(confirm);
+            SaveFrame(confirm, "surface-confirm-delete.png");
             Assert.Contains(workspace.Name, context.ViewModel.DeleteDialogDescription);
             var description = context.ViewModel.DeleteDialogDescription + Environment.NewLine +
                               string.Join(Environment.NewLine, Enumerable.Range(1, 300)
@@ -175,12 +323,13 @@ public class WorkbenchAuxiliaryLayoutTests
             var scroll = Assert.IsType<ScrollViewer>(confirm.Content);
             var view = confirm.GetVisualDescendants().OfType<ConfirmDeleteDialogView>().Single();
             var textBlocks = view.GetVisualDescendants().OfType<TextBlock>().ToArray();
-            var diagnostics = $"workspace.Name.Length={workspace.Name.Length}; description.Length={description.Length}; " +
-                              $"confirm.ClientSize={confirm.ClientSize}; MaxHeight={confirm.MaxHeight}; " +
-                              $"scroll.Extent={scroll.Extent}; scroll.Viewport={scroll.Viewport}; " +
-                              $"view.Bounds={view.Bounds}; view.DesiredSize={view.DesiredSize}; " +
-                              string.Join("; ", textBlocks.Select(text =>
-                                  $"Text.Length={text.Text?.Length}, Bounds={text.Bounds}, DesiredSize={text.DesiredSize}, TextLayout.Height={text.TextLayout.Height}"));
+            var diagnostics =
+                $"workspace.Name.Length={workspace.Name.Length}; description.Length={description.Length}; " +
+                $"confirm.ClientSize={confirm.ClientSize}; MaxHeight={confirm.MaxHeight}; " +
+                $"scroll.Extent={scroll.Extent}; scroll.Viewport={scroll.Viewport}; " +
+                $"view.Bounds={view.Bounds}; view.DesiredSize={view.DesiredSize}; " +
+                string.Join("; ", textBlocks.Select(text =>
+                    $"Text.Length={text.Text?.Length}, Bounds={text.Bounds}, DesiredSize={text.DesiredSize}, TextLayout.Height={text.TextLayout.Height}"));
             Assert.True(textBlocks.Any(text => text.Text == description), diagnostics);
             var descriptionText = textBlocks.Single(text => text.Text == description);
             Assert.True(descriptionText.Bounds.Height >= descriptionText.TextLayout.Height - 0.5, diagnostics);
@@ -231,7 +380,9 @@ public class WorkbenchAuxiliaryLayoutTests
             PumpLayout(about);
             Assert.Equal(SizeToContent.Height, about.SizeToContent);
             Assert.InRange(about.ClientSize.Height, 120, 329);
+            AssertSurfaceFillsClientArea(about);
             AssertFullyVisible(about.GetVisualDescendants().OfType<Button>().Single(), about);
+            SaveFrame(about, "surface-about.png");
             about.Close();
 
             ExecuteMenu(workbench, "layouts", "layout-save-as");
@@ -240,6 +391,8 @@ public class WorkbenchAuxiliaryLayoutTests
             var initialHeight = naming.ClientSize.Height;
             Assert.InRange(initialHeight, 80, 279);
             Assert.Equal(SizeToContent.Height, naming.SizeToContent);
+            AssertSurfaceFillsClientArea(naming);
+            SaveFrame(naming, "surface-save-layout.png");
             var save = naming.GetVisualDescendants().OfType<Button>().Single();
             save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             PumpLayout(naming);
@@ -249,6 +402,7 @@ public class WorkbenchAuxiliaryLayoutTests
             naming.Close();
             Assert.True(main.IsEnabled);
 
+            workbench.Layouts.SaveAs("布局表面测试");
             ExecuteMenu(workbench, "layouts", "layout-manage");
             var manager = Assert.IsAssignableFrom<Window>(workbench.Windows.FindAuxiliary("manage-layouts"));
             Assert.Equal(SizeToContent.Manual, manager.SizeToContent);
@@ -256,6 +410,16 @@ public class WorkbenchAuxiliaryLayoutTests
             manager.Height = 480;
             PumpLayout(manager);
             Assert.Equal(480, manager.ClientSize.Height);
+            AssertSurfaceFillsClientArea(manager);
+            SaveFrame(manager, "surface-manage-layouts.png");
+            manager.GetVisualDescendants().OfType<Button>()
+                .Single(button => Equals(button.Content, "删除")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            var delete = Assert.IsAssignableFrom<Window>(workbench.Windows.FindAuxiliary("delete-layout"));
+            PumpLayout(delete);
+            AssertSurfaceFillsClientArea(delete);
+            Assert.Same(manager, delete.Owner);
+            SaveFrame(delete, "surface-delete-layout.png");
+            delete.Close();
             manager.Close();
             Assert.False(workbench.Windows.IsModal);
         }
@@ -323,6 +487,22 @@ public class WorkbenchAuxiliaryLayoutTests
         Assert.InRange(bounds.Bottom, bounds.Top + 1, window.ClientSize.Height + 0.5);
     }
 
+    private static void AssertSurfaceFillsClientArea(Window window)
+    {
+        var surface = window.GetVisualDescendants().OfType<Border>()
+            .Single(border => border.Name == "DialogSurface");
+        var bounds = new Rect(surface.TranslatePoint(default, window)!.Value, surface.Bounds.Size);
+        var diagnostics = $"window.ClientSize={window.ClientSize}; surface.Bounds={bounds}; " +
+                          $"surface.Margin={surface.Margin}; surface.CornerRadius={surface.CornerRadius}";
+        Assert.Equal(new Thickness(0), surface.Margin);
+        Assert.Equal(new CornerRadius(0), surface.CornerRadius);
+        Assert.True(double.IsPositiveInfinity(surface.MaxWidth), diagnostics);
+        Assert.InRange(bounds.Left, -0.5, 0.5);
+        Assert.InRange(bounds.Top, -0.5, 0.5);
+        Assert.True(Math.Abs(bounds.Width - window.ClientSize.Width) <= 0.5, diagnostics);
+        Assert.True(Math.Abs(bounds.Height - window.ClientSize.Height) <= 0.5, diagnostics);
+    }
+
     private static void PumpLayout(Window window)
     {
         Dispatcher.UIThread.RunJobs();
@@ -333,7 +513,8 @@ public class WorkbenchAuxiliaryLayoutTests
 
     private static void SaveFrame(Window window, string fileName)
     {
-        var directory = Environment.GetEnvironmentVariable("YOHUKE_DOCK_QA_OUTPUT");
+        var directory = Environment.GetEnvironmentVariable("YOHUKE_DOCK_WINDOW_QA_OUTPUT") ??
+                        Environment.GetEnvironmentVariable("YOHUKE_DOCK_QA_OUTPUT");
 
         if (!string.IsNullOrWhiteSpace(directory))
         {

@@ -5,75 +5,72 @@
              x:Class="Yohuke.DanmuNeo.Views.Components.SettingsDialogView"
              x:CompileBindings="False"
              x:Name="Root">
-    <Border Classes="settingsOverlay">
-        <Border Margin="16,10,16,16"
-                HorizontalAlignment="Stretch"
-                VerticalAlignment="Stretch"
-                Classes="settingsPanel">
-            <Grid RowDefinitions="Auto,*"
-                  ColumnDefinitions="230,*">
-                <Border Grid.ColumnSpan="2"
-                        Classes="settingsDialogHeader">
-                    <Grid ColumnDefinitions="*,Auto,Auto"
-                          ColumnSpacing="8">
-                        <StackPanel Spacing="2"
-                                    VerticalAlignment="Center">
-                            <TextBlock Text="设置"
-                                       FontSize="20"
-                                       FontWeight="SemiBold" />
-                            <TextBlock Text="{Binding SelectedSettingsSection.Description}"
-                                       Classes="muted" />
+    <Border x:Name="DialogSurface"
+            Background="{DynamicResource AppCardBrush}"
+            ClipToBounds="True">
+        <Grid RowDefinitions="Auto,*"
+              ColumnDefinitions="230,*">
+            <Border Grid.ColumnSpan="2"
+                    Classes="settingsDialogHeader">
+                <Grid ColumnDefinitions="*,Auto,Auto"
+                      ColumnSpacing="8">
+                    <StackPanel Spacing="2"
+                                VerticalAlignment="Center">
+                        <TextBlock Text="设置"
+                                   FontSize="20"
+                                   FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding SelectedSettingsSection.Description}"
+                                   Classes="muted" />
+                    </StackPanel>
+                    <Button Grid.Column="1"
+                            Classes="primaryButton"
+                            Command="{Binding #Root.CloseSettingsCommand}">
+                        <StackPanel Orientation="Horizontal"
+                                    Spacing="6">
+                            <LucideIcon Kind="Save" />
+                            <TextBlock Text="保存" />
                         </StackPanel>
-                        <Button Grid.Column="1"
-                                Classes="primaryButton"
-                                Command="{Binding #Root.CloseSettingsCommand}">
-                            <StackPanel Orientation="Horizontal"
-                                        Spacing="6">
-                                <LucideIcon Kind="Save" />
-                                <TextBlock Text="保存" />
-                            </StackPanel>
-                        </Button>
-                        <Button Grid.Column="2"
-                                Classes="iconButton"
-                                Command="{Binding #Root.CloseSettingsCommand}">
-                            <LucideIcon Kind="X" />
-                        </Button>
-                    </Grid>
-                </Border>
+                    </Button>
+                    <Button Grid.Column="2"
+                            Classes="iconButton"
+                            Command="{Binding #Root.CloseSettingsCommand}">
+                        <LucideIcon Kind="X" />
+                    </Button>
+                </Grid>
+            </Border>
 
-                <Border Grid.Row="1"
-                        Classes="settingsDialogSidebar">
-                    <ItemsControl ItemsSource="{Binding SettingsSectionOptions}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <StackPanel Spacing="8" />
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate DataType="items:SettingsSectionOption">
-                                <Button Classes="settingsSectionButton"
-                                        Classes.selected="{Binding IsSelected}"
-                                        Command="{Binding #Root.SelectSettingsSectionCommand}"
-                                        CommandParameter="{Binding}">
-                                    <StackPanel Spacing="2">
-                                        <TextBlock Text="{Binding Name}"
-                                                   FontWeight="SemiBold" />
-                                        <TextBlock Text="{Binding Description}"
-                                                   Classes="muted"
-                                                   TextWrapping="Wrap" />
-                                    </StackPanel>
-                                </Button>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </Border>
+            <Border Grid.Row="1"
+                    Classes="settingsDialogSidebar">
+                <ItemsControl ItemsSource="{Binding SettingsSectionOptions}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Spacing="8" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="items:SettingsSectionOption">
+                            <Button Classes="settingsSectionButton"
+                                    Classes.selected="{Binding IsSelected}"
+                                    Command="{Binding #Root.SelectSettingsSectionCommand}"
+                                    CommandParameter="{Binding}">
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="{Binding Name}"
+                                               FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding Description}"
+                                               Classes="muted"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Border>
 
-                <Border Grid.Row="1"
-                        Grid.Column="1"
-                        Classes="settingsDialogContent">
-                    <components:SettingsConfigContainerView />
-                </Border>
-            </Grid>
-        </Border>
+            <Border Grid.Row="1"
+                    Grid.Column="1"
+                    Classes="settingsDialogContent">
+                <components:SettingsConfigContainerView />
+            </Border>
+        </Grid>
     </Border>
 </UserControl>

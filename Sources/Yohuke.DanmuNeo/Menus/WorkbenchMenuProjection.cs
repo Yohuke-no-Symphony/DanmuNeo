@@ -9,6 +9,8 @@ internal sealed class WorkbenchMenuProjection : IDisposable
     private readonly Dictionary<string, MenuItem> windowItems = [];
     private readonly Dictionary<string, NativeMenuItem> nativeItems = [];
     private string[] order = [];
+    private bool nativeMenuVisible = true;
+    private bool disposed;
 
     internal WorkbenchMenuProjection(WorkbenchMenuCatalog catalog, Menu? windowMenu = null)
     {
@@ -20,14 +22,40 @@ internal sealed class WorkbenchMenuProjection : IDisposable
 
     internal NativeMenu NativeMenu { get; } = new();
 
+    internal void SetNativeMenuVisible(bool visible)
+    {
+        if (disposed)
+        {
+            return;
+        }
+
+        nativeMenuVisible = visible;
+
+        foreach (var item in NativeMenu.Items.OfType<NativeMenuItem>())
+        {
+            item.IsVisible = visible;
+        }
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {
+        if (disposed)
+        {
+            return;
+        }
+
+        disposed = true;
         catalog.Changed -= Refresh;
     }
 
     private void Refresh()
     {
+        if (disposed)
+        {
+            return;
+        }
+
         var entries = catalog.Entries;
         var currentOrder = entries.SelectMany(group => new[] { group.Id }
             .Concat(group.Children?.Select(item => item.Id) ?? [])).ToArray();
@@ -43,7 +71,11 @@ internal sealed class WorkbenchMenuProjection : IDisposable
             foreach (var group in entries)
             {
                 var windowGroup = new MenuItem { Header = group.Header };
-                var nativeGroup = new NativeMenuItem(group.Header) { Menu = new() };
+                var nativeGroup = new NativeMenuItem(group.Header)
+                {
+                    Menu = new(),
+                    IsVisible = nativeMenuVisible
+                };
                 windowMenu?.Items.Add(windowGroup);
                 NativeMenu.Items.Add(nativeGroup);
 

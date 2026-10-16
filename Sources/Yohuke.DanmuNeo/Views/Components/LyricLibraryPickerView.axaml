@@ -6,46 +6,49 @@
              x:DataType="vm:MainWindowViewModel"
              x:CompileBindings="True"
              x:Name="Root">
-    <Grid RowDefinitions="Auto,*"
-          RowSpacing="12">
-        <Grid ColumnDefinitions="*,Auto,Auto"
-              RowDefinitions="Auto,Auto"
-              ColumnSpacing="8">
-            <TextBlock Text="歌词库"
-                       Classes="sectionTitle"
-                       VerticalAlignment="Center" />
-            <components:LyricLocalImportButton Grid.Column="1"
-                                               IsCompact="True"
-                                               LoadToCurrentRoom="True"
-                                               VerticalAlignment="Center" />
-            <Button Grid.Column="2"
-                    Classes="iconButton"
-                    ToolTip.Tip="关闭"
-                    AutomationProperties.Name="关闭歌词库"
-                    Command="{Binding #Root.CloseCommand}">
-                <LucideIcon Kind="X" />
-            </Button>
-            <TextBlock Grid.Row="1"
-                       Grid.ColumnSpan="3"
-                       Text="选择后加载到当前直播间"
-                       Classes="muted"
-                       TextWrapping="Wrap"
-                       Margin="0,4,0,0" />
+    <Border x:Name="DialogSurface"
+            Background="{DynamicResource AppCardBrush}">
+        <Grid RowDefinitions="Auto,*"
+              RowSpacing="12">
+            <Grid ColumnDefinitions="*,Auto,Auto"
+                  RowDefinitions="Auto,Auto"
+                  ColumnSpacing="8">
+                <TextBlock Text="歌词库"
+                           Classes="sectionTitle"
+                           VerticalAlignment="Center" />
+                <components:LyricLocalImportButton Grid.Column="1"
+                                                   IsCompact="True"
+                                                   LoadToCurrentRoom="True"
+                                                   VerticalAlignment="Center" />
+                <Button Grid.Column="2"
+                        Classes="iconButton"
+                        ToolTip.Tip="关闭"
+                        AutomationProperties.Name="关闭歌词库"
+                        Command="{Binding #Root.CloseCommand}">
+                    <LucideIcon Kind="X" />
+                </Button>
+                <TextBlock Grid.Row="1"
+                           Grid.ColumnSpan="3"
+                           Text="选择后加载到当前直播间"
+                           Classes="muted"
+                           TextWrapping="Wrap"
+                           Margin="0,4,0,0" />
+            </Grid>
+            <TabControl Grid.Row="1"
+                        Classes="lyricPickerTabs"
+                        SelectedIndex="0">
+                <TabItem Header="本地歌词">
+                    <components:LyricLibraryListView Margin="0,10,0,0"
+                                                     EnableResultScrolling="True" />
+                </TabItem>
+                <TabItem Header="在线搜索">
+                    <components:LyricOnlineImportView Margin="0,10,0,0"
+                                                      ShowHeader="False"
+                                                      ShowLocalImportButton="False"
+                                                      LoadToCurrentRoom="True"
+                                                      EnableResultScrolling="True" />
+                </TabItem>
+            </TabControl>
         </Grid>
-        <TabControl Grid.Row="1"
-                    Classes="lyricPickerTabs"
-                    SelectedIndex="0">
-            <TabItem Header="本地歌词">
-                <components:LyricLibraryListView Margin="0,10,0,0"
-                                                 EnableResultScrolling="True" />
-            </TabItem>
-            <TabItem Header="在线搜索">
-                <components:LyricOnlineImportView Margin="0,10,0,0"
-                                                  ShowHeader="False"
-                                                  ShowLocalImportButton="False"
-                                                  LoadToCurrentRoom="True"
-                                                  EnableResultScrolling="True" />
-            </TabItem>
-        </TabControl>
-    </Grid>
+    </Border>
 </UserControl>

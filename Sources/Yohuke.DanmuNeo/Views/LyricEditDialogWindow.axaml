@@ -8,7 +8,9 @@
         MinHeight="460"
         WindowStartupLocation="CenterOwner"
         Title="修改歌词">
-    <Border Classes="lyricEditDialogPanel">
+    <Border x:Name="DialogSurface"
+            Background="{DynamicResource AppCardBrush}"
+            Padding="22">
         <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,Auto"
               RowSpacing="12">
             <StackPanel Spacing="4">
