@@ -11,7 +11,7 @@ using Yohuke.DanmuNeo.Views.Components;
 namespace Yohuke.DanmuNeo.Views;
 
 /// <summary>
-/// 提供普通弹幕、粉丝牌、SC 和上舰记录的离线样式与滚动行为预览。
+/// 提供普通弹幕、礼物、粉丝牌、SC 和上舰记录的离线样式与滚动行为预览。
 /// </summary>
 public partial class DanmuStylePreviewWindow : Window
 {

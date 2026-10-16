@@ -171,7 +171,7 @@
                                             HorizontalContentAlignment="Stretch">
                                         <Grid Classes="danmuFeedLayout"
                                               ColumnDefinitions="2*,3*"
-                                              RowDefinitions="Auto,Auto">
+                                              RowDefinitions="Auto">
                                             <DockPanel Classes="danmuFeedIdentity"
                                                        VerticalAlignment="Center">
                                                 <Border Classes="danmuMedalBadge"
@@ -189,6 +189,11 @@
                                                                    TextTrimming="CharacterEllipsis" />
                                                     </Grid>
                                                 </Border>
+                                                <TextBlock Text="{Binding DetailLine}"
+                                                           Classes="danmuFeedMeta"
+                                                           DockPanel.Dock="Right"
+                                                           Margin="6,0,0,0"
+                                                           TextTrimming="CharacterEllipsis" />
                                                 <Button Classes="feedUserNameButton"
                                                         Click="FeedUserName_OnClick">
                                                     <TextBlock Text="{Binding UserName}"
@@ -196,10 +201,6 @@
                                                                TextTrimming="CharacterEllipsis" />
                                                 </Button>
                                             </DockPanel>
-                                            <TextBlock Grid.Row="1"
-                                                       Text="{Binding DetailLine}"
-                                                       Classes="danmuFeedMeta"
-                                                       TextTrimming="CharacterEllipsis" />
                                             <TextBlock Grid.Column="1"
                                                        Text="{Binding Content}"
                                                        Classes="danmuFeedContent regularFeedContent"

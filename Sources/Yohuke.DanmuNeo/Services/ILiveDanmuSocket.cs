@@ -13,6 +13,11 @@ public interface ILiveDanmuSocket
     event EventHandler<BilibiliDanmuMessage>? DanmuReceived;
 
     /// <summary>
+    /// 接收到金币礼物时触发。
+    /// </summary>
+    event EventHandler<BilibiliGiftMessage>? GiftReceived;
+
+    /// <summary>
     /// 接收到 Super Chat 时触发。
     /// </summary>
     event EventHandler<BilibiliSuperChatMessage>? SuperChatReceived;

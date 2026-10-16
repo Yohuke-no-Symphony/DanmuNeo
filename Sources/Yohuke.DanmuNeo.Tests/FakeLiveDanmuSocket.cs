@@ -24,6 +24,8 @@ public class FakeLiveDanmuSocket : ILiveDanmuSocket, IDisposable
 
     public event EventHandler<BilibiliDanmuMessage>? DanmuReceived;
 
+    public event EventHandler<BilibiliGiftMessage>? GiftReceived;
+
     public event EventHandler<BilibiliSuperChatMessage>? SuperChatReceived;
 
     public event EventHandler<BilibiliGuardPurchaseMessage>? GuardPurchaseReceived;
@@ -58,6 +60,14 @@ public class FakeLiveDanmuSocket : ILiveDanmuSocket, IDisposable
     public void EmitDanmu(BilibiliDanmuMessage message)
     {
         DanmuReceived?.Invoke(this, message);
+    }
+
+    /// <summary>
+    /// 触发金币礼物消息。
+    /// </summary>
+    public void EmitGift(BilibiliGiftMessage message)
+    {
+        GiftReceived?.Invoke(this, message);
     }
 
     /// <summary>

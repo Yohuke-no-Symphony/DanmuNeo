@@ -37,7 +37,7 @@ public class LiveRoomFeedViewTests
             context.Room.AddDanmu(new()
             {
                 RoomId = "100", Uid = 42 + level, UserName = $"档位{level}用户", Content = "边缘颜色样本",
-                MedalName = "星光", MedalLevel = 25, MedalGuardLevel = level
+                MedalName = "肉肉", MedalLevel = 25, MedalGuardLevel = level
             });
         }
 

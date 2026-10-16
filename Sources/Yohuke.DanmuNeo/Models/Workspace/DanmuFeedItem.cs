@@ -11,6 +11,7 @@ namespace Yohuke.DanmuNeo.Models.Workspace;
 public class DanmuFeedItem : ObservableObject
 {
     private const int MAX_MEDAL_NAME_LENGTH = 3;
+    private string content = "";
 
     /// <summary>
     /// 接收此弹幕时的直播间 ID。
@@ -99,7 +100,11 @@ public class DanmuFeedItem : ObservableObject
     /// <summary>
     /// 弹幕内容。
     /// </summary>
-    public string Content { get; set; } = "";
+    public string Content
+    {
+        get => content;
+        set => SetProperty(ref content, value);
+    }
 
     /// <summary>
     /// 是否为当前应用发送记录。

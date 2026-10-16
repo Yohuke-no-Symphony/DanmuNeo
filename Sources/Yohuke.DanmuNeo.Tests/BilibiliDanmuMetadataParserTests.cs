@@ -18,7 +18,7 @@ public class BilibiliDanmuMetadataParserTests
     [InlineData(3)]
     public void LegacyMedalGuardTierIsIndependentOfCurrentRoom(int level)
     {
-        var medal = new JArray(25, "星光", "主播", 200, 0, "", 0, 0, 0, 0, level, 1, 20);
+        var medal = new JArray(25, "肉肉", "主播", 200, 0, "", 0, 0, 0, 0, level, 1, 20);
         var json = new JObject
         {
             ["info"] = new JArray(new JArray(), "弹幕", new JArray(42, "用户", 0), medal,

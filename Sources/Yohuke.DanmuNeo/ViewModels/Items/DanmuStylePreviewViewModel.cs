@@ -12,7 +12,7 @@ internal sealed class DanmuStylePreviewViewModel : ViewModelBase
     private string userName = "样式测试用户";
     private string content = "这是一条用于检查字号、间距和自动换行的测试消息。";
     private string danmuStatus = "";
-    private string medalName = "星光";
+    private string medalName = "肉肉";
     private int medalLevel = 25;
     private string superChatColorText = "";
     private bool isCompactDanmuDisplay;
@@ -23,7 +23,7 @@ internal sealed class DanmuStylePreviewViewModel : ViewModelBase
     private GuardStylePreset? selectedMedalGuardPreset;
 
     /// <summary>
-    /// 创建六档 SC、三档上舰和不同粉丝牌场景的离线默认样本。
+    /// 创建礼物、六档 SC、三档上舰和不同粉丝牌场景的离线默认样本。
     /// </summary>
     public DanmuStylePreviewViewModel()
     {
@@ -261,10 +261,17 @@ internal sealed class DanmuStylePreviewViewModel : ViewModelBase
         });
         DanmuItems.Add(new()
         {
+            Time = now.AddSeconds(-4),
+            UserName = "礼物测试用户",
+            UserUid = "10005",
+            Content = "赠送 小电视 × 12 · ￥120"
+        });
+        DanmuItems.Add(new()
+        {
             Time = now.AddSeconds(-8),
             UserName = "这是一个很长很长的用户名",
             UserUid = "10002",
-            MedalName = "星光",
+            MedalName = "肉肉",
             MedalLevel = 25,
             Content = "这是一条很长的弹幕，用于检查预览区域较窄时用户名裁切以及正文自动换行是否清晰自然。"
         });
@@ -273,7 +280,7 @@ internal sealed class DanmuStylePreviewViewModel : ViewModelBase
             Time = now.AddSeconds(-16),
             UserName = "Emoji 用户 🎉",
             UserUid = "10003",
-            MedalName = "吸夕猫",
+            MedalName = "牵丝蝠",
             MedalLevel = 8,
             Content = "中日文、English、数字 12345 与 Emoji ✨🚀 混排测试。"
         });
@@ -293,7 +300,7 @@ internal sealed class DanmuStylePreviewViewModel : ViewModelBase
                 Time = now.AddSeconds(-32 - preset.GuardLevel),
                 UserName = $"{preset.DisplayName}粉丝牌用户",
                 UserUid = $"medal-guard-{preset.GuardLevel}",
-                MedalName = "星光",
+                MedalName = "肉肉",
                 MedalLevel = 25,
                 MedalGuardLevel = preset.GuardLevel,
                 Content = $"{preset.DisplayName}粉丝牌边缘色测试。"

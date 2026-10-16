@@ -49,6 +49,11 @@ public class BilibiliLiveWebSocket : BaseApi, ILiveDanmuSocket
     public event EventHandler<BilibiliDanmuMessage>? DanmuReceived;
 
     /// <summary>
+    /// 接收到金币礼物时触发。
+    /// </summary>
+    public event EventHandler<BilibiliGiftMessage>? GiftReceived;
+
+    /// <summary>
     /// 接收到 Super Chat 时触发。
     /// </summary>
     public event EventHandler<BilibiliSuperChatMessage>? SuperChatReceived;
@@ -317,6 +322,18 @@ public class BilibiliLiveWebSocket : BaseApi, ILiveDanmuSocket
             return;
         }
 
+        if (IsCommand(command, "SEND_GIFT"))
+        {
+            var gift = ParseGiftMessage(roomId, json);
+
+            if (gift is not null)
+            {
+                GiftReceived?.Invoke(this, gift);
+            }
+
+            return;
+        }
+
         if (IsCommand(command, "SUPER_CHAT_MESSAGE"))
         {
             var superChat = ParseSuperChatMessage(roomId, json);
@@ -439,6 +456,72 @@ public class BilibiliLiveWebSocket : BaseApi, ILiveDanmuSocket
         };
     }
 
+    /// <summary>
+    /// 从业务 JSON 中解析金币礼物。
+    /// </summary>
+    public static BilibiliGiftMessage? ParseGiftMessage(string roomId, JObject json)
+    {
+        if (!IsCommand(json.Value<string>("cmd"), "SEND_GIFT") || json["data"] is not JObject data ||
+            !string.Equals(ReadScalarText(data["coin_type"]), "gold", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var sender = data["sender_uinfo"];
+        var senderBase = ReadObjectProperty(sender, "base");
+        var giftInfo = data["gift_info"];
+        var uid = ReadInteger(ReadObjectProperty(sender, "uid"));
+        var userName = ReadScalarText(ReadObjectProperty(senderBase, "name"));
+        var giftName = ReadScalarText(data["giftName"]);
+        var quantity = ReadNonNegativeInt(data["super_gift_num"]);
+        var batchComboCount = ReadNonNegativeInt(ReadObjectProperty(data["batch_combo_send"], "batch_combo_num"));
+
+        if (uid <= 0)
+        {
+            uid = ReadInteger(data["uid"]);
+        }
+
+        if (string.IsNullOrWhiteSpace(userName))
+        {
+            userName = ReadScalarText(data["uname"]);
+        }
+
+        if (string.IsNullOrWhiteSpace(giftName))
+        {
+            giftName = ReadScalarText(ReadObjectProperty(giftInfo, "gift_name"));
+        }
+
+        if (quantity <= 0)
+        {
+            quantity = ReadNonNegativeInt(data["num"]);
+        }
+
+        if (quantity <= 0)
+        {
+            quantity = batchComboCount;
+        }
+
+        if (uid <= 0 || string.IsNullOrWhiteSpace(userName) || string.IsNullOrWhiteSpace(giftName) || quantity <= 0)
+        {
+            return null;
+        }
+
+        return new()
+        {
+            MessageId = ReadScalarText(data["tid"]),
+            RoomId = roomId,
+            Uid = uid,
+            UserName = userName,
+            GiftId = ReadScalarText(data["giftId"] ?? ReadObjectProperty(giftInfo, "gift_id")),
+            GiftName = giftName,
+            Quantity = quantity,
+            BatchComboId = ReadScalarText(data["batch_combo_id"]),
+            BatchComboCount = batchComboCount,
+            UnitPrice = ReadDecimal(data["price"]),
+            Timestamp = ReadServerTimestamp(data["timestamp"], data["ts"], json["send_time"])
+        };
+    }
+
     private static JToken? ReadArrayItem(JToken? token, int index)
     {
         return token is JArray array && index >= 0 && index < array.Count ? array[index] : null;
@@ -465,6 +548,13 @@ public class BilibiliLiveWebSocket : BaseApi, ILiveDanmuSocket
     {
         var value = ReadInteger(token);
         return value is >= 0 and <= int.MaxValue ? (int)value : 0;
+    }
+
+    private static decimal ReadDecimal(JToken? token)
+    {
+        return decimal.TryParse(ReadScalarText(token), NumberStyles.Number, CultureInfo.InvariantCulture, out var value)
+            ? Math.Max(0, value)
+            : 0;
     }
 
     private static bool ReadBoolean(JToken? token)

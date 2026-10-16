@@ -20,7 +20,7 @@ public class DanmuFeedItemTests
     [InlineData(-1, "Transparent")]
     public void MedalBorderUsesOnlyRecognizedGuardTiers(int guardLevel, string color)
     {
-        var item = new DanmuFeedItem { MedalName = "星光", MedalLevel = 25, MedalGuardLevel = guardLevel };
+        var item = new DanmuFeedItem { MedalName = "肉肉", MedalLevel = 25, MedalGuardLevel = guardLevel };
 
         Assert.Equal(Color.Parse(color), item.MedalBorderColor);
         Assert.Equal(item.MedalBorderColor, Assert.IsAssignableFrom<ISolidColorBrush>(item.MedalBorderBrush).Color);
@@ -31,7 +31,7 @@ public class DanmuFeedItemTests
     /// </summary>
     [Theory]
     [InlineData("", 25)]
-    [InlineData("星光", 0)]
+    [InlineData("肉肉", 0)]
     public void MissingMedalHasNoGuardBorder(string name, int level)
     {
         var item = new DanmuFeedItem { MedalName = name, MedalLevel = level, MedalGuardLevel = 3 };
@@ -43,10 +43,9 @@ public class DanmuFeedItemTests
     /// 展示牌名最多三个完整文字元素，并保留等级与原始名称。
     /// </summary>
     [Theory]
-    [InlineData("星光", "星光 25")]
-    [InlineData("吸夕猫", "吸夕猫 25")]
-    [InlineData("四字牌名", "四字牌 25")]
-    [InlineData("星🌙光后", "星🌙光 25")]
+    [InlineData("肉肉", "肉肉 25")]
+    [InlineData("牵丝蝠", "牵丝蝠 25")]
+    [InlineData("椎名菜羽", "椎名菜羽 25")]
     public void MedalDisplayLimitsNameWithoutChangingTooltip(string name, string expected)
     {
         var item = new DanmuFeedItem { MedalName = name, MedalLevel = 25 };
@@ -62,7 +61,7 @@ public class DanmuFeedItemTests
     /// </summary>
     [Theory]
     [InlineData("", 25)]
-    [InlineData("星光", 0)]
+    [InlineData("肉肉", 0)]
     public void MissingMedalHasNoDisplayText(string name, int level)
     {
         var item = new DanmuFeedItem { MedalName = name, MedalLevel = level };

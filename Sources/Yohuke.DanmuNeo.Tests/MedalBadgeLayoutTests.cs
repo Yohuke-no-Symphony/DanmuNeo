@@ -34,11 +34,11 @@ public class MedalBadgeLayoutTests
         using var context = new LiveRoomFeedViewTestContext();
         var items = new[]
         {
-            new DanmuFeedItem { MedalName = "吸夕猫", MedalLevel = 8, MedalGuardLevel = 0 },
-            new DanmuFeedItem { MedalName = "吸夕猫", MedalLevel = 44, MedalGuardLevel = 2 },
-            new DanmuFeedItem { MedalName = "吸夕猫", MedalLevel = 120, MedalGuardLevel = 3 },
-            new DanmuFeedItem { MedalName = "星", MedalLevel = 1, MedalGuardLevel = 1 },
-            new DanmuFeedItem { MedalName = "星光", MedalLevel = 25 },
+            new DanmuFeedItem { MedalName = "牵丝蝠", MedalLevel = 8, MedalGuardLevel = 0 },
+            new DanmuFeedItem { MedalName = "牵丝蝠", MedalLevel = 44, MedalGuardLevel = 2 },
+            new DanmuFeedItem { MedalName = "牵丝蝠", MedalLevel = 120, MedalGuardLevel = 3 },
+            new DanmuFeedItem { MedalName = "肉", MedalLevel = 1, MedalGuardLevel = 1 },
+            new DanmuFeedItem { MedalName = "肉肉", MedalLevel = 25 },
             new DanmuFeedItem { MedalName = "四字牌名", MedalLevel = 9 }
         };
         Window window;

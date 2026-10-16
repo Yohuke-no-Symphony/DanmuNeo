@@ -84,7 +84,7 @@ public class DanmuStylePreviewWindowTests
                 .Where(control => control.Classes.Contains("danmuMedalBadge")).ToList();
             Assert.Contains(badges,
                 control => control.IsEffectivelyVisible &&
-                           control.GetVisualDescendants().OfType<TextBlock>().Any(text => text.Text == "星光") &&
+                           control.GetVisualDescendants().OfType<TextBlock>().Any(text => text.Text == "肉肉") &&
                            control.GetVisualDescendants().OfType<TextBlock>().Any(text => text.Text == "25"));
             Assert.Contains(badges, control => !control.IsVisible);
             Assert.Equal(new[] { 0, 1, 2, 3 }, badges.Where(control => control.IsVisible)
@@ -142,7 +142,7 @@ public class DanmuStylePreviewWindowTests
             batch.BringIntoView();
             PumpLayout(window);
             Click(window, batch);
-            Assert.Equal(87, viewModel.DanmuItems.Count);
+            Assert.Equal(88, viewModel.DanmuItems.Count);
             PumpLayout(window);
             var scroll = window.FindControl<ScrollViewer>("DanmuScrollViewer")!;
             viewModel.AddDanmu();

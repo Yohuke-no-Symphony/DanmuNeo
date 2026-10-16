@@ -28,6 +28,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
     private const double MIN_LIVE_PLAYER_VOLUME_PERCENT = 0;
     private const double MAX_LIVE_PLAYER_VOLUME_PERCENT = 100;
     private const int MAX_RECENT_SUPER_CHAT_IDENTITIES = 512;
+    private const int MAX_RECENT_GIFT_COMBOS = 300;
     private const string DEFAULT_SUPER_CHAT_COLOR = "#2A60B2";
 
     private CancellationTokenSource? listenTokenSource;
@@ -38,6 +39,9 @@ public partial class LiveRoomTabViewModel : ViewModelBase
     private readonly Queue<string> recentSuperChatIdentityOrder = new();
     private readonly HashSet<string> recentGuardPurchaseIdentities = new(StringComparer.Ordinal);
     private readonly Queue<string> recentGuardPurchaseIdentityOrder = new();
+    private readonly Dictionary<string, (DanmuFeedItem Item, int Count, decimal UnitPrice, LinkedListNode<string> OrderNode)> giftComboItems = new(StringComparer.Ordinal);
+    private readonly Dictionary<DanmuFeedItem, string> giftComboKeysByItem = new();
+    private readonly LinkedList<string> giftComboOrder = new();
     private Func<LiveRoomTabViewModel, BilibiliAccount?>? resolveAccount;
     private Func<string, string, BilibiliAccount?>? resolveAccountByRoom;
     private Func<string, BilibiliAccount?>? resolveAccountById;
@@ -1222,9 +1226,11 @@ public partial class LiveRoomTabViewModel : ViewModelBase
 
         var socket = liveDanmuSocketFactory.Create(parsedRoomId, account.Cookie);
         var tokenSource = new CancellationTokenSource();
+        ClearGiftComboState();
         listenTokenSource = tokenSource;
         activeListenSocket = socket;
         socket.DanmuReceived += OnDanmuReceived;
+        socket.GiftReceived += OnGiftReceived;
         socket.SuperChatReceived += OnSuperChatReceived;
         socket.GuardPurchaseReceived += OnGuardPurchaseReceived;
         EventHandler onDisconnected = (_, _) => PostListenerConnectionStatus(socket, "连接中断，正在重连");
@@ -1248,6 +1254,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
             finally
             {
                 socket.DanmuReceived -= OnDanmuReceived;
+                socket.GiftReceived -= OnGiftReceived;
                 socket.SuperChatReceived -= OnSuperChatReceived;
                 socket.GuardPurchaseReceived -= OnGuardPurchaseReceived;
                 socket.Disconnected -= onDisconnected;
@@ -1266,6 +1273,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
                         activeListenSocket = null;
                         IsListening = false;
                         ConnectionStatus = "未连接";
+                        ClearGiftComboState();
                     }
 
                     tokenSource.Dispose();
@@ -1282,6 +1290,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
     {
         InvalidateModerationPermission();
         activeListenSocket = null;
+        ClearGiftComboState();
         var tokenSource = listenTokenSource;
         listenTokenSource = null;
         tokenSource?.Cancel();
@@ -2054,7 +2063,145 @@ public partial class LiveRoomTabViewModel : ViewModelBase
             MedalGuardLevel = message.MedalGuardLevel,
             Content = message.Content
         });
-        Trim(DanmuItems, 300);
+        TrimDanmuItems();
+    }
+
+    private void OnGiftReceived(object? sender, BilibiliGiftMessage message)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (ReferenceEquals(sender, activeListenSocket))
+            {
+                AddGiftToFeed(message);
+            }
+        });
+    }
+
+    internal void AddGift(BilibiliGiftMessage message)
+    {
+        AddGiftToFeed(message);
+    }
+
+    private void AddGiftToFeed(BilibiliGiftMessage message)
+    {
+        if (message.Uid <= 0 || string.IsNullOrWhiteSpace(message.UserName) ||
+            string.IsNullOrWhiteSpace(message.GiftName) || message.Quantity <= 0)
+        {
+            return;
+        }
+
+        var comboIdentity = CreateGiftComboIdentity(message);
+
+        if (!string.IsNullOrWhiteSpace(comboIdentity) && giftComboItems.TryGetValue(comboIdentity, out var combo))
+        {
+            if (DanmuItems.Contains(combo.Item))
+            {
+                var count = message.BatchComboCount > 0
+                    ? Math.Max(combo.Count, message.BatchComboCount)
+                    : (int)Math.Min(int.MaxValue, (long)combo.Count + message.Quantity);
+                var unitPrice = message.UnitPrice > 0 ? message.UnitPrice : combo.UnitPrice;
+                combo.Item.Content = CreateGiftContent(message.GiftName, count, unitPrice);
+                giftComboItems[comboIdentity] = (combo.Item, count, unitPrice, combo.OrderNode);
+                return;
+            }
+
+            RemoveGiftCombo(combo.Item);
+        }
+
+        var initialCount = Math.Max(message.Quantity, message.BatchComboCount);
+        var item = new DanmuFeedItem
+        {
+            RoomId = message.RoomId,
+            Time = message.Timestamp > 0
+                ? DateTimeOffset.FromUnixTimeSeconds(message.Timestamp)
+                : DateTimeOffset.Now,
+            UserName = message.UserName,
+            UserUid = message.Uid.ToString(CultureInfo.InvariantCulture),
+            Content = CreateGiftContent(message.GiftName, initialCount, message.UnitPrice)
+        };
+
+        DanmuItems.Insert(0, item);
+        TrimDanmuItems();
+
+        if (!string.IsNullOrWhiteSpace(comboIdentity))
+        {
+            AddGiftCombo(comboIdentity, item, initialCount, message.UnitPrice);
+        }
+    }
+
+    private static string CreateGiftComboIdentity(BilibiliGiftMessage message)
+    {
+        if (string.IsNullOrWhiteSpace(message.BatchComboId))
+        {
+            return "";
+        }
+
+        var giftIdentity = string.IsNullOrWhiteSpace(message.GiftId) ? message.GiftName : message.GiftId;
+        return string.Join(
+            '|',
+            message.RoomId,
+            message.Uid.ToString(CultureInfo.InvariantCulture),
+            giftIdentity,
+            message.BatchComboId);
+    }
+
+    private static string CreateGiftContent(string giftName, int count, decimal unitPrice)
+    {
+        var content = $"赠送 {giftName} × {count}";
+        var totalPrice = unitPrice * count / 1000m;
+
+        if (totalPrice > 0)
+        {
+            content += $" · ￥{totalPrice.ToString("0.##", CultureInfo.InvariantCulture)}";
+        }
+
+        return content;
+    }
+
+    private void AddGiftCombo(string identity, DanmuFeedItem item, int count, decimal unitPrice)
+    {
+        while (giftComboItems.Count >= MAX_RECENT_GIFT_COMBOS && giftComboOrder.First is { } oldest)
+        {
+            if (giftComboItems.TryGetValue(oldest.Value, out var oldestCombo))
+            {
+                RemoveGiftCombo(oldestCombo.Item);
+            }
+            else
+            {
+                giftComboOrder.RemoveFirst();
+            }
+        }
+
+        var orderNode = giftComboOrder.AddLast(identity);
+        giftComboItems[identity] = (item, count, unitPrice, orderNode);
+        giftComboKeysByItem[item] = identity;
+    }
+
+    private void RemoveGiftCombo(DanmuFeedItem item)
+    {
+        if (!giftComboKeysByItem.Remove(item, out var identity) || !giftComboItems.Remove(identity, out var combo))
+        {
+            return;
+        }
+
+        giftComboOrder.Remove(combo.OrderNode);
+    }
+
+    private void ClearGiftComboState()
+    {
+        giftComboItems.Clear();
+        giftComboKeysByItem.Clear();
+        giftComboOrder.Clear();
+    }
+
+    private void TrimDanmuItems()
+    {
+        while (DanmuItems.Count > 300)
+        {
+            var removedItem = DanmuItems[^1];
+            DanmuItems.RemoveAt(DanmuItems.Count - 1);
+            RemoveGiftCombo(removedItem);
+        }
     }
 
     private void OnSuperChatReceived(object? sender, BilibiliSuperChatMessage message)
@@ -2184,7 +2331,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
             }
 
             DanmuItems.Insert(0, item);
-            Trim(DanmuItems, 300);
+            TrimDanmuItems();
         });
     }
 

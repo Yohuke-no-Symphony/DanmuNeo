@@ -38,7 +38,7 @@ public class DanmuStylePreviewViewModelTests
         var guardPurchases = viewModel.SuperChats.Where(item => item.Kind == LivePaidEventKind.GuardPurchase).ToArray();
         Assert.Equal(6, superChats.Length);
         Assert.Equal(3, guardPurchases.Length);
-        Assert.Equal(7, viewModel.DanmuItems.Count);
+        Assert.Equal(8, viewModel.DanmuItems.Count);
         Assert.Equal("300 电池", superChats[0].BadgeText);
         Assert.Equal(Color.Parse("#3171D2"), superChats[0].BorderColor);
         Assert.Equal("20000 电池", superChats[^1].BadgeText);
@@ -89,7 +89,7 @@ public class DanmuStylePreviewViewModelTests
             UserName = "  ",
             Content = "  ",
             DanmuStatus = " 已转发 ",
-            MedalName = " 星光 ",
+            MedalName = " 肉肉 ",
             MedalLevel = 25
         };
 
@@ -99,7 +99,7 @@ public class DanmuStylePreviewViewModelTests
         Assert.Equal("测试用户", item.UserName);
         Assert.Equal("空内容样式测试", item.Content);
         Assert.Equal("已转发", item.Status);
-        Assert.Equal("星光 25", item.MedalText);
+        Assert.Equal("肉肉 25", item.MedalText);
     }
 
     /// <summary>
@@ -107,8 +107,8 @@ public class DanmuStylePreviewViewModelTests
     /// </summary>
     [Theory]
     [InlineData(" ", 25)]
-    [InlineData("星光", 0)]
-    [InlineData("星光", -1)]
+    [InlineData("肉肉", 0)]
+    [InlineData("肉肉", -1)]
     public void AddDanmuSupportsUsersWithoutMedals(string medalName, int medalLevel)
     {
         var viewModel = new DanmuStylePreviewViewModel
@@ -134,7 +134,7 @@ public class DanmuStylePreviewViewModelTests
         {
             UserName = " 批量用户 ",
             Content = " 批量正文 ",
-            MedalName = " 星光 ",
+            MedalName = " 肉肉 ",
             MedalLevel = 12,
             DanmuStatus = " 已转发 "
         };
@@ -149,7 +149,7 @@ public class DanmuStylePreviewViewModelTests
         {
             Assert.Equal("批量用户", item.UserName);
             Assert.StartsWith("批量正文", item.Content);
-            Assert.Equal("星光 12", item.MedalText);
+            Assert.Equal("肉肉 12", item.MedalText);
             Assert.Equal("已转发", item.Status);
         });
         Assert.Equal(existingItems, viewModel.DanmuItems.Skip(newItems.Length));
