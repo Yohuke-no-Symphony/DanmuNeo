@@ -17,6 +17,74 @@ namespace Yohuke.DanmuNeo.Tests;
 public class LyricNavigationViewTests
 {
     /// <summary>
+    /// 下一句按钮一次略过连续空行，末尾只剩空行时禁用。
+    /// </summary>
+    [AvaloniaFact]
+    public void NextButtonSkipsEmptyRowsAndDisablesAtTrailingBlanks()
+    {
+        using var context = new LyricNavigationViewTestContext();
+        context.Room.LyricInput = "[00:01]当前句\n[00:02]\n[00:03] \t\n[00:04]有效句\n[00:05]";
+        context.Room.ApplyLyric();
+        var window = CreateWindow(context, false);
+
+        try
+        {
+            var view = ShowLyrics(window);
+            var button = Assert.IsType<Button>(view.FindControl<Button>("NextLyricButton"));
+            Assert.True(button.IsEffectivelyEnabled);
+
+            Click(window, button);
+
+            Assert.Equal(["【♪有效句】"], context.SendService.SentMessages);
+            Assert.Same(context.Room.Lyrics[3], context.Room.ActiveLyricLine);
+            Assert.False(button.IsEffectivelyEnabled);
+        }
+        finally
+        {
+            CloseWindow(window);
+        }
+    }
+
+    /// <summary>
+    /// 替换规则不再清空下一句时，关闭设置后立即恢复按钮可用状态。
+    /// </summary>
+    [AvaloniaFact]
+    public async Task NextButtonRefreshesAfterReplacementSettingsChange()
+    {
+        using var context = new LyricNavigationViewTestContext();
+        context.ViewModel.Settings.ShieldReplacementRules =
+        [
+            new()
+            {
+                SourceText = "删除",
+                ReplacementText = ""
+            }
+        ];
+        context.Room.LyricInput = "[00:01]当前句\n[00:02]删除";
+        context.Room.ApplyLyric();
+        var window = CreateWindow(context, false);
+
+        try
+        {
+            var view = ShowLyrics(window);
+            var button = Assert.IsType<Button>(view.FindControl<Button>("NextLyricButton"));
+            Assert.False(button.IsEffectivelyEnabled);
+
+            context.ViewModel.Settings.ShieldReplacementRules[0].ReplacementText = "有效句";
+            await context.ViewModel.CloseSettingsAsync();
+            PumpLayout(window);
+
+            Assert.True(button.IsEffectivelyEnabled);
+            Click(window, button);
+            Assert.Equal(["【♪有效句】"], context.SendService.SentMessages);
+        }
+        finally
+        {
+            CloseWindow(window);
+        }
+    }
+
+    /// <summary>
     /// 下一句按钮发送目标行，最后一句和空列表禁用按钮。
     /// </summary>
     [AvaloniaTheory]

@@ -352,10 +352,207 @@ public class LyricNavigationTests
         Assert.True(room.Lyrics[1].IsSent);
     }
 
-    private static LiveRoomTabViewModel CreateRoom(
-        IDanmuSendService sendService, string lyricText = "[00:01]第一句\n[00:10]第二句")
+    /// <summary>
+    /// 下一句和指定行发送都跳过连续空行，并按当前语言模式选择有效内容。
+    /// </summary>
+    [Theory]
+    [InlineData(LyricSendMode.Bilingual, false, new[] { "【♪原文】", "【♪译文】" })]
+    [InlineData(LyricSendMode.OriginalOnly, false, new[] { "【♪原文】" })]
+    [InlineData(LyricSendMode.TranslationOnly, false, new[] { "【♪译文】" })]
+    [InlineData(LyricSendMode.Bilingual, true, new[] { "【♪原文】", "【♪译文】" })]
+    public async Task ManualNavigationSkipsEmptyLines(LyricSendMode mode, bool seekExplicitly, string[] expected)
     {
-        var settings = new AppSettings();
+        var sendService = new FakeDanmuSendService();
+        var room = CreateRoom(sendService, "[00:01]当前句\n[00:02]\n[00:03] \t\n[00:04]原文\n[00:05]");
+        room.TranslatedLyricInput = "[00:04]译文";
+        room.ApplyLyric();
+        room.LyricSendMode = mode;
+
+        if (seekExplicitly)
+        {
+            await room.SeekAndSendLyricLineAsync(room.Lyrics[1]);
+        }
+        else
+        {
+            await room.SeekNextLyricAsync();
+        }
+
+        Assert.Equal(expected, sendService.SentMessages);
+        Assert.Same(room.Lyrics[3], room.ActiveLyricLine);
+        Assert.Equal(4, room.LyricPlaybackPositionSeconds);
+        Assert.True(room.Lyrics[3].IsSent);
+        Assert.False(room.Lyrics[1].IsSent);
+        Assert.False(room.Lyrics[2].IsSent);
+        Assert.False(room.SeekNextLyricCommand.CanExecute(null));
+        Assert.Equal(5, room.Lyrics.Count);
+    }
+
+    /// <summary>
+    /// 发送当前句时略过开头空行，并将下一次发送位置推进到下一条非空歌词。
+    /// </summary>
+    [Fact]
+    public async Task CurrentSendSkipsEmptyLinesBeforeAndAfterContent()
+    {
+        var sendService = new FakeDanmuSendService();
+        var room = CreateRoom(sendService, "[00:01]\n[00:02] \t\n[00:03]第一句\n[00:04]\n[00:05]第二句\n[00:06]");
+
+        await room.SendCurrentLyricAsync();
+
+        Assert.Equal(["【♪第一句】"], sendService.SentMessages);
+        Assert.Same(room.Lyrics[4], room.ActiveLyricLine);
+        Assert.Equal(5, room.LyricPlaybackPositionSeconds);
+        Assert.True(room.Lyrics[2].IsSent);
+        Assert.False(room.Lyrics[4].IsSent);
+
+        await room.SendCurrentLyricAsync();
+
+        Assert.Equal(["【♪第一句】", "【♪第二句】"], sendService.SentMessages);
+        Assert.Same(room.Lyrics[4], room.ActiveLyricLine);
+        Assert.False(room.Lyrics[5].IsSent);
+    }
+
+    /// <summary>
+    /// 全为空行时所有手动发送入口都不产生请求，也不把空行标记为已发送。
+    /// </summary>
+    [Fact]
+    public async Task AllEmptyLinesDoNotSendOrAdvance()
+    {
+        var sendService = new FakeDanmuSendService();
+        var room = CreateRoom(sendService, "[00:01]\n[00:02] \t");
+
+        Assert.False(room.SeekNextLyricCommand.CanExecute(null));
+        await room.SendCurrentLyricAsync();
+        await room.SeekNextLyricAsync();
+        await room.SeekAndSendLyricLineAsync(room.Lyrics[1]);
+
+        Assert.Empty(sendService.SentMessages);
+        Assert.All(room.Lyrics, line => Assert.False(line.IsSent));
+        Assert.Same(room.Lyrics[0], room.ActiveLyricLine);
+        Assert.Equal(1, room.LyricPlaybackPositionSeconds);
+    }
+
+    /// <summary>
+    /// 切换语言模式会刷新下一句命令，使只有译文的目标行可以立即发送。
+    /// </summary>
+    [Fact]
+    public async Task ModeChangeRefreshesNextSendableLine()
+    {
+        var sendService = new FakeDanmuSendService();
+        var room = CreateRoom(sendService, "[00:01]原文\n[00:02]");
+        room.TranslatedLyricInput = "[00:02]译文";
+        room.ApplyLyric();
+        room.LyricSendMode = LyricSendMode.OriginalOnly;
+        Assert.False(room.SeekNextLyricCommand.CanExecute(null));
+        var notified = false;
+        room.SeekNextLyricCommand.CanExecuteChanged += (_, _) => notified = true;
+
+        room.LyricSendMode = LyricSendMode.TranslationOnly;
+
+        Assert.True(notified);
+        Assert.True(room.SeekNextLyricCommand.CanExecute(null));
+        await room.SeekNextLyricAsync();
+        Assert.Equal(["【♪译文】"], sendService.SentMessages);
+    }
+
+    /// <summary>
+    /// 替换规则清空的歌词也会被手动导航跳过。
+    /// </summary>
+    [Fact]
+    public async Task ManualNavigationSkipsReplacementClearedLines()
+    {
+        var settings = new AppSettings
+        {
+            ShieldReplacementRules =
+            [
+                new()
+                {
+                    SourceText = "删除",
+                    ReplacementText = " \t"
+                }
+            ]
+        };
+        var sendService = new FakeDanmuSendService();
+        var room = CreateRoom(sendService, "[00:01]当前句\n[00:02]删除\n[00:03]有效句", settings);
+
+        await room.SeekNextLyricAsync();
+
+        Assert.Equal(["【♪有效句】"], sendService.SentMessages);
+        Assert.Same(room.Lyrics[2], room.ActiveLyricLine);
+        Assert.False(room.Lyrics[1].IsSent);
+    }
+
+    /// <summary>
+    /// 自动播放不发送替换后为空的语言，也不产生只有歌词符号的弹幕。
+    /// </summary>
+    [Theory]
+    [InlineData("删除", new string[0])]
+    [InlineData("有效译文", new[] { "【♪有效译文】" })]
+    public async Task AutoPlaybackSkipsReplacementClearedContent(string translation, string[] expected)
+    {
+        var settings = new AppSettings
+        {
+            ShieldReplacementRules =
+            [
+                new()
+                {
+                    SourceText = "删除",
+                    ReplacementText = ""
+                }
+            ]
+        };
+        var sendService = new FakeDanmuSendService();
+        var room = CreateRoom(sendService, "[00:01]删除", settings);
+        room.TranslatedLyricInput = $"[00:01]{translation}";
+        room.ApplyLyric();
+        var playback = room.StartAutoLyricAsync();
+
+        try
+        {
+            Assert.Equal(expected, sendService.SentMessages);
+            Assert.Equal(expected.Length > 0, room.Lyrics[0].IsSent);
+        }
+        finally
+        {
+            room.StopAutoLyric();
+            await playback;
+        }
+    }
+
+    /// <summary>
+    /// 自动播放经过空白间奏时保留时间轴，只有到达有效句后才发送。
+    /// </summary>
+    [Fact]
+    public async Task AutoPlaybackPreservesEmptyLineTiming()
+    {
+        var sendService = new FakeDanmuSendService();
+        var sent = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        sendService.RecordCreated += (_, _) => sent.TrySetResult();
+        var room = CreateRoom(sendService, "[00:01]\n[00:10]有效句");
+        var playback = room.StartAutoLyricAsync();
+
+        try
+        {
+            await Task.Delay(120);
+            Assert.Empty(sendService.SentMessages);
+            Assert.Same(room.Lyrics[0], room.ActiveLyricLine);
+            Assert.InRange(room.LyricPlaybackPositionSeconds, 1, 9);
+            Assert.False(room.Lyrics[0].IsSent);
+
+            room.SeekLyricLineStart(room.Lyrics[1]);
+            await sent.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            Assert.Equal(["【♪有效句】"], sendService.SentMessages);
+        }
+        finally
+        {
+            room.StopAutoLyric();
+            await playback;
+        }
+    }
+
+    private static LiveRoomTabViewModel CreateRoom(
+        IDanmuSendService sendService, string lyricText = "[00:01]第一句\n[00:10]第二句", AppSettings? settings = null)
+    {
+        settings ??= new();
         var room = new LiveRoomTabViewModel(new() { RoomId = "100", LyricText = lyricText });
         room.Configure(
             _ => null,

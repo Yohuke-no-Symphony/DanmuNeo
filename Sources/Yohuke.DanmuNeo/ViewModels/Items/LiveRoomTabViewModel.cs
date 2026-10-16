@@ -473,6 +473,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
         }
 
         State.LyricSendMode = normalizedValue;
+        SeekNextLyricCommand.NotifyCanExecuteChanged();
     }
 
     partial void OnPreventRepeatedLyricSendChanged(bool value)
@@ -812,7 +813,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// 手动发送当前歌词。
+    /// 手动发送当前歌词，略过空行并推进到下一条非空歌词。
     /// </summary>
     [RelayCommand]
     public async Task SendCurrentLyricAsync()
@@ -822,13 +823,20 @@ public partial class LiveRoomTabViewModel : ViewModelBase
             return;
         }
 
-        var line = Lyrics[Math.Clamp(ActiveLyricIndex, 0, Lyrics.Count - 1)];
+        var index = FindNextSendableLyricIndex(Math.Clamp(ActiveLyricIndex, 0, Lyrics.Count - 1));
+
+        if (index < 0)
+        {
+            return;
+        }
+
+        var line = Lyrics[index];
         await SendLyricLineAsync(line, true);
-        SetLyricPlaybackPosition(GetNextLyricPosition(line));
+        AdvanceToNextSendableLyric(line);
     }
 
     /// <summary>
-    /// 跳转到下一句歌词并发送，保留当前播放或暂停状态。
+    /// 跳转到下一条非空歌词并发送，保留当前播放或暂停状态。
     /// </summary>
     [RelayCommand(CanExecute = nameof(CanSeekNextLyric))]
     public async Task SeekNextLyricAsync()
@@ -843,11 +851,11 @@ public partial class LiveRoomTabViewModel : ViewModelBase
 
     private bool CanSeekNextLyric()
     {
-        return ActiveLyricIndex >= 0 && ActiveLyricIndex < Lyrics.Count - 1;
+        return ActiveLyricIndex >= 0 && FindNextSendableLyricIndex(ActiveLyricIndex + 1) >= 0;
     }
 
     /// <summary>
-    /// 定位并发送指定歌词行，保留当前播放或暂停状态并遵从防重复设置。
+    /// 定位并发送指定歌词行，空行向后跳过，保留播放状态并遵从防重复设置。
     /// </summary>
     public async Task SeekAndSendLyricLineAsync(LyricLineState? line)
     {
@@ -863,6 +871,14 @@ public partial class LiveRoomTabViewModel : ViewModelBase
             return;
         }
 
+        index = FindNextSendableLyricIndex(index);
+
+        if (index < 0)
+        {
+            return;
+        }
+
+        line = Lyrics[index];
         var positionSeconds = line.TimeSeconds >= 0 ? line.TimeSeconds : LyricPlaybackPositionSeconds;
         SetLyricPlaybackPosition(positionSeconds, index);
         lastAutoEnteredLyricIndex = index;
@@ -1114,19 +1130,44 @@ public partial class LiveRoomTabViewModel : ViewModelBase
             : lastTimedLine.TimeSeconds + Math.Max(0.1, lastTimedLine.DurationSeconds);
     }
 
-    private double GetNextLyricPosition(LyricLineState line)
+    private int FindNextSendableLyricIndex(int startIndex)
     {
-        var index = Lyrics.IndexOf(line);
+        var settings = getSettings?.Invoke();
 
-        for (var nextIndex = index + 1; nextIndex < Lyrics.Count; nextIndex++)
+        for (var index = Math.Max(0, startIndex); index < Lyrics.Count; index++)
         {
-            if (Lyrics[nextIndex].TimeSeconds >= 0)
+            var line = Lyrics[index];
+
+            if (LyricTimelineService.CreateSendContents(
+                    line.Content, line.TranslatedContent, LyricSendMode, settings).Count > 0)
             {
-                return Lyrics[nextIndex].TimeSeconds;
+                return index;
             }
         }
 
-        return GetLastLyricEndPosition();
+        return -1;
+    }
+
+    private void AdvanceToNextSendableLyric(LyricLineState line)
+    {
+        var index = Lyrics.IndexOf(line);
+
+        if (index < 0)
+        {
+            return;
+        }
+
+        var nextIndex = FindNextSendableLyricIndex(index + 1);
+
+        if (nextIndex < 0)
+        {
+            SetLyricPlaybackPosition(GetLastLyricEndPosition(), index);
+            return;
+        }
+
+        var nextLine = Lyrics[nextIndex];
+        var positionSeconds = nextLine.TimeSeconds >= 0 ? nextLine.TimeSeconds : LyricPlaybackPositionSeconds;
+        SetLyricPlaybackPosition(positionSeconds, nextIndex);
     }
 
     private async Task<bool> SendLyricLineAsync(
@@ -1155,7 +1196,8 @@ public partial class LiveRoomTabViewModel : ViewModelBase
             }
 
             var markGroup = getMarkSymbolGroup?.Invoke() ?? MarkSymbolService.CreateDefaultGroup(settings);
-            var contents = LyricTimelineService.CreateSendContents(line.Content, line.TranslatedContent, LyricSendMode);
+            var contents = LyricTimelineService.CreateSendContents(
+                line.Content, line.TranslatedContent, LyricSendMode, settings);
 
             if (contents.Count == 0)
             {
@@ -1167,9 +1209,8 @@ public partial class LiveRoomTabViewModel : ViewModelBase
             foreach (var content in contents)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var processedContent = ShieldReplacementService.Apply(content, settings, true);
                 var message = LyricTimelineService.CreateMessage(
-                    markGroup.LyricOpenMark, markGroup.LyricCloseMark, processedContent);
+                    markGroup.LyricOpenMark, markGroup.LyricCloseMark, content);
                 var results = await SendMessageAsync(message, account, settings, cancellationToken);
                 allAccepted &= results.Count > 0 && results.All(result => result.IsAccepted);
             }

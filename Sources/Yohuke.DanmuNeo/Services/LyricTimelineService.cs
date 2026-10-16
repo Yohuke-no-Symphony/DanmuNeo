@@ -124,9 +124,10 @@ public class LyricTimelineService
     }
 
     /// <summary>
-    /// 按指定模式生成独立的歌词发送内容，原文在前，跳过空白和重复文本。
+    /// 按指定模式生成独立的歌词发送内容，原文在前，跳过空白、重复和替换后为空的文本。
     /// </summary>
-    public static IReadOnlyList<string> CreateSendContents(string content, string translatedContent, LyricSendMode mode)
+    public static IReadOnlyList<string> CreateSendContents(
+        string content, string translatedContent, LyricSendMode mode, AppSettings? settings = null)
     {
         string[] contents = mode switch
         {
@@ -139,6 +140,8 @@ public class LyricTimelineService
             .Select(text => text.Trim())
             .Where(text => text.Length > 0)
             .Distinct(StringComparer.Ordinal)
+            .Select(text => settings is null ? text : ShieldReplacementService.Apply(text, settings, true))
+            .Where(text => !string.IsNullOrWhiteSpace(text))
             .ToArray();
     }
 

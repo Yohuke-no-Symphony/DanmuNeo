@@ -1460,6 +1460,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     public async Task CloseSettingsAsync()
     {
         IsSettingsOpen = false;
+
+        foreach (var room in Workspaces.SelectMany(workspace => workspace.Rooms))
+        {
+            room.SeekNextLyricCommand.NotifyCanExecuteChanged();
+        }
+
         await SaveAsync();
     }
 
