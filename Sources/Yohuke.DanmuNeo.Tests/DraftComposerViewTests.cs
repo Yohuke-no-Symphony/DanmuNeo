@@ -131,7 +131,7 @@ public class DraftComposerViewTests
     }
 
     /// <summary>
-    /// 接口失败保留草稿并显示红框，重试成功后无需监听即可清空并恢复正常边框。
+    /// 接口失败显示原因并保留草稿，重试成功后清空原因、草稿并恢复正常边框。
     /// </summary>
     [AvaloniaTheory]
     [InlineData(false)]
@@ -159,6 +159,7 @@ public class DraftComposerViewTests
             var composer = view.GetVisualDescendants().OfType<Border>()
                 .Single(control => control.Classes.Contains("translateComposer"));
             var input = view.FindControl<TextBox>("InputDraftTextBox")!;
+            var error = view.FindControl<TextBlock>("DraftSendErrorText")!;
             room.InputDraft = "重试发送内容";
             input.Focus();
             window.MouseMove(input.TranslatePoint(new Point(8, 8), window)!.Value);
@@ -167,6 +168,7 @@ public class DraftComposerViewTests
             ShowWindow(window);
 
             Assert.True(room.IsDraftSendFailed);
+            Assert.Equal("发送失败：测试发送失败", error.Text);
             Assert.Equal("重试发送内容", input.Text);
             Assert.Equal(Color.Parse("#EF4444"), Assert.IsAssignableFrom<ISolidColorBrush>(composer.BorderBrush).Color);
 
@@ -175,6 +177,7 @@ public class DraftComposerViewTests
             ShowWindow(window);
 
             Assert.False(room.IsDraftSendFailed);
+            Assert.Equal("", error.Text);
             Assert.Equal("接口已接受", room.DraftSendStatus);
             Assert.Equal("", input.Text);
             Assert.Equal("", room.State.InputDraft);
@@ -207,6 +210,8 @@ public class DraftComposerViewTests
         if (!string.IsNullOrWhiteSpace(directory))
         {
             Directory.CreateDirectory(directory);
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(2);
+            Dispatcher.UIThread.RunJobs();
             using var frame = window.CaptureRenderedFrame();
             Assert.NotNull(frame);
             frame.Save(Path.Combine(directory, name));

@@ -141,7 +141,7 @@
                                        IsVisible="{Binding IsInputDraftEmpty}" />
                         </Grid>
                         <Grid Grid.Row="1"
-                              ColumnDefinitions="*,100,82,Auto"
+                              ColumnDefinitions="Auto,*,100,82,Auto"
                               ColumnSpacing="4">
                             <ComboBox x:Name="ComposerMarkSelector"
                                       Classes="translateComposerMarkSelector"
@@ -154,8 +154,16 @@
                                     </DataTemplate>
                                 </ComboBox.ItemTemplate>
                             </ComboBox>
+                            <TextBlock x:Name="DraftSendErrorText"
+                                       Grid.Column="1"
+                                       Text="{Binding DraftSendError}"
+                                       ToolTip.Tip="{Binding DraftSendError}"
+                                       Foreground="{DynamicResource AppErrorBrush}"
+                                       VerticalAlignment="Center"
+                                       TextWrapping="NoWrap"
+                                       TextTrimming="CharacterEllipsis" />
                             <ComboBox x:Name="DanmuColorSelector"
-                                      Grid.Column="1"
+                                      Grid.Column="2"
                                       Classes="translateComposerConfigSelector"
                                       PlaceholderText="颜色"
                                       ToolTip.Tip="{Binding DanmuConfigurationStatus}"
@@ -175,7 +183,7 @@
                                 </ComboBox.ItemTemplate>
                             </ComboBox>
                             <ComboBox x:Name="DanmuModeSelector"
-                                      Grid.Column="2"
+                                      Grid.Column="3"
                                       Classes="translateComposerConfigSelector"
                                       PlaceholderText="位置"
                                       ToolTip.Tip="{Binding DanmuConfigurationStatus}"
@@ -189,7 +197,7 @@
                                     </DataTemplate>
                                 </ComboBox.ItemTemplate>
                             </ComboBox>
-                            <Button Grid.Column="3"
+                            <Button Grid.Column="4"
                                     Classes="translateComposerSendButton"
                                     ToolTip.Tip="发送同传"
                                     Command="{Binding SendDraftCommand}">

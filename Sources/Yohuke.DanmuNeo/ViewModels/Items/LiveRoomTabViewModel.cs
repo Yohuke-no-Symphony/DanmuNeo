@@ -243,6 +243,8 @@ public partial class LiveRoomTabViewModel : ViewModelBase
 
     [ObservableProperty] private string draftSendStatus = "";
 
+    [ObservableProperty] private string draftSendError = "";
+
     [ObservableProperty] private bool isDraftSendFailed;
 
     [ObservableProperty] private string lyricInput = "";
@@ -752,7 +754,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
         if (failedResults.Count > 0)
         {
             TrySetDraftSendFeedback(operationId, revision,
-                $"部分发送失败：{acceptedResults.Count}/{results.Count} 段接口已接受", true);
+                $"部分发送失败：{acceptedResults.Count}/{results.Count} 段接口已接受；{failedResults[0].ErrorMessage}", true);
             return;
         }
 
@@ -2003,6 +2005,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
         }
 
         DraftSendStatus = status;
+        DraftSendError = failed ? status : "";
         IsDraftSendFailed = failed;
         return true;
     }

@@ -994,7 +994,7 @@ public class LiveRoomTabViewModelTests
         await viewModel.SendDraftAsync();
 
         Assert.Equal("完整同传", viewModel.InputDraft);
-        Assert.Equal("部分发送失败：1/2 段接口已接受", viewModel.DraftSendStatus);
+        Assert.Equal("部分发送失败：1/2 段接口已接受；第二段失败", viewModel.DraftSendStatus);
         Assert.True(viewModel.IsDraftSendFailed);
         Assert.Equal("接口已接受", sendService.Records[0].Status);
         Assert.Equal("第二段失败", sendService.Records[1].Status);
@@ -1077,7 +1077,7 @@ public class LiveRoomTabViewModelTests
         viewModel.AddDanmu(new() { Uid = 42, Content = "第一段" });
         viewModel.AddDanmu(new() { Uid = 42, Content = "第二段" });
 
-        Assert.Equal("部分发送失败：1/2 段接口已接受", viewModel.DraftSendStatus);
+        Assert.Equal("部分发送失败：1/2 段接口已接受；测试发送失败", viewModel.DraftSendStatus);
         Assert.True(viewModel.IsDraftSendFailed);
         Assert.Equal("完整同传", viewModel.InputDraft);
         Assert.Equal("完整同传", viewModel.State.InputDraft);
