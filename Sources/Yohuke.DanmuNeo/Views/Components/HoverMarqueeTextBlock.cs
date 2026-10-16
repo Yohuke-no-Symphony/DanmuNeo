@@ -7,6 +7,7 @@ using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
+using Yohuke.DanmuNeo.Models.Workspace;
 
 namespace Yohuke.DanmuNeo.Views.Components;
 
@@ -33,18 +34,29 @@ public sealed class HoverMarqueeTextBlock : UserControl
         AvaloniaProperty.Register<HoverMarqueeTextBlock, string?>(nameof(Text));
 
     /// <summary>
+    /// 显示文本中的表情图片映射。
+    /// </summary>
+    public static readonly StyledProperty<IReadOnlyList<DanmuEmoticon>?> EmoticonsProperty =
+        AvaloniaProperty.Register<HoverMarqueeTextBlock, IReadOnlyList<DanmuEmoticon>?>(nameof(Emoticons));
+
+    /// <summary>
     /// 初始化悬停滚动文本控件。
     /// </summary>
     public HoverMarqueeTextBlock()
     {
-        var textBlock = new TextBlock
+        var textBlock = new EmoticonTextBlock
         {
             TextWrapping = TextWrapping.NoWrap,
             VerticalAlignment = VerticalAlignment.Center
         };
-        textBlock.Bind(TextBlock.TextProperty, new Binding
+        textBlock.Bind(EmoticonTextBlock.ContentTextProperty, new Binding
         {
             Path = nameof(Text),
+            Source = this
+        });
+        textBlock.Bind(EmoticonTextBlock.EmoticonsProperty, new Binding
+        {
+            Path = nameof(Emoticons),
             Source = this
         });
 
@@ -76,6 +88,15 @@ public sealed class HoverMarqueeTextBlock : UserControl
     {
         get => GetValue(TextProperty);
         set => SetValue(TextProperty, value);
+    }
+
+    /// <summary>
+    /// 显示文本中的表情图片映射。
+    /// </summary>
+    public IReadOnlyList<DanmuEmoticon>? Emoticons
+    {
+        get => GetValue(EmoticonsProperty);
+        set => SetValue(EmoticonsProperty, value);
     }
 
     private void Control_OnPointerEntered(object? sender, PointerEventArgs e)

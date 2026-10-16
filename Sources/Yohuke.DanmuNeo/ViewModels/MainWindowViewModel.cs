@@ -27,6 +27,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly AppBackupService appBackupService;
     private readonly IRoomAvatarService avatarCacheService;
     private readonly AvatarCacheService? ownedAvatarCacheService;
+    private readonly EmoticonCacheService emoticonCacheService;
     private readonly IBilibiliLiveRoomSearchService liveRoomSearchService;
     private readonly IBilibiliModerationService moderationService;
     private readonly IBilibiliUserNameService userNameService;
@@ -67,6 +68,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         appDirectoryService = new(stateService.ConfigDirectory);
         appDirectoryService.EnsureDirectories();
         appBackupService = new(appDirectoryService);
+        emoticonCacheService = new(appDirectoryService);
         this.liveRoomSearchService = liveRoomSearchService ?? new BilibiliLiveRoomSearchService();
         this.moderationService = moderationService ?? new BilibiliModerationService();
         this.userNameService = userNameService ?? new BilibiliUserNameService();
@@ -1952,7 +1954,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// </summary>
     public void RefreshCacheSize()
     {
-        CacheSizeText = AppBackupService.FormatSize(appBackupService.GetDirectorySize(CacheDirectory));
+        CacheSizeText = AppBackupService.FormatSize(appBackupService.GetCacheSize());
     }
 
     /// <summary>
@@ -2093,7 +2095,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             moderationService: moderationService,
             forwardAccountOptions: ForwardAccountOptions,
             userNameService: userNameService,
-            danmuConfigService: danmuConfigService);
+            danmuConfigService: danmuConfigService,
+            emoticonCacheService: emoticonCacheService);
         _ = room.LoadAvatarAsync();
     }
 
@@ -2122,6 +2125,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         livePlayerService.Dispose();
         ownedAvatarCacheService?.Dispose();
+        emoticonCacheService.Dispose();
         GC.SuppressFinalize(this);
     }
 

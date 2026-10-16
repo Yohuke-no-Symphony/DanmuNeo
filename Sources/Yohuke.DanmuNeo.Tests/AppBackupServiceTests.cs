@@ -26,13 +26,19 @@ public class AppBackupServiceTests
         var directoryService = new AppDirectoryService(directory);
         directoryService.EnsureDirectories();
         File.WriteAllText(Path.Combine(directoryService.AvatarCacheDirectory, "avatar.jpg"), "data");
+        File.WriteAllBytes(Path.Combine(directoryService.EmoticonCacheDirectory, "emoticon.img"), [1, 2, 3]);
         var service = new AppBackupService(directoryService);
+
+        Assert.Equal(7, service.GetCacheSize());
 
         service.ClearCache();
 
         Assert.True(Directory.Exists(directoryService.CacheDirectory));
         Assert.True(Directory.Exists(directoryService.AvatarCacheDirectory));
         Assert.Empty(Directory.EnumerateFiles(directoryService.AvatarCacheDirectory));
+        Assert.True(Directory.Exists(directoryService.EmoticonCacheDirectory));
+        Assert.Empty(Directory.EnumerateFiles(directoryService.EmoticonCacheDirectory));
+        Assert.Equal(0, service.GetCacheSize());
     }
 
     [Fact]

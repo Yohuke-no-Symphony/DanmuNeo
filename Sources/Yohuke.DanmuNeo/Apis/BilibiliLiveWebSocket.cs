@@ -398,8 +398,116 @@ public class BilibiliLiveWebSocket : BaseApi, ILiveDanmuSocket
                 : ReadArrayItem(legacyMedal, 0)),
             MedalGuardLevel = medalGuardLevel is >= 1 and <= 3 ? medalGuardLevel : 0,
             UserLevel = ReadNonNegativeInt(ReadArrayItem(ReadArrayItem(info, 4), 0)),
-            IsEmoticon = IsProtocolEmoticon(metadata, content)
+            IsEmoticon = IsProtocolEmoticon(metadata, content),
+            Emoticons = ParseDanmuEmoticons(metadata, content)
         };
+    }
+
+    private static List<BilibiliDanmuEmoticon> ParseDanmuEmoticons(JToken? metadata, string content)
+    {
+        var result = new List<BilibiliDanmuEmoticon>();
+        var danmuExtra = ReadDanmuExtra(metadata);
+        var emots = danmuExtra?["emots"] as JObject ??
+                    ReadObjectProperty(ReadArrayItem(metadata, 15), "emots") as JObject;
+
+        if (emots is not null)
+        {
+            foreach (var emoticon in emots.Properties())
+            {
+                var text = emoticon.Name;
+
+                if (string.IsNullOrWhiteSpace(text) || !content.Contains(text, StringComparison.Ordinal))
+                {
+                    text = ReadScalarText(ReadObjectProperty(emoticon.Value, "text"));
+                }
+
+                AddDanmuEmoticon(result, content, text, ReadScalarText(ReadObjectProperty(emoticon.Value, "url")));
+            }
+        }
+
+        if (result.Count == 0 && IsProtocolEmoticon(metadata, content))
+        {
+            var emoticon = ReadArrayItem(metadata, 13);
+            var url = ReadScalarText(ReadObjectProperty(emoticon, "url"));
+
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                url = ReadScalarText(ReadObjectProperty(ReadObjectProperty(danmuExtra, "emoticon"), "url"));
+            }
+
+            AddDanmuEmoticon(result, content, content.Trim(), url);
+        }
+
+        return result;
+    }
+
+    private static JObject? ReadDanmuExtra(JToken? metadata)
+    {
+        var extra = ReadObjectProperty(ReadArrayItem(metadata, 15), "extra");
+
+        if (extra is JObject extraObject)
+        {
+            return extraObject;
+        }
+
+        var serializedExtra = ReadScalarText(extra);
+
+        if (string.IsNullOrWhiteSpace(serializedExtra))
+        {
+            return null;
+        }
+
+        try
+        {
+            return JObject.Parse(serializedExtra);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static void AddDanmuEmoticon(
+        ICollection<BilibiliDanmuEmoticon> emoticons,
+        string content,
+        string text,
+        string url)
+    {
+        text = text.Trim();
+        url = NormalizeEmoticonUrl(url);
+
+        if (string.IsNullOrWhiteSpace(text) ||
+            !content.Contains(text, StringComparison.Ordinal) ||
+            string.IsNullOrWhiteSpace(url) ||
+            emoticons.Any(emoticon => string.Equals(emoticon.Text, text, StringComparison.Ordinal)))
+        {
+            return;
+        }
+
+        emoticons.Add(new()
+        {
+            Text = text,
+            Url = url
+        });
+    }
+
+    private static string NormalizeEmoticonUrl(string url)
+    {
+        url = url.Trim();
+
+        if (url.StartsWith("//", StringComparison.Ordinal))
+        {
+            url = $"https:{url}";
+        }
+        else if (url.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+        {
+            url = $"https://{url["http://".Length..]}";
+        }
+
+        return Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
+               uri.Scheme == Uri.UriSchemeHttps
+            ? uri.AbsoluteUri
+            : "";
     }
 
     /// <summary>
@@ -584,16 +692,23 @@ public class BilibiliLiveWebSocket : BaseApi, ILiveDanmuSocket
 
     private static bool IsProtocolEmoticon(JToken? metadata, string? content)
     {
+        if (string.IsNullOrWhiteSpace(content) || content.Contains('\r') || content.Contains('\n'))
+        {
+            return false;
+        }
+
+        if (ReadBoolean(ReadArrayItem(metadata, 12)))
+        {
+            return true;
+        }
+
         var emoticonUnique = (metadata as JContainer)?.Descendants()
             .OfType<JProperty>()
             .FirstOrDefault(property =>
                 string.Equals(property.Name, "emoticon_unique", StringComparison.OrdinalIgnoreCase))
             ?.Value.Value<string>();
 
-        if (string.IsNullOrWhiteSpace(emoticonUnique) ||
-            string.IsNullOrWhiteSpace(content) ||
-            content.Contains('\r') ||
-            content.Contains('\n'))
+        if (string.IsNullOrWhiteSpace(emoticonUnique))
         {
             return false;
         }

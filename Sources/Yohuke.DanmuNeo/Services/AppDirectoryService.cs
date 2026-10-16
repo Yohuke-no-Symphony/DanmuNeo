@@ -15,6 +15,7 @@ public class AppDirectoryService
             "Yohuke.DanmuNeo");
         CacheDirectory = Path.Combine(ConfigDirectory, "Cache");
         AvatarCacheDirectory = Path.Combine(CacheDirectory, "Avatars");
+        EmoticonCacheDirectory = Path.Combine(ConfigDirectory, "temp", "emots");
     }
 
     /// <summary>
@@ -33,6 +34,11 @@ public class AppDirectoryService
     public string AvatarCacheDirectory { get; }
 
     /// <summary>
+    /// 弹幕表情图片缓存目录。
+    /// </summary>
+    public string EmoticonCacheDirectory { get; }
+
+    /// <summary>
     /// 确保应用目录存在。
     /// </summary>
     public void EnsureDirectories()
@@ -40,5 +46,6 @@ public class AppDirectoryService
         Directory.CreateDirectory(ConfigDirectory);
         Directory.CreateDirectory(CacheDirectory);
         Directory.CreateDirectory(AvatarCacheDirectory);
+        Directory.CreateDirectory(EmoticonCacheDirectory);
     }
 }

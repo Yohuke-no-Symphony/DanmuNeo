@@ -12,6 +12,7 @@ public class DanmuFeedItem : ObservableObject
 {
     private const int MAX_MEDAL_NAME_LENGTH = 3;
     private string content = "";
+    private IReadOnlyList<DanmuEmoticon> emoticons = [];
 
     /// <summary>
     /// 接收此弹幕时的直播间 ID。
@@ -104,6 +105,15 @@ public class DanmuFeedItem : ObservableObject
     {
         get => content;
         set => SetProperty(ref content, value);
+    }
+
+    /// <summary>
+    /// 正文中已缓存的表情图片映射。
+    /// </summary>
+    public IReadOnlyList<DanmuEmoticon> Emoticons
+    {
+        get => emoticons;
+        set => SetProperty(ref emoticons, value);
     }
 
     /// <summary>

@@ -201,12 +201,14 @@
                                                                TextTrimming="CharacterEllipsis" />
                                                 </Button>
                                             </DockPanel>
-                                            <TextBlock Grid.Column="1"
-                                                       Text="{Binding Content}"
-                                                       Classes="danmuFeedContent regularFeedContent"
-                                                       TextWrapping="Wrap" />
+                                            <components:EmoticonTextBlock Grid.Column="1"
+                                                                         ContentText="{Binding Content}"
+                                                                         Emoticons="{Binding Emoticons}"
+                                                                         Classes="danmuFeedContent regularFeedContent"
+                                                                         TextWrapping="Wrap" />
                                             <components:HoverMarqueeTextBlock Grid.Column="1"
                                                                               Text="{Binding Content}"
+                                                                              Emoticons="{Binding Emoticons}"
                                                                               Classes="compactFeedContent" />
                                         </Grid>
                                     </Button>

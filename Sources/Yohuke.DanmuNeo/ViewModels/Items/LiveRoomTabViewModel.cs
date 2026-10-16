@@ -54,6 +54,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
     private Func<Task>? saveState;
     private IDanmuSendService? sendService;
     private IRoomAvatarService? avatarCacheService;
+    private IEmoticonCacheService? emoticonCacheService;
     private IBilibiliLiveStreamService? liveStreamService;
     private ILivePlayerService? livePlayerService;
     private ILiveDanmuSocketFactory liveDanmuSocketFactory = new BilibiliLiveDanmuSocketFactory();
@@ -512,7 +513,8 @@ public partial class LiveRoomTabViewModel : ViewModelBase
         IBilibiliModerationService? moderationService = null,
         IReadOnlyList<ForwardAccountOption>? forwardAccountOptions = null,
         IBilibiliUserNameService? userNameService = null,
-        IBilibiliDanmuConfigService? danmuConfigService = null)
+        IBilibiliDanmuConfigService? danmuConfigService = null,
+        IEmoticonCacheService? emoticonCacheService = null)
     {
         var wasConfigurationActive = isDanmuConfigurationActive;
 
@@ -532,6 +534,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
         this.danmuConfigService = danmuConfigService ?? this.danmuConfigService ?? new BilibiliDanmuConfigService();
         this.sendService = sendService;
         this.avatarCacheService = avatarCacheService;
+        this.emoticonCacheService = emoticonCacheService ?? this.emoticonCacheService;
         this.saveState = saveState;
         this.liveStreamService = liveStreamService;
         this.livePlayerService = livePlayerService;
@@ -2051,7 +2054,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
 
     private void AddDanmuToFeed(BilibiliDanmuMessage message)
     {
-        DanmuItems.Insert(0, new()
+        var item = new DanmuFeedItem
         {
             RoomId = message.RoomId,
             IsRoomAdmin = message.IsRoomAdmin,
@@ -2062,8 +2065,47 @@ public partial class LiveRoomTabViewModel : ViewModelBase
             MedalLevel = message.MedalLevel,
             MedalGuardLevel = message.MedalGuardLevel,
             Content = message.Content
-        });
+        };
+        DanmuItems.Insert(0, item);
         TrimDanmuItems();
+
+        if (emoticonCacheService is not null && message.Emoticons.Count > 0)
+        {
+            _ = LoadDanmuEmoticonsAsync(item, message.Emoticons, emoticonCacheService,
+                listenTokenSource?.Token ?? CancellationToken.None);
+        }
+    }
+
+    private async Task LoadDanmuEmoticonsAsync(
+        DanmuFeedItem item,
+        IReadOnlyList<BilibiliDanmuEmoticon> emoticons,
+        IEmoticonCacheService cacheService,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var downloads = emoticons.Select(async emoticon => new DanmuEmoticon
+            {
+                Text = emoticon.Text,
+                ImagePath = await cacheService.GetEmoticonAsync(emoticon.Url, cancellationToken).ConfigureAwait(false)
+            });
+            var cachedEmoticons = await Task.WhenAll(downloads).ConfigureAwait(false);
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                if (!cancellationToken.IsCancellationRequested && DanmuItems.Contains(item))
+                {
+                    item.Emoticons = cachedEmoticons.Where(emoticon => !string.IsNullOrWhiteSpace(emoticon.ImagePath))
+                        .ToArray();
+                }
+            });
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception)
+        {
+            System.Diagnostics.Trace.TraceWarning($"表情图片加载失败：{exception.GetType().Name}");
+        }
     }
 
     private void OnGiftReceived(object? sender, BilibiliGiftMessage message)

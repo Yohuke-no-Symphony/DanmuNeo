@@ -53,6 +53,15 @@ public class AppBackupService
     }
 
     /// <summary>
+    /// 计算头像与表情缓存的总体积。
+    /// </summary>
+    public long GetCacheSize()
+    {
+        return GetDirectorySize(directoryService.CacheDirectory) +
+               GetDirectorySize(directoryService.EmoticonCacheDirectory);
+    }
+
+    /// <summary>
     /// 清理缓存目录。
     /// </summary>
     public void ClearCache()
@@ -60,6 +69,11 @@ public class AppBackupService
         if (Directory.Exists(directoryService.CacheDirectory))
         {
             Directory.Delete(directoryService.CacheDirectory, true);
+        }
+
+        if (Directory.Exists(directoryService.EmoticonCacheDirectory))
+        {
+            Directory.Delete(directoryService.EmoticonCacheDirectory, true);
         }
 
         directoryService.EnsureDirectories();

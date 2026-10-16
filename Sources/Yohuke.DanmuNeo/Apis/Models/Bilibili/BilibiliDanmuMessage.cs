@@ -26,6 +26,11 @@ public class BilibiliDanmuMessage
     public string Content { get; set; } = "";
 
     /// <summary>
+    /// 弹幕正文中的表情图片映射。
+    /// </summary>
+    public List<BilibiliDanmuEmoticon> Emoticons { get; set; } = [];
+
+    /// <summary>
     /// 是否为协议标记的直播间房管。
     /// </summary>
     public bool IsRoomAdmin { get; set; }
