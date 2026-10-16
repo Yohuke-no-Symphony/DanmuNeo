@@ -82,37 +82,66 @@ public class BilibiliDanmuConfigService : IBilibiliDanmuConfigService
                 configs[key] = config;
             }
 
-            if (!config.Colors.Any(option => option.Value == options.Color) ||
-                !config.Modes.Any(option => option.Value == options.Mode))
+            var colorChanged = options.Color != config.Current.Color;
+            var modeChanged = options.Mode != config.Current.Mode;
+
+            if ((colorChanged && !config.Colors.Any(option => option.Value == options.Color)) ||
+                (modeChanged && !config.Modes.Any(option => option.Value == options.Mode)))
             {
                 throw new InvalidOperationException("当前账号尚未解锁所选弹幕颜色或位置");
             }
 
+            if (!colorChanged && !modeChanged)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return config;
+            }
+
             using var api = new BilibiliApi(key.Cookie, timeout, httpClient);
-            ApiResponse<JToken> response;
 
-            try
+            if (colorChanged)
             {
-                response = await api.SetDanmuConfigAsync(key.RoomId,
-                    $"0x{options.Color.ToString("X6", CultureInfo.InvariantCulture)}", options.Mode,
-                    timeout: timeout, cancellationToken: cancellationToken);
-            }
-            catch
-            {
-                configs.Remove(key);
-                throw;
+                config = await SaveConfigChangeAsync(api, key,
+                    config with { Current = config.Current with { Color = options.Color } }, timeout, cancellationToken,
+                    color: $"0x{options.Color.ToString("X6", CultureInfo.InvariantCulture)}");
             }
 
-            EnsureSuccess(response.Code, response.Message, response.Msg, "弹幕配置保存失败");
-            var confirmed = config with { Current = options };
-            configs[key] = confirmed;
-            cancellationToken.ThrowIfCancellationRequested();
-            return confirmed;
+            if (modeChanged)
+            {
+                config = await SaveConfigChangeAsync(api, key,
+                    config with { Current = config.Current with { Mode = options.Mode } }, timeout, cancellationToken,
+                    mode: options.Mode);
+            }
+
+            return config;
         }
         finally
         {
             configLock.Release();
         }
+    }
+
+    private async Task<DanmuRoomConfig> SaveConfigChangeAsync(BilibiliApi api, (long RoomId, string Cookie) key,
+        DanmuRoomConfig confirmed, TimeSpan? timeout, CancellationToken cancellationToken,
+        string? color = null, int? mode = null)
+    {
+        ApiResponse<JToken> response;
+
+        try
+        {
+            response = await api.SetDanmuConfigAsync(key.RoomId, color, mode,
+                timeout: timeout, cancellationToken: cancellationToken);
+        }
+        catch
+        {
+            configs.Remove(key);
+            throw;
+        }
+
+        EnsureSuccess(response.Code, response.Message, response.Msg, "弹幕配置保存失败");
+        configs[key] = confirmed;
+        cancellationToken.ThrowIfCancellationRequested();
+        return confirmed;
     }
 
     private async Task<DanmuRoomConfig> LoadConfigAsync(long roomId, string cookie, TimeSpan? timeout,

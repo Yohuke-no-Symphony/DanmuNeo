@@ -122,7 +122,7 @@ public class BilibiliDanmuConfigServiceTests
     }
 
     /// <summary>
-    /// 保存使用十六进制颜色和两个 CSRF 字段，只有成功后才替换已确认选项。
+    /// 颜色和位置分别保存，使用十六进制颜色和两个 CSRF 字段。
     /// </summary>
     [Theory]
     [InlineData("{}")]
@@ -133,6 +133,7 @@ public class BilibiliDanmuConfigServiceTests
         using var handler = new DanmuConfigHttpHandler();
         EnqueueConfig(handler, 255, 5);
         handler.Responses.Enqueue($$"""{"code":0,"data":{{data}}}""");
+        handler.Responses.Enqueue($$"""{"code":0,"data":{{data}}}""");
         using var client = new HttpClient(handler);
         var service = new BilibiliDanmuConfigService(client);
         var options = new DanmuSendOptions { Color = 65535, Mode = 1 };
@@ -141,14 +142,196 @@ public class BilibiliDanmuConfigServiceTests
 
         Assert.Equal(options, saved.Current);
         Assert.Same(saved, await service.GetConfigAsync("100", COOKIE));
-        Assert.Equal(3, handler.Requests.Count);
-        Assert.Equal("/xlive/web-room/v1/dM/AjaxSetConfig", handler.Requests[2].AbsolutePath);
-        Assert.Equal("100", handler.Forms[2]["room_id"]);
+        Assert.Equal(4, handler.Requests.Count);
+        Assert.All(handler.Requests.Skip(2), uri =>
+            Assert.Equal("/xlive/web-room/v1/dM/AjaxSetConfig", uri.AbsolutePath));
         Assert.Equal("0x00FFFF", handler.Forms[2]["color"]);
-        Assert.Equal("1", handler.Forms[2]["mode"]);
-        Assert.Equal("csrf-test", handler.Forms[2]["csrf"]);
-        Assert.Equal("csrf-test", handler.Forms[2]["csrf_token"]);
-        Assert.Contains("SESSDATA=test", handler.Cookies[2]);
+        Assert.False(handler.Forms[2].ContainsKey("mode"));
+        Assert.Equal("1", handler.Forms[3]["mode"]);
+        Assert.False(handler.Forms[3].ContainsKey("color"));
+        Assert.All(handler.Forms.Skip(2), form =>
+        {
+            Assert.Equal("100", form["room_id"]);
+            Assert.Equal("csrf-test", form["csrf"]);
+            Assert.Equal("csrf-test", form["csrf_token"]);
+        });
+        Assert.All(handler.Cookies.Skip(2), cookie => Assert.Contains("SESSDATA=test", cookie));
+    }
+
+    /// <summary>
+    /// 切换位置只提交位置字段，保留当前颜色并进入实际发送请求。
+    /// </summary>
+    [Theory]
+    [InlineData(1, 4)]
+    [InlineData(1, 5)]
+    [InlineData(5, 1)]
+    public async Task ModeChangeDoesNotResubmitColor(int initialMode, int selectedMode)
+    {
+        using var handler = new DanmuConfigHttpHandler();
+        var response = JObject.Parse(CONFIG_JSON);
+        response["data"]!["mode"]![1]!["status"] = 1;
+        handler.Responses.Enqueue(response.ToString());
+        handler.Responses.Enqueue(CreateUserJson(255, initialMode));
+        handler.Responses.Enqueue("""{"code":0,"data":{}}""");
+        handler.Responses.Enqueue("""{"code":0,"data":{}}""");
+        using var client = new HttpClient(handler);
+        var service = new BilibiliDanmuConfigService(client);
+
+        var saved = await service.SetConfigAsync("100", COOKIE, new() { Color = 255, Mode = selectedMode });
+        var sender = new DanmuSendService(client, service);
+        var result = await sender.SendAsync("100", "同传", new() { Cookie = COOKIE }, new() { SendIntervalMs = 0 });
+
+        Assert.Equal(new DanmuSendOptions { Color = 255, Mode = selectedMode }, saved.Current);
+        Assert.Equal(selectedMode.ToString(), handler.Forms[2]["mode"]);
+        Assert.False(handler.Forms[2].ContainsKey("color"));
+        Assert.True(result.IsAccepted);
+        Assert.Equal(4, handler.Requests.Count);
+        Assert.Equal("/msg/send", handler.Requests[3].AbsolutePath);
+        Assert.Equal(selectedMode.ToString(), handler.Forms[3]["mode"]);
+        Assert.Equal("255", handler.Forms[3]["color"]);
+    }
+
+    /// <summary>
+    /// 切换颜色只提交颜色字段，不重写当前弹幕位置。
+    /// </summary>
+    [Fact]
+    public async Task ColorChangeDoesNotResubmitMode()
+    {
+        using var handler = new DanmuConfigHttpHandler();
+        EnqueueConfig(handler, 255, 5);
+        handler.Responses.Enqueue("""{"code":0,"data":{}}""");
+        using var client = new HttpClient(handler);
+        var service = new BilibiliDanmuConfigService(client);
+
+        var saved = await service.SetConfigAsync("100", COOKIE, new() { Color = 65535, Mode = 5 });
+
+        Assert.Equal(new DanmuSendOptions { Color = 65535, Mode = 5 }, saved.Current);
+        Assert.Equal("0x00FFFF", handler.Forms[2]["color"]);
+        Assert.False(handler.Forms[2].ContainsKey("mode"));
+        Assert.Equal(3, handler.Requests.Count);
+    }
+
+    /// <summary>
+    /// 配置未变化时复用已确认值，不重复提交保存请求。
+    /// </summary>
+    [Fact]
+    public async Task UnchangedSelectionDoesNotPost()
+    {
+        using var handler = new DanmuConfigHttpHandler();
+        EnqueueConfig(handler, 255, 5);
+        using var client = new HttpClient(handler);
+        var service = new BilibiliDanmuConfigService(client);
+        var confirmed = await service.GetConfigAsync("100", COOKIE);
+
+        var saved = await service.SetConfigAsync("100", COOKIE, confirmed.Current);
+
+        Assert.Same(confirmed, saved);
+        Assert.Equal(2, handler.Requests.Count);
+    }
+
+    /// <summary>
+    /// 位置保存被拒绝时保留已保存颜色，重试仅提交尚未保存的位置。
+    /// </summary>
+    [Fact]
+    public async Task RejectedModeSavePreservesSuccessfulColorChange()
+    {
+        using var handler = new DanmuConfigHttpHandler();
+        EnqueueConfig(handler, 255, 5);
+        handler.Responses.Enqueue("""{"code":0,"data":{}}""");
+        handler.Responses.Enqueue("""{"code":-403,"msg":"位置不可用"}""");
+        handler.Responses.Enqueue("""{"code":0,"data":{}}""");
+        using var client = new HttpClient(handler);
+        var service = new BilibiliDanmuConfigService(client);
+        var options = new DanmuSendOptions { Color = 65535, Mode = 1 };
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.SetConfigAsync("100", COOKIE, options));
+        var partiallySaved = await service.GetConfigAsync("100", COOKIE);
+        var retried = await service.SetConfigAsync("100", COOKIE, options);
+
+        Assert.Equal("位置不可用", error.Message);
+        Assert.Equal(new DanmuSendOptions { Color = 65535, Mode = 5 }, partiallySaved.Current);
+        Assert.Equal(options, retried.Current);
+        Assert.Equal(5, handler.Requests.Count);
+        Assert.Equal("1", handler.Forms[4]["mode"]);
+        Assert.False(handler.Forms[4].ContainsKey("color"));
+    }
+
+    /// <summary>
+    /// 位置保存的响应不确定时重新读取，不把完整请求值当作已保存值。
+    /// </summary>
+    [Theory]
+    [InlineData("network")]
+    [InlineData("timeout")]
+    [InlineData("json")]
+    [InlineData("cancel")]
+    public async Task UncertainModeSaveInvalidatesPartiallyUpdatedCache(string failure)
+    {
+        using var cancellation = new CancellationTokenSource();
+        using var handler = new DanmuConfigHttpHandler();
+        EnqueueConfig(handler, 255, 5);
+        handler.Responses.Enqueue("""{"code":0,"data":{}}""");
+
+        if (failure == "json")
+        {
+            handler.Responses.Enqueue("损坏的响应");
+        }
+
+        EnqueueConfig(handler, 65535, 5);
+        using var client = new HttpClient(handler);
+        var service = new BilibiliDanmuConfigService(client);
+        var writes = 0;
+        handler.BeforeResponseAsync = (request, token) =>
+        {
+            if (request.Method != HttpMethod.Post || Interlocked.Increment(ref writes) != 2)
+            {
+                return Task.CompletedTask;
+            }
+
+            if (failure == "cancel")
+            {
+                cancellation.Cancel();
+                token.ThrowIfCancellationRequested();
+            }
+
+            return failure switch
+            {
+                "network" => Task.FromException(new HttpRequestException("响应连接中断")),
+                "timeout" => Task.FromException(new TaskCanceledException("响应超时")),
+                _ => Task.CompletedTask
+            };
+        };
+
+        var error = await Record.ExceptionAsync(() => service.SetConfigAsync("100", COOKIE,
+            new() { Color = 65535, Mode = 1 }, cancellationToken: cancellation.Token));
+        var refreshed = await service.GetConfigAsync("100", COOKIE);
+
+        Assert.NotNull(error);
+        Assert.Equal(new DanmuSendOptions { Color = 65535, Mode = 5 }, refreshed.Current);
+        Assert.Equal(6, handler.Requests.Count);
+    }
+
+    /// <summary>
+    /// 未改变字段已不在解锁列表中时，仍允许保存另一个可用字段。
+    /// </summary>
+    [Theory]
+    [InlineData(0xFF0000, 5, 0xFF0000, 1)]
+    [InlineData(255, 4, 65535, 4)]
+    public async Task UnchangedUnavailableOptionDoesNotPreventSavingOtherField(
+        int initialColor, int initialMode, int selectedColor, int selectedMode)
+    {
+        using var handler = new DanmuConfigHttpHandler();
+        EnqueueConfig(handler, initialColor, initialMode);
+        handler.Responses.Enqueue("""{"code":0,"data":{}}""");
+        using var client = new HttpClient(handler);
+        var service = new BilibiliDanmuConfigService(client);
+        var options = new DanmuSendOptions { Color = selectedColor, Mode = selectedMode };
+
+        var saved = await service.SetConfigAsync("100", COOKIE, options);
+
+        Assert.Equal(options, saved.Current);
+        Assert.Equal(3, handler.Requests.Count);
+        Assert.NotEqual(handler.Forms[2].ContainsKey("color"), handler.Forms[2].ContainsKey("mode"));
     }
 
     /// <summary>
@@ -178,6 +361,7 @@ public class BilibiliDanmuConfigServiceTests
     [Theory]
     [InlineData(0xFF0000, 1)]
     [InlineData(255, 4)]
+    [InlineData(65535, 4)]
     [InlineData(-1, 1)]
     [InlineData(0x1000000, 1)]
     [InlineData(255, 0)]
@@ -235,6 +419,7 @@ public class BilibiliDanmuConfigServiceTests
         EnqueueConfig(handler, 0xFFFFFF, 1);
         handler.Responses.Enqueue("""{"code":0,"data":{}}""");
         handler.Responses.Enqueue("""{"code":0,"data":{}}""");
+        handler.Responses.Enqueue("""{"code":0,"data":{}}""");
         using var client = new HttpClient(handler);
         var service = new BilibiliDanmuConfigService(client);
         await service.GetConfigAsync("100", COOKIE);
@@ -259,7 +444,11 @@ public class BilibiliDanmuConfigServiceTests
 
         Assert.Equal(new DanmuSendOptions { Color = 65535, Mode = 5 },
             (await service.GetConfigAsync("100", COOKIE)).Current);
-        Assert.Equal(new[] { "0x0000FF", "0x00FFFF" }, handler.Forms.Skip(2).Select(form => form["color"]));
+        Assert.Equal(new[] { "0x0000FF", "0x00FFFF" }, handler.Forms.Skip(2)
+            .Where(form => form.ContainsKey("color")).Select(form => form["color"]));
+        Assert.Equal("5", handler.Forms.Last()["mode"]);
+        Assert.False(handler.Forms.Last().ContainsKey("color"));
+        Assert.Equal(5, handler.Requests.Count);
     }
 
     /// <summary>
@@ -379,6 +568,7 @@ public class BilibiliDanmuConfigServiceTests
         EnqueueConfig(handler, 255, 5);
         handler.Responses.Enqueue("""{"code":0,"data":[]}""");
         handler.Responses.Enqueue("""{"code":0,"data":{}}""");
+        handler.Responses.Enqueue("""{"code":0,"data":{}}""");
         using var client = new HttpClient(handler);
         var configService = new BilibiliDanmuConfigService(client);
         await configService.SetConfigAsync("100", COOKIE, new() { Color = 65535, Mode = 1 });
@@ -387,11 +577,11 @@ public class BilibiliDanmuConfigServiceTests
         var result = await sender.SendAsync("100", "同传", new() { Cookie = COOKIE }, new() { SendIntervalMs = 0 });
 
         Assert.True(result.IsAccepted);
-        Assert.Equal(4, handler.Requests.Count);
-        Assert.Equal("/msg/send", handler.Requests[3].AbsolutePath);
-        Assert.Equal("65535", handler.Forms[3]["color"]);
-        Assert.Equal("1", handler.Forms[3]["mode"]);
-        Assert.Equal("同传", handler.Forms[3]["msg"]);
+        Assert.Equal(5, handler.Requests.Count);
+        Assert.Equal("/msg/send", handler.Requests[4].AbsolutePath);
+        Assert.Equal("65535", handler.Forms[4]["color"]);
+        Assert.Equal("1", handler.Forms[4]["mode"]);
+        Assert.Equal("同传", handler.Forms[4]["msg"]);
     }
 
     private static void EnqueueConfig(DanmuConfigHttpHandler handler, int color, int mode)
