@@ -25,7 +25,7 @@ public class LyricNavigationTests
 
         await room.SeekNextLyricAsync();
 
-        Assert.Equal(["【♪第二句 / 第二句翻译】"], sendService.SentMessages);
+        Assert.Equal(["【♪第二句】", "【♪第二句翻译】"], sendService.SentMessages);
         Assert.Same(room.Lyrics[1], room.ActiveLyricLine);
         Assert.Equal(10, room.LyricPlaybackPositionSeconds);
         Assert.All(room.Lyrics, line => Assert.Equal(0, line.Progress));
@@ -166,6 +166,8 @@ public class LyricNavigationTests
     {
         var sendService = new FakeDanmuSendService();
         var room = CreateRoom(sendService);
+        room.TranslatedLyricInput = "[00:01]第一句翻译\n[00:10]第二句翻译";
+        room.ApplyLyric();
         room.PreventRepeatedLyricSend = preventRepeatedSend;
         var playback = room.StartAutoLyricAsync();
 
@@ -174,7 +176,7 @@ public class LyricNavigationTests
             await room.SeekNextLyricAsync();
             await Task.Delay(120);
 
-            Assert.Equal(["【♪第一句】", "【♪第二句】"], sendService.SentMessages);
+            Assert.Equal(["【♪第一句】", "【♪第一句翻译】", "【♪第二句】", "【♪第二句翻译】"], sendService.SentMessages);
             Assert.Same(room.Lyrics[1], room.ActiveLyricLine);
             Assert.True(room.IsLyricAutoSending);
             Assert.True(room.LyricPlaybackPositionSeconds >= 10);
@@ -225,6 +227,8 @@ public class LyricNavigationTests
         var recordCount = 0;
         sendService.RecordCreated += (_, _) => Interlocked.Increment(ref recordCount);
         var room = CreateRoom(sendService);
+        room.TranslatedLyricInput = "[00:01]第一句翻译";
+        room.ApplyLyric();
         room.PreventRepeatedLyricSend = false;
         var first = startWithPlayback
             ? room.StartAutoLyricAsync()
@@ -247,13 +251,46 @@ public class LyricNavigationTests
                 await first;
             }
 
-            Assert.Equal(1, Volatile.Read(ref recordCount));
+            Assert.Equal(2, Volatile.Read(ref recordCount));
         }
         finally
         {
             room.StopAutoLyric();
             sendService.ReleaseFirstSend();
             await first;
+        }
+    }
+
+    /// <summary>
+    /// 停止自动播放后，尚未发出的译文不再发送，也不把部分发送的行标记为完成。
+    /// </summary>
+    [Fact]
+    public async Task StoppingAutoPlaybackPreventsPendingTranslation()
+    {
+        var sendService = new BlockingDanmuSendService();
+        var messages = new List<string>();
+        sendService.RecordCreated += (_, record) => messages.Add(record.Content);
+        var room = CreateRoom(sendService);
+        room.TranslatedLyricInput = "[00:01]第一句翻译";
+        room.ApplyLyric();
+        var playback = room.StartAutoLyricAsync();
+
+        try
+        {
+            await sendService.FirstSendStarted.WaitAsync(TimeSpan.FromSeconds(1));
+            room.StopAutoLyric();
+            sendService.ReleaseFirstSend();
+            await playback;
+
+            Assert.Equal(["【♪第一句】"], messages);
+            Assert.False(room.Lyrics[0].IsSent);
+            Assert.False(room.IsLyricAutoSending);
+        }
+        finally
+        {
+            room.StopAutoLyric();
+            sendService.ReleaseFirstSend();
+            await playback;
         }
     }
 

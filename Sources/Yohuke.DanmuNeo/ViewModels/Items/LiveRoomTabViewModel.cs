@@ -1155,19 +1155,26 @@ public partial class LiveRoomTabViewModel : ViewModelBase
             }
 
             var markGroup = getMarkSymbolGroup?.Invoke() ?? MarkSymbolService.CreateDefaultGroup(settings);
-            var content = LyricTimelineService.CreateContent(line.Content, line.TranslatedContent, LyricSendMode);
+            var contents = LyricTimelineService.CreateSendContents(line.Content, line.TranslatedContent, LyricSendMode);
 
-            if (string.IsNullOrWhiteSpace(content))
+            if (contents.Count == 0)
             {
                 return false;
             }
 
-            content = ShieldReplacementService.Apply(content, settings, true);
-            var message =
-                LyricTimelineService.CreateMessage(markGroup.LyricOpenMark, markGroup.LyricCloseMark, content);
-            var results = await SendMessageAsync(message, account, settings, cancellationToken);
+            var allAccepted = true;
 
-            if (results.Count == 0 || results.Any(result => !result.IsAccepted))
+            foreach (var content in contents)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var processedContent = ShieldReplacementService.Apply(content, settings, true);
+                var message = LyricTimelineService.CreateMessage(
+                    markGroup.LyricOpenMark, markGroup.LyricCloseMark, processedContent);
+                var results = await SendMessageAsync(message, account, settings, cancellationToken);
+                allAccepted &= results.Count > 0 && results.All(result => result.IsAccepted);
+            }
+
+            if (!allAccepted)
             {
                 return false;
             }

@@ -223,8 +223,11 @@ public class LiveRoomTabViewModelTests
         Assert.Equal("[00:01]翻译", viewModel.TranslatedLyricInput);
     }
 
+    /// <summary>
+    /// 双语模式依次发送独立的原文和译文，全部成功后标记整行已发送。
+    /// </summary>
     [Fact]
-    public async Task SendCurrentLyricIncludesOriginalAndTranslation()
+    public async Task SendCurrentLyricSendsOriginalAndTranslationSeparately()
     {
         var sendService = new FakeDanmuSendService();
         var viewModel = CreateConfiguredViewModel(new AppSettings(), sendService);
@@ -235,7 +238,65 @@ public class LiveRoomTabViewModelTests
 
         await viewModel.SendCurrentLyricAsync();
 
-        Assert.Equal(["【♪原文 / 翻译】"], sendService.SentMessages);
+        Assert.Equal(["【♪原文】", "【♪翻译】"], sendService.SentMessages);
+        Assert.Equal(2, sendService.Records.Count);
+        Assert.True(viewModel.Lyrics[0].IsSent);
+    }
+
+    /// <summary>
+    /// 双语任意一条失败时仍尝试另一条，但不把整行标记为已发送。
+    /// </summary>
+    [Theory]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    public async Task BilingualLyricRequiresBothMessagesAccepted(bool originalAccepted, bool translationAccepted)
+    {
+        var sendService = new FakeDanmuSendService();
+        sendService.AcceptanceResults.Enqueue(originalAccepted);
+        sendService.AcceptanceResults.Enqueue(translationAccepted);
+        var viewModel = CreateConfiguredViewModel(new(), sendService);
+        viewModel.LyricInput = "[00:01]原文";
+        viewModel.TranslatedLyricInput = "[00:01]翻译";
+        viewModel.ApplyLyric();
+
+        await viewModel.SendCurrentLyricAsync();
+
+        Assert.Equal(["【♪原文】", "【♪翻译】"], sendService.SentMessages);
+        Assert.Equal([originalAccepted, translationAccepted],
+            sendService.Records.Select(record => record.IsSendAccepted));
+        Assert.False(viewModel.Lyrics[0].IsSent);
+    }
+
+    /// <summary>
+    /// 每种语言分别应用替换规则和歌词符号，正文中的斜杠保持原样。
+    /// </summary>
+    [Fact]
+    public async Task BilingualLyricAppliesReplacementAndMarksToEachMessage()
+    {
+        var sendService = new FakeDanmuSendService();
+        var settings = new AppSettings
+        {
+            LyricOpenMark = "<♪",
+            LyricCloseMark = ">",
+            ApplyShieldReplacementToLyrics = true,
+            ShieldReplacementRules =
+            [
+                new()
+                {
+                    SourceText = "猫",
+                    ReplacementText = "狗"
+                }
+            ]
+        };
+        var viewModel = CreateConfiguredViewModel(settings, sendService);
+        viewModel.LyricInput = "[00:01]猫 / 星";
+        viewModel.TranslatedLyricInput = "[00:01]猫与月";
+        viewModel.ApplyLyric();
+
+        await viewModel.SendCurrentLyricAsync();
+
+        Assert.Equal(["<♪狗 / 星>", "<♪狗与月>"], sendService.SentMessages);
+        Assert.True(viewModel.Lyrics[0].IsSent);
     }
 
     [Theory]

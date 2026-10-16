@@ -111,7 +111,7 @@ public class LyricTimelineService
     }
 
     /// <summary>
-    /// 按指定模式生成要发送的歌词内容。
+    /// 按指定模式生成用于复制的单段歌词文本。
     /// </summary>
     public static string CreateContent(string content, string translatedContent, LyricSendMode mode)
     {
@@ -121,6 +121,25 @@ public class LyricTimelineService
             LyricSendMode.TranslationOnly => translatedContent.Trim(),
             _ => CreateMultilingualContent(content, translatedContent)
         };
+    }
+
+    /// <summary>
+    /// 按指定模式生成独立的歌词发送内容，原文在前，跳过空白和重复文本。
+    /// </summary>
+    public static IReadOnlyList<string> CreateSendContents(string content, string translatedContent, LyricSendMode mode)
+    {
+        string[] contents = mode switch
+        {
+            LyricSendMode.OriginalOnly => [content],
+            LyricSendMode.TranslationOnly => [translatedContent],
+            _ => [content, translatedContent]
+        };
+
+        return contents
+            .Select(text => text.Trim())
+            .Where(text => text.Length > 0)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
     }
 
     /// <summary>

@@ -83,4 +83,24 @@ public class LyricTimelineServiceTests
     {
         Assert.Equal(expected, LyricTimelineService.CreateContent(" 原文 ", " 译文 ", mode));
     }
+
+    /// <summary>
+    /// 发送内容按语言独立输出，并保持单语模式、空内容和相同文本的处理规则。
+    /// </summary>
+    [Theory]
+    [InlineData(LyricSendMode.Bilingual, " 原文 ", " 译文 ", new[] { "原文", "译文" })]
+    [InlineData(LyricSendMode.Bilingual, "原文 / 原文", "译文", new[] { "原文 / 原文", "译文" })]
+    [InlineData(LyricSendMode.Bilingual, "原文", " \t", new[] { "原文" })]
+    [InlineData(LyricSendMode.Bilingual, " \t", "译文", new[] { "译文" })]
+    [InlineData(LyricSendMode.Bilingual, " 相同 ", "相同", new[] { "相同" })]
+    [InlineData(LyricSendMode.Bilingual, " \t", "", new string[0])]
+    [InlineData(LyricSendMode.OriginalOnly, " 原文 ", "译文", new[] { "原文" })]
+    [InlineData(LyricSendMode.OriginalOnly, "", "译文", new string[0])]
+    [InlineData(LyricSendMode.TranslationOnly, "原文", " 译文 ", new[] { "译文" })]
+    [InlineData(LyricSendMode.TranslationOnly, "原文", "", new string[0])]
+    public void CreateSendContentsSeparatesLanguages(
+        LyricSendMode mode, string content, string translated, string[] expected)
+    {
+        Assert.Equal(expected, LyricTimelineService.CreateSendContents(content, translated, mode));
+    }
 }
