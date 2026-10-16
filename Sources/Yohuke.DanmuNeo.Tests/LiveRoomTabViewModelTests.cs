@@ -857,6 +857,190 @@ public class LiveRoomTabViewModelTests
     }
 
     /// <summary>
+    /// 发送开始后立即清空，响应期间追加的新句不会拼入已提交的原句。
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task SendDraftDetachesSubmittedTextBeforeNextInput(bool accepted)
+    {
+        var sendService = new BlockingDanmuSendService { IsAccepted = accepted };
+        DanmuFeedItem? record = null;
+        sendService.RecordCreated += (_, item) => record = item;
+        var viewModel = CreateConfiguredViewModel(new(), sendService);
+        viewModel.InputDraft = "上一句";
+        var sending = viewModel.SendDraftAsync();
+
+        try
+        {
+            await sendService.FirstSendStarted.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal("", viewModel.InputDraft);
+            Assert.Equal("", viewModel.State.InputDraft);
+            viewModel.InputDraft += "下一句";
+        }
+        finally
+        {
+            sendService.ReleaseFirstSend();
+            await sending;
+        }
+
+        Assert.Equal("下一句", viewModel.InputDraft);
+        Assert.Equal("下一句", viewModel.State.InputDraft);
+        Assert.False(viewModel.IsDraftSendFailed);
+        Assert.Equal("【上一句】", Assert.IsType<DanmuFeedItem>(record).Content);
+    }
+
+    /// <summary>
+    /// 无新编辑时，发送失败恢复完整原稿及失败反馈，成功则保持空白。
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task SendDraftRestoresUneditedSnapshotOnlyOnFailure(bool accepted)
+    {
+        var sendService = new BlockingDanmuSendService { IsAccepted = accepted };
+        var viewModel = CreateConfiguredViewModel(new(), sendService);
+        viewModel.InputDraft = "  原稿内容  ";
+        var sending = viewModel.SendDraftAsync();
+
+        try
+        {
+            await sendService.FirstSendStarted.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal("", viewModel.InputDraft);
+            Assert.Equal("", viewModel.State.InputDraft);
+        }
+        finally
+        {
+            sendService.ReleaseFirstSend();
+            await sending;
+        }
+
+        Assert.Equal(accepted ? "" : "  原稿内容  ", viewModel.InputDraft);
+        Assert.Equal(viewModel.InputDraft, viewModel.State.InputDraft);
+        Assert.Equal(!accepted, viewModel.IsDraftSendFailed);
+        Assert.Equal(accepted ? "接口已接受" : "发送失败：测试接口拒绝", viewModel.DraftSendStatus);
+    }
+
+    /// <summary>
+    /// 新草稿编辑后清空，旧发送失败不会重新填入原稿。
+    /// </summary>
+    [Fact]
+    public async Task SendDraftFailureDoesNotRestoreAfterNewDraftWasCleared()
+    {
+        var sendService = new BlockingDanmuSendService { IsAccepted = false };
+        var viewModel = CreateConfiguredViewModel(new(), sendService);
+        viewModel.InputDraft = "上一句";
+        var sending = viewModel.SendDraftAsync();
+
+        try
+        {
+            await sendService.FirstSendStarted.WaitAsync(TimeSpan.FromSeconds(5));
+            viewModel.InputDraft = "下一句";
+            viewModel.InputDraft = "";
+        }
+        finally
+        {
+            sendService.ReleaseFirstSend();
+            await sending;
+        }
+
+        Assert.Equal("", viewModel.InputDraft);
+        Assert.False(viewModel.IsDraftSendFailed);
+    }
+
+    /// <summary>
+    /// 发送期间主动清空输入，即使已经为空，也取消旧稿的失败恢复。
+    /// </summary>
+    [Fact]
+    public async Task SendDraftFailureDoesNotRestoreAfterExplicitClear()
+    {
+        var sendService = new BlockingDanmuSendService { IsAccepted = false };
+        var viewModel = CreateConfiguredViewModel(new(), sendService);
+        viewModel.InputDraft = "上一句";
+        var sending = viewModel.SendDraftAsync();
+
+        try
+        {
+            await sendService.FirstSendStarted.WaitAsync(TimeSpan.FromSeconds(5));
+            viewModel.ClearInputDraft();
+        }
+        finally
+        {
+            sendService.ReleaseFirstSend();
+            await sending;
+        }
+
+        Assert.Equal("", viewModel.InputDraft);
+        Assert.False(viewModel.IsDraftSendFailed);
+    }
+
+    /// <summary>
+    /// 空输入发送不取代仍在进行的请求，失败后仍可恢复未编辑的原稿。
+    /// </summary>
+    [Fact]
+    public async Task SendDraftEmptyInputDoesNotInvalidatePendingFailure()
+    {
+        var sendService = new BlockingDanmuSendService { IsAccepted = false };
+        var viewModel = CreateConfiguredViewModel(new(), sendService);
+        viewModel.InputDraft = "上一句";
+        var sending = viewModel.SendDraftAsync();
+
+        try
+        {
+            await sendService.FirstSendStarted.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal("", viewModel.InputDraft);
+            await viewModel.SendDraftAsync();
+        }
+        finally
+        {
+            sendService.ReleaseFirstSend();
+            await sending;
+        }
+
+        Assert.Equal("上一句", viewModel.InputDraft);
+        Assert.True(viewModel.IsDraftSendFailed);
+    }
+
+    /// <summary>
+    /// 意外发送异常恢复未编辑的原稿，已输入下一句时保留下一句。
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SendDraftExceptionRestoresOnlyUneditedSnapshot(bool editDraft)
+    {
+        var sendService = new BlockingDanmuSendService { Exception = new IOException("测试发送异常") };
+        var viewModel = CreateConfiguredViewModel(new(), sendService);
+        viewModel.InputDraft = "上一句";
+        var sending = viewModel.SendDraftAsync();
+        Exception? error = null;
+
+        try
+        {
+            await sendService.FirstSendStarted.WaitAsync(TimeSpan.FromSeconds(5));
+
+            if (editDraft)
+            {
+                viewModel.InputDraft = "下一句";
+            }
+        }
+        finally
+        {
+            sendService.ReleaseFirstSend();
+            error = await Record.ExceptionAsync(() => sending);
+        }
+
+        Assert.Null(error);
+        Assert.Equal(editDraft ? "下一句" : "上一句", viewModel.InputDraft);
+        Assert.Equal(!editDraft, viewModel.IsDraftSendFailed);
+
+        if (!editDraft)
+        {
+            Assert.Equal("发送失败：测试发送异常", viewModel.DraftSendStatus);
+        }
+    }
+
+    /// <summary>
     /// 请求期间编辑过的草稿不会被旧响应清空或标红，即使后来恢复成原文。
     /// </summary>
     [Theory]
@@ -892,7 +1076,7 @@ public class LiveRoomTabViewModelTests
     }
 
     /// <summary>
-    /// 切换房间使旧请求失效，旧响应不会清空输入或触发描边。
+    /// 切换房间使旧请求失效，旧响应不会恢复原稿或触发描边。
     /// </summary>
     [Theory]
     [InlineData(true)]
@@ -916,7 +1100,7 @@ public class LiveRoomTabViewModelTests
             await sending;
         }
 
-        Assert.Equal("房间内容", viewModel.InputDraft);
+        Assert.Equal("", viewModel.InputDraft);
         Assert.False(viewModel.IsDraftSendFailed);
     }
 
@@ -937,6 +1121,7 @@ public class LiveRoomTabViewModelTests
         {
             await sendService.FirstSendStarted;
             sendService.IsAccepted = secondAccepted;
+            viewModel.InputDraft = "下一句";
             await viewModel.SendDraftAsync();
         }
         finally
@@ -946,7 +1131,7 @@ public class LiveRoomTabViewModelTests
         }
 
         Assert.Equal(!secondAccepted, viewModel.IsDraftSendFailed);
-        Assert.Equal(secondAccepted ? "" : "待发送", viewModel.InputDraft);
+        Assert.Equal(secondAccepted ? "" : "下一句", viewModel.InputDraft);
         Assert.Equal(viewModel.InputDraft, viewModel.State.InputDraft);
         Assert.Equal(secondAccepted ? "接口已接受" : "发送失败：测试接口拒绝", viewModel.DraftSendStatus);
     }

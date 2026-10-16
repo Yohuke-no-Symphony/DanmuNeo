@@ -17,6 +17,11 @@ internal class BlockingDanmuSendService : IDanmuSendService
 
     public bool IsAccepted { get; set; } = true;
 
+    /// <summary>
+    /// 在发送解除阻塞后抛出的异常。
+    /// </summary>
+    public Exception? Exception { get; set; }
+
     public void ReleaseFirstSend()
     {
         firstSendRelease.TrySetResult();
@@ -30,11 +35,17 @@ internal class BlockingDanmuSendService : IDanmuSendService
         CancellationToken cancellationToken = default)
     {
         var isAccepted = IsAccepted;
+        var exception = Exception;
 
         if (Interlocked.Increment(ref sendCount) == 1)
         {
             firstSendStarted.TrySetResult();
             await firstSendRelease.Task;
+        }
+
+        if (exception is not null)
+        {
+            throw exception;
         }
 
         var record = new DanmuFeedItem

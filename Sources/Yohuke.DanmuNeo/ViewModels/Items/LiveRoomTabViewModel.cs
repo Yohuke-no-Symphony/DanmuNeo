@@ -708,19 +708,19 @@ public partial class LiveRoomTabViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// 发送同传输入。
+    /// 提交同传输入，并在等待发送结果前清空输入框。
     /// </summary>
     [RelayCommand]
     public async Task SendDraftAsync()
     {
-        var operationId = Interlocked.Increment(ref draftSendOperationId);
-        IsDraftSendFailed = false;
-
         if (string.IsNullOrWhiteSpace(InputDraft))
         {
             return;
         }
 
+        var operationId = Interlocked.Increment(ref draftSendOperationId);
+        IsDraftSendFailed = false;
+        var draft = InputDraft;
         var revision = draftRevision;
         var settings = getSettings?.Invoke();
         var account = resolveAccount?.Invoke(this);
@@ -732,36 +732,46 @@ public partial class LiveRoomTabViewModel : ViewModelBase
         }
 
         var markGroup = getMarkSymbolGroup?.Invoke() ?? MarkSymbolService.CreateDefaultGroup(settings);
-        var content = ShieldReplacementService.Apply(InputDraft.Trim(), settings, false);
+        var content = ShieldReplacementService.Apply(draft.Trim(), settings, false);
         var message = $"{markGroup.TranslateOpenMark}{content}{markGroup.TranslateCloseMark}";
+        InputDraft = "";
+        revision = draftRevision;
         DraftSendStatus = "发送中";
-        var results = await SendMessageAsync(message, account, settings);
+        List<DanmuSendResult> results;
+
+        try
+        {
+            results = await SendMessageAsync(message, account, settings);
+        }
+        catch (Exception exception)
+        {
+            TrySetDraftSendFeedback(operationId, revision, $"发送失败：{exception.Message}", true, draft);
+            return;
+        }
+
         var acceptedResults = results.Where(result => result.IsAccepted).ToList();
         var failedResults = results.Where(result => !result.IsAccepted).ToList();
 
         if (results.Count == 0)
         {
-            TrySetDraftSendFeedback(operationId, revision, "发送失败：发送服务不可用", true);
+            TrySetDraftSendFeedback(operationId, revision, "发送失败：发送服务不可用", true, draft);
             return;
         }
 
         if (acceptedResults.Count == 0)
         {
-            TrySetDraftSendFeedback(operationId, revision, $"发送失败：{failedResults[0].ErrorMessage}", true);
+            TrySetDraftSendFeedback(operationId, revision, $"发送失败：{failedResults[0].ErrorMessage}", true, draft);
             return;
         }
 
         if (failedResults.Count > 0)
         {
             TrySetDraftSendFeedback(operationId, revision,
-                $"部分发送失败：{acceptedResults.Count}/{results.Count} 段接口已接受；{failedResults[0].ErrorMessage}", true);
+                $"部分发送失败：{acceptedResults.Count}/{results.Count} 段接口已接受；{failedResults[0].ErrorMessage}", true, draft);
             return;
         }
 
-        if (TrySetDraftSendFeedback(operationId, revision, "接口已接受", false))
-        {
-            InputDraft = "";
-        }
+        TrySetDraftSendFeedback(operationId, revision, "接口已接受", false);
     }
 
     /// <summary>
@@ -770,6 +780,12 @@ public partial class LiveRoomTabViewModel : ViewModelBase
     [RelayCommand]
     public void ClearInputDraft()
     {
+        if (InputDraft == "")
+        {
+            InvalidateDraftSendFeedback();
+            return;
+        }
+
         InputDraft = "";
     }
 
@@ -1997,11 +2013,17 @@ public partial class LiveRoomTabViewModel : ViewModelBase
         return results;
     }
 
-    private bool TrySetDraftSendFeedback(long operationId, long revision, string status, bool failed)
+    private bool TrySetDraftSendFeedback(long operationId, long revision, string status, bool failed,
+        string? draftToRestore = null)
     {
         if (operationId != draftSendOperationId || revision != draftRevision)
         {
             return false;
+        }
+
+        if (draftToRestore is not null)
+        {
+            InputDraft = draftToRestore;
         }
 
         DraftSendStatus = status;

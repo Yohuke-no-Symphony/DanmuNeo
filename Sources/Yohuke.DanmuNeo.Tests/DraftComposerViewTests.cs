@@ -190,6 +190,71 @@ public class DraftComposerViewTests
         }
     }
 
+    /// <summary>
+    /// 发送响应前输入框已清空，快速续写的新句不会拼接原句或被旧响应清空。
+    /// </summary>
+    [AvaloniaTheory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task PendingSendClearsTextBoxBeforeTypingNextSentence(bool accepted)
+    {
+        using var context = new MarkGroupCycleTestContext();
+        var sendService = new BlockingDanmuSendService { IsAccepted = accepted };
+        var room = new LiveRoomTabViewModel(new() { RoomId = "100" });
+        room.Configure(_ => null, (_, _) => null, () => context.ViewModel.Settings,
+            () => context.ViewModel.SelectedWorkspaceMarkGroup!, () => context.ViewModel.SymbolGroups,
+            _ => [], sendService, new FakeRoomAvatarService(), () => Task.CompletedTask,
+            danmuConfigService: new FakeBilibiliDanmuConfigService());
+        var view = new LiveRoomWorkspaceView { DataContext = room };
+        var window = new Window
+        {
+            Width = 1100, Height = 680, Content = view, DataContext = context.ViewModel
+        };
+        var sending = Task.CompletedTask;
+
+        try
+        {
+            ShowWindow(window);
+            var input = view.FindControl<TextBox>("InputDraftTextBox")!;
+            input.Focus();
+            window.KeyTextInput("上一句");
+            Assert.Equal("上一句", room.InputDraft);
+            sending = room.SendDraftCommand.ExecuteAsync(null);
+            await sendService.FirstSendStarted.WaitAsync(TimeSpan.FromSeconds(5));
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.Equal("", input.Text);
+            Assert.Equal("", room.InputDraft);
+            Assert.Equal("", room.State.InputDraft);
+            window.KeyTextInput("下一句");
+            Assert.Equal("下一句", input.Text);
+            Assert.Equal("下一句", room.InputDraft);
+
+            sendService.ReleaseFirstSend();
+            await sending;
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.Equal("下一句", input.Text);
+            Assert.Equal("下一句", room.State.InputDraft);
+            Assert.False(room.IsDraftSendFailed);
+            Assert.Equal(accepted, Assert.Single(room.TranslateHistoryItems).IsSendAccepted);
+        }
+        finally
+        {
+            sendService.ReleaseFirstSend();
+
+            try
+            {
+                await sending;
+            }
+            finally
+            {
+                window.Close();
+                room.StopListening();
+            }
+        }
+    }
+
     private static void AssertNoVisibleOutline(Border composer)
     {
         Assert.True(composer.BorderThickness == new Thickness(0) ||
