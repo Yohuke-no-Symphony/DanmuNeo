@@ -18,13 +18,15 @@ public partial class SettingsDialogView : UserControl
         InitializeComponent();
     }
 
+    /// <summary>
+    /// 请求宿主使用统一的保存和关闭入口。
+    /// </summary>
+    public event EventHandler? CloseRequested;
+
     [RelayCommand]
-    private async Task CloseSettingsAsync()
+    private void CloseSettings()
     {
-        if (DataContext is MainWindowViewModel viewModel)
-        {
-            await viewModel.CloseSettingsAsync();
-        }
+        CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 
     [RelayCommand]

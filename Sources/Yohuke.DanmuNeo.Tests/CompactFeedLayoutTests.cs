@@ -258,7 +258,7 @@ public class CompactFeedLayoutTests
             Width = 1280,
             Height = 840,
             DataContext = context.ViewModel,
-            Content = new LiveRoomWorkspaceView { DataContext = context.Room }
+            Content = new LiveRoomWorkspaceView(new(context.ViewModel, context.Room)) { DataContext = context.Room }
         };
     }
 

@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Yohuke.DanmuNeo.Services;
@@ -13,6 +14,12 @@ public partial class App : Application
     {
         StartupLog.Append("App.Initialize begin");
         AvaloniaXamlLoader.Load(this);
+
+        if (OperatingSystem.IsMacOS() && NativeMenu.GetMenu(this) is null)
+        {
+            NativeMenu.SetMenu(this, new());
+        }
+
         StartupLog.Append("App.Initialize end");
     }
 

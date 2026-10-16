@@ -372,7 +372,7 @@ public class LiveRoomDanmuScrollTests
     }
 
     /// <summary>
-    /// 切换房间时废弃旧回调与旧集合监听，重新挂载后恢复新房间的跟随。
+    /// 切换房间废弃旧回调与集合监听，Dock 重挂保留新房间的阅读锚点。
     /// </summary>
     [AvaloniaFact]
     public void SwitchingRoomAndReattachingIgnoresPreviousSession()
@@ -401,14 +401,20 @@ public class LiveRoomDanmuScrollTests
             nextRoom.AddDanmu(new() { RoomId = "200", Content = "新房间阅读中新消息" });
             PumpLayout(window);
             Assert.True(scroll.Offset.Y > 1);
+            var anchor = GetReadingAnchor(view, scroll);
+            var anchorItem = anchor.DataContext;
+            var anchorY = anchor.TranslatePoint(default, scroll)!.Value.Y;
             window.Content = null;
             PumpLayout(window);
             window.Content = view;
             PumpLayout(window);
-            Assert.Equal(0, scroll.Offset.Y);
+            anchor = GetReadingAnchor(view, scroll);
+            Assert.Same(anchorItem, anchor.DataContext);
+            Assert.InRange(anchor.TranslatePoint(default, scroll)!.Value.Y, anchorY - 0.5, anchorY + 0.5);
             nextRoom.AddDanmu(new() { RoomId = "200", Content = "重新挂载后的新消息" });
             PumpLayout(window);
-            Assert.Equal(0, scroll.Offset.Y);
+            Assert.Same(anchorItem, anchor.DataContext);
+            Assert.InRange(anchor.TranslatePoint(default, scroll)!.Value.Y, anchorY - 0.5, anchorY + 0.5);
         }
         finally
         {
@@ -429,7 +435,7 @@ public class LiveRoomDanmuScrollTests
             });
         }
 
-        return new() { DataContext = context.Room };
+        return new(new(context.ViewModel, context.Room)) { DataContext = context.Room };
     }
 
     private static Window CreateWindow(LiveRoomFeedViewTestContext context, LiveRoomWorkspaceView view)

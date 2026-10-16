@@ -3,6 +3,7 @@ using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Markup.Xaml.Styling;
 using Avalonia.Themes.Fluent;
+using Dock.Avalonia.Themes.Fluent;
 
 [assembly: AvaloniaTestApplication(typeof(Yohuke.DanmuNeo.Tests.LyricViewTestApplication))]
 
@@ -31,9 +32,10 @@ public class LyricViewTestApplication : Application
     public override void Initialize()
     {
         Styles.Add(new FluentTheme());
+        Styles.Add(new DockFluentTheme());
         Styles.Add(new StyleInclude(new Uri("avares://Yohuke.DanmuNeo/"))
         {
-            Source = new("avares://Yohuke.DanmuNeo/Views/Styles/MainWindowStyles.axaml")
+            Source = new("avares://Yohuke.DanmuNeo/Views/Styles/WorkbenchTheme.axaml")
         });
     }
 }

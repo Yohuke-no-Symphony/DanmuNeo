@@ -68,6 +68,11 @@ public partial class LiveRoomTabViewModel
     /// </summary>
     public Task ActivateDanmuConfigurationAsync()
     {
+        if (isDisposed)
+        {
+            return Task.CompletedTask;
+        }
+
         if (isDanmuConfigurationActive)
         {
             NotifyDanmuConfigurationAccountChanged();

@@ -103,7 +103,7 @@ public partial class LyricLibraryListView : UserControl
     {
         if (item is null ||
             TopLevel.GetTopLevel(this) is not Window owner ||
-            owner.DataContext is not MainWindowViewModel viewModel)
+            DataContext is not MainWindowViewModel viewModel)
         {
             return;
         }
@@ -119,6 +119,6 @@ public partial class LyricLibraryListView : UserControl
 
     private MainWindowViewModel? GetMainWindowViewModel()
     {
-        return TopLevel.GetTopLevel(this)?.DataContext as MainWindowViewModel;
+        return DataContext as MainWindowViewModel;
     }
 }

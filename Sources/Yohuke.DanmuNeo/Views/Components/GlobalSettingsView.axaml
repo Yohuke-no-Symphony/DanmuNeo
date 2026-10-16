@@ -54,6 +54,9 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
+                <CheckBox Content="在窗口内显示菜单（macOS）"
+                          IsVisible="{Binding IsMacOS}"
+                          IsChecked="{Binding UseWindowMenuOnMac}" />
             </StackPanel>
         </Border>
 

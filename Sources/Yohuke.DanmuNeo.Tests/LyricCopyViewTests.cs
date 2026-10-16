@@ -243,7 +243,7 @@ public class LyricCopyViewTests
         context.Room.LyricInput = "[00:01]第一句原文\n[00:02]第二句原文\n[00:03]第三句原文";
         context.Room.TranslatedLyricInput = "[00:01]第一句翻译\n[00:02]第二句翻译\n[00:03]第三句翻译";
         context.Room.ApplyLyric();
-        return new() { DataContext = context.Room };
+        return new(new(context.ViewModel, context.Room)) { DataContext = context.Room };
     }
 
     private static Window CreateWindow(LiveRoomFeedViewTestContext context, LiveRoomWorkspaceView view)

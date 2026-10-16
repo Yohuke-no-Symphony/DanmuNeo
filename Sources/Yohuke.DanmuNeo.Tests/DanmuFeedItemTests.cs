@@ -1,5 +1,6 @@
 using Yohuke.DanmuNeo.Models.Workspace;
 using Avalonia.Media;
+using Avalonia.Headless.XUnit;
 
 namespace Yohuke.DanmuNeo.Tests;
 
@@ -11,7 +12,7 @@ public class DanmuFeedItemTests
     /// <summary>
     /// 普通和未知档位保持无色边缘，三个大航海档位使用与上舰记录一致的颜色。
     /// </summary>
-    [Theory]
+    [AvaloniaTheory]
     [InlineData(0, "Transparent")]
     [InlineData(1, "#E89539")]
     [InlineData(2, "#B45AB8")]
@@ -45,7 +46,7 @@ public class DanmuFeedItemTests
     [Theory]
     [InlineData("肉肉", "肉肉 25")]
     [InlineData("牵丝蝠", "牵丝蝠 25")]
-    [InlineData("椎名菜羽", "椎名菜羽 25")]
+    [InlineData("椎名菜羽", "椎名菜 25")]
     public void MedalDisplayLimitsNameWithoutChangingTooltip(string name, string expected)
     {
         var item = new DanmuFeedItem { MedalName = name, MedalLevel = 25 };

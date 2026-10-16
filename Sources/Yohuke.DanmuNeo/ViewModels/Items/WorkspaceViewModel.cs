@@ -7,9 +7,10 @@ namespace Yohuke.DanmuNeo.ViewModels.Items;
 /// <summary>
 /// 工作区视图模型。
 /// </summary>
-public partial class WorkspaceViewModel : ViewModelBase
+public partial class WorkspaceViewModel : ViewModelBase, IDisposable
 {
     private readonly Func<string?, string> getAccountName;
+    private bool isDisposed;
 
     /// <summary>
     /// 初始化工作区视图模型。
@@ -125,6 +126,7 @@ public partial class WorkspaceViewModel : ViewModelBase
     /// </summary>
     public LiveRoomTabViewModel AddRoom(string roomId, string roomName, string ownerUid = "")
     {
+        ObjectDisposedException.ThrowIf(isDisposed, this);
         var roomState = new LiveRoomTabState
         {
             RoomId = roomId,
@@ -146,12 +148,36 @@ public partial class WorkspaceViewModel : ViewModelBase
     /// </summary>
     public void RemoveRoom(LiveRoomTabViewModel room)
     {
+        if (!Rooms.Contains(room))
+        {
+            return;
+        }
+
+        room.Dispose();
         State.LiveRooms.Remove(room.State);
         Rooms.Remove(room);
         SelectedRoom = Rooms.FirstOrDefault();
         OnPropertyChanged(nameof(RoomCountText));
         RefreshRoomSortOrder();
         RefreshRoomSelection();
+    }
+
+    /// <inheritdoc/>
+    public void Dispose()
+    {
+        if (isDisposed)
+        {
+            return;
+        }
+
+        isDisposed = true;
+
+        foreach (var room in Rooms)
+        {
+            room.Dispose();
+        }
+
+        GC.SuppressFinalize(this);
     }
 
     /// <summary>

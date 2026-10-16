@@ -6,6 +6,11 @@ namespace Yohuke.DanmuNeo.Models.State;
 public class AppSettings
 {
     /// <summary>
+    /// 在 macOS 主窗口中显示菜单，默认使用原生系统菜单。
+    /// </summary>
+    public bool UseWindowMenuOnMac { get; set; }
+
+    /// <summary>
     /// 是否在启动时检查应用正式发布版本。
     /// </summary>
     public bool CheckForUpdatesOnStartup { get; set; } = true;

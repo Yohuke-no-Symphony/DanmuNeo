@@ -176,6 +176,7 @@ public class DanmuStylePreviewWindowTests
         try
         {
             ShowWindow(owner);
+            await owner.Initialization;
             window.Show(owner);
             window.Activate();
             PumpLayout(window);
@@ -201,8 +202,7 @@ public class DanmuStylePreviewWindowTests
         finally
         {
             window.Close();
-            owner.DataContext = null;
-            owner.Close();
+            await owner.CloseWorkbenchAsync();
             Dispatcher.UIThread.RunJobs();
         }
     }

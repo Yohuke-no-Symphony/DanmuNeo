@@ -21,7 +21,7 @@
                 </MenuItem>
             </ContextMenu>
         </Border.ContextMenu>
-        <Grid RowDefinitions="Auto,*,Auto"
+        <Grid RowDefinitions="Auto,*"
               Margin="14,10,14,12">
             <StackPanel Spacing="8">
                 <Grid ColumnDefinitions="*,Auto">
@@ -200,23 +200,6 @@
                 </ItemsControl>
             </ScrollViewer>
 
-            <Button Grid.Row="2"
-                    Classes="settingsAccountButton"
-                    Command="{Binding #Root.OpenSettingsCommand}">
-                <Grid ColumnDefinitions="Auto,*"
-                      ColumnSpacing="12">
-                    <Border Classes="settingsAvatar">
-                        <LucideIcon Kind="Settings" />
-                    </Border>
-                    <StackPanel Grid.Column="1"
-                                VerticalAlignment="Center"
-                                Spacing="1">
-                        <TextBlock Text="设置"
-                                   FontWeight="SemiBold" />
-
-                    </StackPanel>
-                </Grid>
-            </Button>
         </Grid>
     </Border>
 </UserControl>

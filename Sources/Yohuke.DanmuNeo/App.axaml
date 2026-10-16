@@ -13,6 +13,7 @@
   
 	    <Application.Styles>
 	        <FluentTheme />
-	        <StyleInclude Source="avares://Yohuke.DanmuNeo/Views/Styles/MainWindowStyles.axaml"/>
+	        <DockFluentTheme />
+	        <StyleInclude Source="avares://Yohuke.DanmuNeo/Views/Styles/WorkbenchTheme.axaml"/>
 	    </Application.Styles>
 </Application>

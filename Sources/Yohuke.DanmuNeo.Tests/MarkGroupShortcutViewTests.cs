@@ -26,8 +26,8 @@ public class MarkGroupShortcutViewTests
 
         try
         {
-            ShowWindow(window);
-            var view = window.GetVisualDescendants().OfType<LiveRoomWorkspaceView>().Single();
+            await ShowWindowAsync(window);
+            var view = window.GetVisualDescendants().OfType<DraftComposerPanelView>().Single();
             var input = view.FindControl<TextBox>("InputDraftTextBox")!;
             input.Text = "正在编辑同传";
             input.Focus();
@@ -46,7 +46,7 @@ public class MarkGroupShortcutViewTests
         }
         finally
         {
-            CloseWindow(window);
+            await CloseWindowAsync(window);
         }
     }
 
@@ -61,7 +61,7 @@ public class MarkGroupShortcutViewTests
 
         try
         {
-            ShowWindow(window);
+            await ShowWindowAsync(window);
             window.Focus();
             window.KeyPressQwerty(PhysicalKey.Tab, RawInputModifiers.None);
             window.KeyReleaseQwerty(PhysicalKey.Tab, RawInputModifiers.None);
@@ -71,7 +71,7 @@ public class MarkGroupShortcutViewTests
         }
         finally
         {
-            CloseWindow(window);
+            await CloseWindowAsync(window);
         }
     }
 
@@ -83,7 +83,7 @@ public class MarkGroupShortcutViewTests
     [InlineData("cleared")]
     [InlineData("conflict")]
     [InlineData("shift")]
-    public void InactiveTabBindingKeepsFocusNavigation(string mode)
+    public async Task InactiveTabBindingKeepsFocusNavigation(string mode)
     {
         using var context = new MarkGroupCycleTestContext();
         var binding =
@@ -109,8 +109,8 @@ public class MarkGroupShortcutViewTests
 
         try
         {
-            ShowWindow(window);
-            var input = window.GetVisualDescendants().OfType<LiveRoomWorkspaceView>().Single()
+            await ShowWindowAsync(window);
+            var input = window.GetVisualDescendants().OfType<DraftComposerPanelView>().Single()
                 .FindControl<TextBox>("InputDraftTextBox")!;
             input.Focus();
             var modifiers = mode == "shift" ? RawInputModifiers.Shift : RawInputModifiers.None;
@@ -122,7 +122,7 @@ public class MarkGroupShortcutViewTests
         }
         finally
         {
-            CloseWindow(window);
+            await CloseWindowAsync(window);
         }
     }
 
@@ -139,8 +139,8 @@ public class MarkGroupShortcutViewTests
 
         try
         {
-            ShowWindow(window);
-            var input = window.GetVisualDescendants().OfType<LiveRoomWorkspaceView>().Single()
+            await ShowWindowAsync(window);
+            var input = window.GetVisualDescendants().OfType<DraftComposerPanelView>().Single()
                 .FindControl<TextBox>("InputDraftTextBox")!;
             input.Focus();
             window.KeyPressQwerty(PhysicalKey.M, RawInputModifiers.Control);
@@ -152,7 +152,7 @@ public class MarkGroupShortcutViewTests
         }
         finally
         {
-            CloseWindow(window);
+            await CloseWindowAsync(window);
         }
     }
 
@@ -171,7 +171,7 @@ public class MarkGroupShortcutViewTests
 
         try
         {
-            ShowWindow(window);
+            await ShowWindowAsync(window);
             context.ViewModel.BeginRecordShortcut(binding);
             view.Focus();
             window.KeyPressQwerty(PhysicalKey.Tab, RawInputModifiers.None);
@@ -184,7 +184,7 @@ public class MarkGroupShortcutViewTests
         }
         finally
         {
-            CloseWindow(window);
+            await CloseWindowAsync(window);
         }
     }
 
@@ -199,10 +199,10 @@ public class MarkGroupShortcutViewTests
 
         try
         {
-            ShowWindow(window);
+            await ShowWindowAsync(window);
             window.Width = 1111;
             var tasks = Enumerable.Range(0, 8).Select(_ => context.ViewModel.CycleWorkspaceMarkGroupAsync()).ToList();
-            window.Close();
+            await window.CloseWorkbenchAsync();
             await Task.WhenAll(tasks);
             Dispatcher.UIThread.RunJobs();
             var loaded = context.StateService.Load();
@@ -212,7 +212,7 @@ public class MarkGroupShortcutViewTests
         }
         finally
         {
-            CloseWindow(window);
+            await CloseWindowAsync(window);
         }
     }
 
@@ -221,17 +221,18 @@ public class MarkGroupShortcutViewTests
         return new() { DataContext = context.ViewModel };
     }
 
-    private static void ShowWindow(Window window)
+    private static async Task ShowWindowAsync(MainWindow window)
     {
         window.Show();
+        await window.Initialization;
+        Assert.NotNull(window.Workbench);
         Dispatcher.UIThread.RunJobs();
         window.UpdateLayout();
     }
 
-    private static void CloseWindow(Window window)
+    private static async Task CloseWindowAsync(MainWindow window)
     {
-        window.DataContext = null;
-        window.Close();
+        await window.CloseWorkbenchAsync();
         Dispatcher.UIThread.RunJobs();
     }
 }

@@ -16,14 +16,14 @@ namespace Yohuke.DanmuNeo.Tests;
 public class DanmuConfigurationViewTests
 {
     /// <summary>
-    /// 窄窗口与常规窗口都在原下拉框同一行显示配置，绑定改变立即保存。
+    /// 配置控件在输入框底部按宽度换行且不重叠，绑定改变立即保存。
     /// </summary>
     [AvaloniaTheory]
     [InlineData(false, 760)]
     [InlineData(true, 760)]
     [InlineData(false, 1100)]
     [InlineData(true, 1100)]
-    public async Task SelectorsStayOnComposerBottomRow(bool dark, double width)
+    public async Task SelectorsWrapWithinComposerBottomToolbar(bool dark, double width)
     {
         using var context = new LiveRoomFeedViewTestContext();
         context.ViewModel.SymbolGroups[0].Name = "很长的同传预设名称";
@@ -31,12 +31,12 @@ public class DanmuConfigurationViewTests
         {
             Colors = [new() { Value = 0xFFFFFF, Name = "白色" }, new() { Value = 0xFF0000, Name = "红色" }]
         };
-        var view = new LiveRoomWorkspaceView { DataContext = context.Room };
+        var view = new LiveRoomWorkspaceView(new(context.ViewModel, context.Room)) { DataContext = context.Room };
         var window = CreateWindow(context, view, width, dark);
 
         try
         {
-            Assert.Empty(context.DanmuConfigService.GetRequests);
+            Assert.Single(context.DanmuConfigService.GetRequests);
             ShowWindow(window);
             await context.Room.DanmuConfigurationTask;
             ShowWindow(window);
@@ -53,26 +53,51 @@ public class DanmuConfigurationViewTests
             Assert.Equal(1, Assert.IsType<DanmuModeOption>(mode.SelectedItem).Value);
 
             var controls = new Control[] { mark, color, mode, send };
+            var toolbar = composer.GetVisualDescendants().OfType<WrapPanel>().Single();
+            var input = view.FindControl<TextBox>("InputDraftTextBox")!;
+            var toolbarTop = toolbar.TranslatePoint(default, composer)!.Value.Y;
+            var toolbarBottom = toolbarTop + toolbar.Bounds.Height;
             var centers = controls.Select(control => control.TranslatePoint(
                 new Point(0, control.Bounds.Height / 2), composer)!.Value.Y).ToArray();
-            Assert.InRange(centers.Max() - centers.Min(), 0, 1);
+            var rows = new List<double>();
+
+            foreach (var center in centers)
+            {
+                if (!rows.Any(row => Math.Abs(center - row) <= 1))
+                {
+                    rows.Add(center);
+                }
+            }
+
+            Assert.Equal(width == 760 ? 2 : 1, rows.Count);
 
             for (var index = 0; index < controls.Length; index++)
             {
+                Assert.Same(toolbar, controls[index].GetVisualParent());
                 var left = controls[index].TranslatePoint(new Point(0, 0), composer)!.Value.X;
                 var right = left + controls[index].Bounds.Width;
+                var top = controls[index].TranslatePoint(default, composer)!.Value.Y;
+                var bottom = top + controls[index].Bounds.Height;
                 Assert.InRange(left, 11, composer.Bounds.Width - 11);
                 Assert.InRange(right, left + 1, composer.Bounds.Width - 11);
+                Assert.InRange(top, toolbarTop - 0.5, toolbarBottom);
+                Assert.InRange(bottom, top + 1, toolbarBottom + 0.5);
 
                 if (index > 0)
                 {
                     var previous = controls[index - 1];
-                    var previousRight = previous.TranslatePoint(new Point(previous.Bounds.Width, 0), composer)!.Value.X;
-                    Assert.True(left >= previousRight, "底部控件不应重叠");
+                    var previousEnd = previous.TranslatePoint(
+                        new Point(previous.Bounds.Width, previous.Bounds.Height), composer)!.Value;
+                    Assert.True(left >= previousEnd.X - 0.5 || top >= previousEnd.Y - 0.5,
+                        "底部控件在同一行或换行后都不应重叠");
                 }
             }
 
-            Assert.InRange(composer.Bounds.Height, 70, 112);
+            var inputBottom = input.TranslatePoint(new Point(0, input.Bounds.Height), composer)!.Value.Y;
+            var expectedBottom = composer.Bounds.Height - composer.Padding.Bottom - composer.BorderThickness.Bottom;
+            Assert.True(input.Bounds.Height >= input.MinHeight - 0.5);
+            Assert.True(inputBottom + 3.5 <= toolbarTop);
+            Assert.InRange(toolbarBottom, expectedBottom - 0.5, expectedBottom + 0.5);
             color.SelectedItem = context.Room.DanmuColorOptions[1];
             await context.Room.DanmuConfigurationTask;
             mode.SelectedItem = context.Room.DanmuModeOptions[2];
@@ -98,7 +123,7 @@ public class DanmuConfigurationViewTests
     {
         using var context = new LiveRoomFeedViewTestContext();
         context.DanmuConfigService.Exception = new IOException("测试读取失败");
-        var view = new LiveRoomWorkspaceView { DataContext = context.Room };
+        var view = new LiveRoomWorkspaceView(new(context.ViewModel, context.Room)) { DataContext = context.Room };
         var window = CreateWindow(context, view, 1100, false);
 
         try
@@ -124,13 +149,13 @@ public class DanmuConfigurationViewTests
     }
 
     /// <summary>
-    /// View 关闭后不再观察账号，重新附着才读取最新配置。
+    /// 面板迁移和隐藏保持当前房间的配置上下文，重新附着不重复读取。
     /// </summary>
     [AvaloniaFact]
-    public async Task ViewAttachmentOwnsConfigurationLifetime()
+    public async Task WorkbenchContextOwnsConfigurationAcrossPanelAttachment()
     {
         using var context = new LiveRoomFeedViewTestContext();
-        var view = new LiveRoomWorkspaceView { DataContext = context.Room };
+        var view = new LiveRoomWorkspaceView(new(context.ViewModel, context.Room)) { DataContext = context.Room };
         var window = CreateWindow(context, view, 1100, false);
 
         try
@@ -139,8 +164,9 @@ public class DanmuConfigurationViewTests
             await context.Room.DanmuConfigurationTask;
             window.Content = null;
             context.ViewModel.Accounts[0].Cookie = "session-b";
-            Assert.Single(context.DanmuConfigService.GetRequests);
-            Assert.Empty(context.Room.DanmuColorOptions);
+            await context.Room.DanmuConfigurationTask;
+            Assert.Equal(2, context.DanmuConfigService.GetRequests.Count);
+            Assert.NotEmpty(context.Room.DanmuColorOptions);
             window.Content = view;
             ShowWindow(window);
             await context.Room.DanmuConfigurationTask;
@@ -161,7 +187,7 @@ public class DanmuConfigurationViewTests
     {
         using var context = new LiveRoomFeedViewTestContext();
         var room = new Yohuke.DanmuNeo.ViewModels.Items.LiveRoomTabViewModel(new() { RoomId = "200" });
-        var view = new LiveRoomWorkspaceView { DataContext = room };
+        var view = new LiveRoomWorkspaceView(new(context.ViewModel, room)) { DataContext = room };
         var window = CreateWindow(context, view, 1100, false);
 
         try
@@ -190,7 +216,7 @@ public class DanmuConfigurationViewTests
     public async Task DataContextSwitchDetachesOldConfiguration()
     {
         using var context = new LiveRoomFeedViewTestContext();
-        var view = new LiveRoomWorkspaceView { DataContext = context.Room };
+        var view = new LiveRoomWorkspaceView(new(context.ViewModel, context.Room)) { DataContext = context.Room };
         var window = CreateWindow(context, view, 1100, false);
 
         try

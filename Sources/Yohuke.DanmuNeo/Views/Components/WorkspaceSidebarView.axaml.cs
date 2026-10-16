@@ -30,15 +30,6 @@ public partial class WorkspaceSidebarView : UserControl
     }
 
     [RelayCommand]
-    private void OpenSettings()
-    {
-        if (DataContext is MainWindowViewModel viewModel)
-        {
-            viewModel.OpenSettings();
-        }
-    }
-
-    [RelayCommand]
     private void SelectWorkspace(WorkspaceViewModel? workspace)
     {
         if (DataContext is MainWindowViewModel viewModel)

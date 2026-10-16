@@ -1,0 +1,74 @@
+<components:WorkbenchRoomPanel xmlns="https://github.com/avaloniaui"
+                               xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                               xmlns:workspace="clr-namespace:Yohuke.DanmuNeo.Models.Workspace"
+                               xmlns:state="clr-namespace:Yohuke.DanmuNeo.Models.State"
+                               xmlns:components="clr-namespace:Yohuke.DanmuNeo.Views.Components"
+                               xmlns:items="clr-namespace:Yohuke.DanmuNeo.ViewModels.Items"
+                               x:Class="Yohuke.DanmuNeo.Views.Components.LivePlayerPanelView"
+                               x:DataType="items:LiveRoomTabViewModel"
+                               x:CompileBindings="True"
+                               x:Name="Root">
+    <Grid
+        RowDefinitions="Auto,*"
+        RowSpacing="10">
+        <WrapPanel Orientation="Horizontal"
+                   VerticalAlignment="Center">
+            <ComboBox Height="30" Width="160" Margin="0,0,8,4"
+                      VerticalAlignment="Center"
+                      VerticalContentAlignment="Center"
+                      ItemsSource="{Binding LiveQualityOptions}"
+                      SelectedItem="{Binding SelectedLiveQuality}">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="workspace:LiveQualityOption">
+                        <TextBlock Text="{Binding Description}" />
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+            <Button ToolTip.Tip="{Binding LivePlayerToggleToolTip}"
+                    Classes="iconButton"
+                    Classes.selected="{Binding IsLivePlayerVisible}"
+                    VerticalAlignment="Center"
+                    Command="{Binding ToggleLivePlayerCommand}">
+                <Grid>
+                    <LucideIcon Kind="CirclePlay"
+                                IsVisible="{Binding IsLivePlayerHidden}" />
+                    <LucideIcon Kind="CircleStop"
+                                IsVisible="{Binding IsLivePlayerVisible}" />
+                </Grid>
+            </Button>
+            <Button ToolTip.Tip="追帧"
+                    Classes="iconButton"
+                    VerticalAlignment="Center"
+                    Command="{Binding ChaseLiveCommand}">
+                <LucideIcon Kind="RefreshCw" />
+            </Button>
+            <Button ToolTip.Tip="静音"
+                    Classes="iconButton"
+                    Classes.selected="{Binding IsLivePlayerMuted}"
+                    VerticalAlignment="Center"
+                    Command="{Binding ToggleLivePlayerMutedCommand}">
+                <Grid>
+                    <LucideIcon Kind="Volume2"
+                                IsVisible="{Binding IsLivePlayerAudible}" />
+                    <LucideIcon Kind="VolumeX"
+                                IsVisible="{Binding IsLivePlayerMuted}" />
+                </Grid>
+            </Button>
+            <Slider Width="100" Margin="8,0,4,4" Minimum="0"
+                    Maximum="100"
+                    Value="{Binding LivePlayerVolumePercent}"
+                    VerticalAlignment="Center"
+                    ToolTip.Tip="音量" />
+            <TextBlock Text="{Binding LivePlayerVolumeText}"
+                       Classes="muted"
+                       HorizontalAlignment="Right"
+                       VerticalAlignment="Center" />
+        </WrapPanel>
+
+        <Grid Grid.Row="1">
+            <Border x:Name="LivePlayerHost"
+                    MinHeight="0"
+                    Classes="livePlayerSurface" />
+        </Grid>
+    </Grid>
+</components:WorkbenchRoomPanel>

@@ -16,6 +16,7 @@ namespace Yohuke.DanmuNeo.ViewModels;
 public partial class MainWindowViewModel : ViewModelBase, IDisposable
 {
     private readonly AppStateService stateService;
+    private readonly SemaphoreSlim stateSaveGate = new(1, 1);
     private readonly WorkspaceShareService workspaceShareService = new();
     private readonly AccountSelectionService accountSelectionService = new();
     private readonly DanmuSendService danmuSendService;
@@ -1100,13 +1101,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             CloseAddDialog();
         }
 
-        foreach (var room in workspace.Rooms)
-        {
-            room.StopListening();
-            room.DisposeForwardRules();
-            room.StopLivePlayer();
-            room.DeactivateDanmuConfiguration();
-        }
+        workspace.Dispose();
 
         State.Workspaces.Remove(workspace.State);
         Workspaces.Remove(workspace);
@@ -1147,10 +1142,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        room.StopListening();
-        room.DisposeForwardRules();
-        room.StopLivePlayer();
-        room.DeactivateDanmuConfiguration();
         workspace.RemoveRoom(room);
 
         if (SelectedWorkspace == workspace)
@@ -1459,7 +1450,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// </summary>
     public async Task CloseSettingsAsync()
     {
-        IsSettingsOpen = false;
+        CancelShortcutRecording();
 
         foreach (var room in Workspaces.SelectMany(workspace => workspace.Rooms))
         {
@@ -1467,6 +1458,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
 
         await SaveAsync();
+        IsSettingsOpen = false;
     }
 
     /// <summary>
@@ -2008,15 +2000,24 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// </summary>
     public async Task SaveAsync()
     {
-        Settings.SidebarWidth = AppStateService.ClampSidebarWidth(Settings.SidebarWidth);
-        Settings.WindowWidth = AppStateService.ClampWindowWidth(Settings.WindowWidth);
-        Settings.WindowHeight = AppStateService.ClampWindowHeight(Settings.WindowHeight);
-        Settings.WorkspaceLiveColumnWidth =
-            AppStateService.ClampWorkspaceColumnWidth(Settings.WorkspaceLiveColumnWidth);
-        Settings.WorkspaceToolColumnWidth =
-            AppStateService.ClampWorkspaceColumnWidth(Settings.WorkspaceToolColumnWidth);
-        await stateService.SaveAsync(State);
-        StatusMessage = $"已保存 {DateTime.Now:HH:mm:ss}";
+        await stateSaveGate.WaitAsync();
+
+        try
+        {
+            Settings.SidebarWidth = AppStateService.ClampSidebarWidth(Settings.SidebarWidth);
+            Settings.WindowWidth = AppStateService.ClampWindowWidth(Settings.WindowWidth);
+            Settings.WindowHeight = AppStateService.ClampWindowHeight(Settings.WindowHeight);
+            Settings.WorkspaceLiveColumnWidth =
+                AppStateService.ClampWorkspaceColumnWidth(Settings.WorkspaceLiveColumnWidth);
+            Settings.WorkspaceToolColumnWidth =
+                AppStateService.ClampWorkspaceColumnWidth(Settings.WorkspaceToolColumnWidth);
+            await stateService.SaveAsync(State);
+            StatusMessage = $"已保存 {DateTime.Now:HH:mm:ss}";
+        }
+        finally
+        {
+            stateSaveGate.Release();
+        }
     }
 
     /// <summary>
@@ -2122,12 +2123,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         isDisposed = true;
         DisposeUpdateCheck();
         ResetLiveRoomSearch();
-        foreach (var room in Workspaces.SelectMany(workspace => workspace.Rooms))
+        foreach (var workspace in Workspaces)
         {
-            room.StopListening();
-            room.DisposeForwardRules();
-            room.StopLivePlayer();
-            room.DeactivateDanmuConfiguration();
+            workspace.Dispose();
         }
 
         foreach (var option in ForwardAccountOptions)

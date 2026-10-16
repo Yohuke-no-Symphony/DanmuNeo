@@ -1,53 +1,36 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:viewModels="clr-namespace:Yohuke.DanmuNeo.ViewModels"
+        xmlns:items="clr-namespace:Yohuke.DanmuNeo.ViewModels.Items"
         xmlns:components="clr-namespace:Yohuke.DanmuNeo.Views.Components"
         x:Class="Yohuke.DanmuNeo.Views.MainWindow"
-        x:CompileBindings="False"
-        Width="1280"
-        Height="820"
-        MinWidth="980"
-        MinHeight="640"
+        x:DataType="viewModels:MainWindowViewModel"
+        x:CompileBindings="True"
+        Width="1280" Height="820" MinWidth="980" MinHeight="640"
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaChromeHints="NoChrome"
         ExtendClientAreaTitleBarHeightHint="42"
         Icon="/Assets/favicon.ico"
         Title="{Binding WindowTitle}">
-
-    <Design.DataContext>
-        <viewModels:MainWindowViewModel />
-    </Design.DataContext>
-
-    <Grid Classes="rootSurface">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="42" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
-
-        <components:TitleBarView Grid.Row="0" />
-
-        <Grid Grid.Row="1"
-              x:Name="MainColumns">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="240" MinWidth="200" MaxWidth="360" />
-                <ColumnDefinition Width="2" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
-
-            <components:WorkspaceSidebarView Grid.Column="0"
-                                             IsVisible="{Binding !IsSidebarCollapsed}" />
-
-            <GridSplitter Grid.Column="1" Width="2"
-                          Classes="sidebarSplitter"
-                          IsVisible="{Binding !IsSidebarCollapsed}"
-                          ResizeDirection="Columns"
-                          ResizeBehavior="PreviousAndNext"
-                          PointerReleased="SidebarSplitter_OnPointerReleased" />
-
-            <Grid Grid.Column="2"
-                  Margin="16,10,16,16">
-                <components:WorkspaceTabsView />
+    <Grid Classes="rootSurface" RowDefinitions="42,Auto,Auto,*">
+        <components:TitleBarView />
+        <Menu x:Name="WindowMenu" Grid.Row="1" Classes="workbenchMenu" />
+        <Border Grid.Row="2" Padding="14,8" DataContext="{Binding SelectedWorkspace.SelectedRoom}">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" x:DataType="items:LiveRoomTabViewModel">
+                <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                    <Border Classes="listenStatusLight"
+                            Classes.listening="{Binding IsListening}"
+                            Classes.idle="{Binding IsNotListening}"
+                            ToolTip.Tip="{Binding ConnectionStatus}" />
+                    <TextBlock Text="{Binding RoomName}" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding RoomId}" Classes="muted" VerticalAlignment="Center" />
+                </StackPanel>
+                <Button Grid.Column="1" Command="{Binding ToggleListeningCommand}"
+                        Content="{Binding ListenToggleText}" ToolTip.Tip="{Binding ConnectionStatus}" />
             </Grid>
-        </Grid>
+        </Border>
+        <ContentControl x:Name="DockHost" Grid.Row="3" Margin="12,0,12,12">
+            <TextBlock Text="正在恢复工作台布局…" HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </ContentControl>
     </Grid>
 </Window>

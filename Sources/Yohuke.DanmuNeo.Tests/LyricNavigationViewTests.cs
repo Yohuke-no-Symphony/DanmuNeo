@@ -6,6 +6,7 @@ using Avalonia.Input;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Yohuke.DanmuNeo.Services;
+using Yohuke.DanmuNeo.Layouts;
 using Yohuke.DanmuNeo.Views;
 using Yohuke.DanmuNeo.Views.Components;
 
@@ -20,7 +21,7 @@ public class LyricNavigationViewTests
     /// 下一句按钮一次略过连续空行，末尾只剩空行时禁用。
     /// </summary>
     [AvaloniaFact]
-    public void NextButtonSkipsEmptyRowsAndDisablesAtTrailingBlanks()
+    public async Task NextButtonSkipsEmptyRowsAndDisablesAtTrailingBlanks()
     {
         using var context = new LyricNavigationViewTestContext();
         context.Room.LyricInput = "[00:01]当前句\n[00:02]\n[00:03] \t\n[00:04]有效句\n[00:05]";
@@ -29,7 +30,7 @@ public class LyricNavigationViewTests
 
         try
         {
-            var view = ShowLyrics(window);
+            var view = await ShowLyricsAsync(window);
             var button = Assert.IsType<Button>(view.FindControl<Button>("NextLyricButton"));
             Assert.True(button.IsEffectivelyEnabled);
 
@@ -41,7 +42,7 @@ public class LyricNavigationViewTests
         }
         finally
         {
-            CloseWindow(window);
+            await CloseWindowAsync(window);
         }
     }
 
@@ -66,7 +67,7 @@ public class LyricNavigationViewTests
 
         try
         {
-            var view = ShowLyrics(window);
+            var view = await ShowLyricsAsync(window);
             var button = Assert.IsType<Button>(view.FindControl<Button>("NextLyricButton"));
             Assert.False(button.IsEffectivelyEnabled);
 
@@ -80,7 +81,7 @@ public class LyricNavigationViewTests
         }
         finally
         {
-            CloseWindow(window);
+            await CloseWindowAsync(window);
         }
     }
 
@@ -90,7 +91,7 @@ public class LyricNavigationViewTests
     [AvaloniaTheory]
     [InlineData(300d)]
     [InlineData(480d)]
-    public void NextButtonSendsTargetAndFitsToolColumn(double toolWidth)
+    public async Task NextButtonSendsTargetAndFitsToolColumn(double toolWidth)
     {
         using var context = new LyricNavigationViewTestContext();
         context.ViewModel.Settings.WorkspaceToolColumnWidth = toolWidth;
@@ -98,7 +99,7 @@ public class LyricNavigationViewTests
 
         try
         {
-            var view = ShowLyrics(window);
+            var view = await ShowLyricsAsync(window);
             var button = Assert.IsType<Button>(view.FindControl<Button>("NextLyricButton"));
             Assert.True(button.IsEffectivelyEnabled);
             var buttons = ((Grid)button.Parent!).Children.OfType<Button>().ToList();
@@ -122,7 +123,7 @@ public class LyricNavigationViewTests
         }
         finally
         {
-            CloseWindow(window);
+            await CloseWindowAsync(window);
         }
     }
 
@@ -130,14 +131,14 @@ public class LyricNavigationViewTests
     /// 暂停时真实双击定位并发送被点击的歌词，保持暂停状态。
     /// </summary>
     [AvaloniaFact]
-    public void DoubleClickSendsClickedLineWhilePaused()
+    public async Task DoubleClickSendsClickedLineWhilePaused()
     {
         using var context = new LyricNavigationViewTestContext();
         var window = CreateWindow(context, false);
 
         try
         {
-            var view = ShowLyrics(window);
+            var view = await ShowLyricsAsync(window);
             var list = view.FindControl<ListBox>("LyricListBox")!;
             var row = list.ContainerFromIndex(1)!;
             var point = GetCenter(row, window);
@@ -157,7 +158,7 @@ public class LyricNavigationViewTests
         }
         finally
         {
-            CloseWindow(window);
+            await CloseWindowAsync(window);
         }
     }
 
@@ -167,14 +168,14 @@ public class LyricNavigationViewTests
     [AvaloniaTheory]
     [InlineData(false)]
     [InlineData(true)]
-    public void NextShortcutSuppressesRepeatedKeyDown(bool useMainWindow)
+    public async Task NextShortcutSuppressesRepeatedKeyDown(bool useMainWindow)
     {
         using var context = new LyricNavigationViewTestContext();
         var window = CreateWindow(context, useMainWindow);
 
         try
         {
-            var view = ShowLyrics(window);
+            var view = await ShowLyricsAsync(window);
             Assert.True(view.FindControl<ListBox>("LyricListBox")!.ContainerFromIndex(0)!.Focus());
             var modifiers = RawInputModifiers.Control | RawInputModifiers.Shift;
             window.KeyPressQwerty(PhysicalKey.ArrowDown, modifiers);
@@ -190,7 +191,7 @@ public class LyricNavigationViewTests
         }
         finally
         {
-            CloseWindow(window);
+            await CloseWindowAsync(window);
         }
     }
 
@@ -200,7 +201,7 @@ public class LyricNavigationViewTests
     [AvaloniaTheory]
     [InlineData(false)]
     [InlineData(true)]
-    public void CustomNextShortcutReplacesDefault(bool useMainWindow)
+    public async Task CustomNextShortcutReplacesDefault(bool useMainWindow)
     {
         using var context = new LyricNavigationViewTestContext();
         context.ViewModel.Settings.ShortcutBindings
@@ -209,7 +210,7 @@ public class LyricNavigationViewTests
 
         try
         {
-            var view = ShowLyrics(window);
+            var view = await ShowLyricsAsync(window);
             Assert.True(view.FindControl<ListBox>("LyricListBox")!.ContainerFromIndex(0)!.Focus());
             Press(window, PhysicalKey.ArrowDown, RawInputModifiers.Control | RawInputModifiers.Shift);
             Assert.Empty(context.SendService.SentMessages);
@@ -218,7 +219,7 @@ public class LyricNavigationViewTests
         }
         finally
         {
-            CloseWindow(window);
+            await CloseWindowAsync(window);
         }
     }
 
@@ -236,7 +237,7 @@ public class LyricNavigationViewTests
     [InlineData(true, "settings")]
     [InlineData(false, "recording")]
     [InlineData(true, "recording")]
-    public void NextShortcutHonorsInputAndSettingsGuards(bool useMainWindow, string mode)
+    public async Task NextShortcutHonorsInputAndSettingsGuards(bool useMainWindow, string mode)
     {
         using var context = new LyricNavigationViewTestContext();
         var binding = context.ViewModel.Settings.ShortcutBindings
@@ -256,11 +257,11 @@ public class LyricNavigationViewTests
 
         try
         {
-            var view = ShowLyrics(window);
+            var view = await ShowLyricsAsync(window);
 
             if (mode == "input")
             {
-                var input = view.FindControl<TextBox>("InputDraftTextBox")!;
+                var input = window.GetVisualDescendants().OfType<DraftComposerPanelView>().Single().Input;
                 input.Text = "正在编辑同传";
                 input.Focus();
             }
@@ -286,7 +287,7 @@ public class LyricNavigationViewTests
         }
         finally
         {
-            CloseWindow(window);
+            await CloseWindowAsync(window);
         }
     }
 
@@ -307,7 +308,7 @@ public class LyricNavigationViewTests
 
         try
         {
-            var view = ShowLyrics(window);
+            var view = await ShowLyricsAsync(window);
             var list = view.FindControl<ListBox>("LyricListBox")!;
             Assert.True(list.ContainerFromIndex(0)!.Focus());
             playback = context.Room.StartAutoLyricAsync();
@@ -341,7 +342,7 @@ public class LyricNavigationViewTests
                 await playback;
             }
 
-            CloseWindow(window);
+            await CloseWindowAsync(window);
         }
     }
 
@@ -355,19 +356,28 @@ public class LyricNavigationViewTests
         return new()
         {
             Width = 1100, Height = 800, DataContext = context.ViewModel,
-            Content = new LiveRoomWorkspaceView { DataContext = context.Room }
+            Content = new LiveRoomWorkspaceView(new(context.ViewModel, context.Room)) { DataContext = context.Room }
         };
     }
 
-    private static LiveRoomWorkspaceView ShowLyrics(Window window)
+    private static async Task<LyricsPanelView> ShowLyricsAsync(Window window)
     {
         window.Show();
-        PumpLayout(window);
-        var view = window.GetVisualDescendants().OfType<LiveRoomWorkspaceView>().Single();
+
+        if (window is MainWindow mainWindow)
+        {
+            await mainWindow.Initialization;
+            Assert.NotNull(mainWindow.Workbench);
+            mainWindow.Workbench.Layouts.ShowPanel(WorkbenchPanelIds.LYRICS);
+            PumpLayout(window);
+            return mainWindow.Workbench.Panels.Lyrics;
+        }
+
+        var view = Assert.IsType<LiveRoomWorkspaceView>(window.Content);
         view.GetVisualDescendants().OfType<TabControl>()
             .Single(control => control.Classes.Contains("workspaceToolTabs")).SelectedIndex = 2;
         PumpLayout(window);
-        return view;
+        return view.WorkbenchPanels!.Lyrics;
     }
 
     private static void PumpLayout(Window window)
@@ -399,10 +409,17 @@ public class LyricNavigationViewTests
         PumpLayout(window);
     }
 
-    private static void CloseWindow(Window window)
+    private static async Task CloseWindowAsync(Window window)
     {
-        window.DataContext = null;
-        window.Close();
+        if (window is MainWindow mainWindow)
+        {
+            await mainWindow.CloseWorkbenchAsync();
+        }
+        else
+        {
+            window.Close();
+        }
+
         Dispatcher.UIThread.RunJobs();
     }
 

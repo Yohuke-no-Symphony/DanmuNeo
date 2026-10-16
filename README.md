@@ -5,7 +5,9 @@ Yohuke Danmu Neo 是一个面向 B 站直播同传工作的桌面工具，基于
 
 ## 功能
 
-- 多工作区与多直播间标签页管理。
+- 多工作区与多直播间管理，切换房间时共用同一套 Dock 工作台布局。
+- 工作区、追帧、输入框、SC、弹幕、历史、歌词、转发八个独立面板，支持拖拽贴靠、分栏、标签组合和浮动窗口。
+- 默认、同传、歌词、转发四套内置布局，以及自定义布局的保存、另存、重命名和删除。
 - 按主播昵称搜索直播间，直接添加到指定工作区。
 - B 站账号管理，支持全局、工作区、直播间和转发规则级账号选择。
 - 直播弹幕监听、同传输入、发送历史记录和 Excel 导出。
@@ -20,6 +22,21 @@ Yohuke Danmu Neo 是一个面向 B 站直播同传工作的桌面工具，基于
 - 屏蔽词替换库，可同时作用于同传输入和歌词发送。
 - 可配置快捷键、自动备份保留数量、缓存清理和配置导出。
 - 默认按 Tab 轮切当前工作区的同传样式预设，在同传输入框内同样生效。
+- 通过顶部菜单打开视图、设置、布局管理、关于和手动更新检查；macOS 默认使用原生系统菜单，设置支持 `⌘,`。
+
+## 工作台布局
+
+拖动面板标题可以调整贴靠位置或移入标签组，也可以拖出成为浮动窗口。布局、活动标签、隐藏面板和浮窗位置会自动记忆，切换直播间时保持排布。工作区树和其余七个业务面板分别独立；房间名称、房间号及监听按钮位于固定工具条。
+
+通过“视图”菜单可以显示并聚焦任一面板，已经打开的面板会切换到对应标签或激活其浮窗。关闭追帧面板会停止播放，重新打开后保持停止；关闭其他面板保留草稿、监听、歌词发送和转发。移动、浮动、切标签或应用布局会保留播放会话和播放意图，原生播放器重新挂载后恢复播放。
+
+“布局”菜单提供四套内置预设。“保存当前布局”只覆盖当前自定义预设；使用“另存为布局…”创建新的预设。临时拖动会自动记忆当前排布，不会覆盖命名预设。内置预设不能改名或删除；恢复默认或删除当前自定义预设会切回默认排布，并保留其他预设。
+
+在 macOS 的“设置 → 外观”中可即时切换窗口内菜单。无论选择哪种模式，系统应用菜单中的“设置…”和 `⌘,` 都保留。设置与布局管理打开后，主窗和业务浮窗暂停交互；关闭设置窗口会保存配置并结束快捷键录制。
+
+工作台主题参考 AegiNext：统一浅色/深色表面、细边框、紧凑工具按钮和圆角面板，活动标题与选中标签使用系统强调色。主窗、业务浮窗和辅助窗口使用同一个主题入口，随外观设置即时切换。
+
+“帮助 → 检查更新”不受启动自动检查开关限制，会显示检查结果。歌词库选择器、设置、布局管理、关于和更新均使用独立窗口。
 
 ![](./Screenshots/1.png)  
 ![](./Screenshots/2.png)
@@ -59,7 +76,7 @@ dotnet publish Sources/Yohuke.DanmuNeo/Yohuke.DanmuNeo.csproj -c Release
 生成 Windows x64 EXE、macOS ARM64 App 和 DMG：
 
 ```powershell
-pwsh -NoProfile -File ./Publish.ps1 -Clean
+pwsh -NoProfile -File ./release.ps1 -Clean
 ```
 
 两端发布文件使用统一的 `Yohuke-Danmu-Neo-{版本}-{平台架构}` 命名格式，默认输出路径为：
@@ -72,7 +89,7 @@ pwsh -NoProfile -File ./Publish.ps1 -Clean
 DMG 默认使用 ad-hoc 签名，内含应用、`Applications` 快捷方式和中文首次打开说明。如需使用 Developer ID 证书签名，可执行：
 
 ```powershell
-pwsh -NoProfile -File ./Publish.ps1 -Clean -MacCodeSignIdentity "Developer ID Application: Example Company (TEAMID)"
+pwsh -NoProfile -File ./release.ps1 -Clean -MacCodeSignIdentity "Developer ID Application: Example Company (TEAMID)"
 ```
 
 脚本不会自动提交 Apple 公证。未公证版本在其他 Mac 上首次打开时，请按 DMG 内的《首次打开说明》处理。
@@ -82,6 +99,7 @@ pwsh -NoProfile -File ./Publish.ps1 -Clean -MacCodeSignIdentity "Developer ID Ap
 应用配置默认写入系统 ApplicationData 下的 `Yohuke.DanmuNeo` 目录。主要文件包括：
 
 - `settings.json`：全局设置、快捷键、屏蔽词替换库和符号组。
+- `layouts.json`：全局当前布局、自定义预设、隐藏面板和浮窗位置；首次使用时迁移旧侧栏和左右列宽，之后独立保存。
 - `accounts.json`：B 站账号配置。
 - `workspaces.json`：工作区、直播间和转发规则。
 - `lyric-library.json`：本地歌词库。
@@ -91,6 +109,8 @@ pwsh -NoProfile -File ./Publish.ps1 -Clean -MacCodeSignIdentity "Developer ID Ap
 
 也可以在应用的“杂项”设置页打开配置目录、缓存目录或导出全部备份。
 
+布局保存采用 300 ms 防抖与串行原子写入，并沿用备份保留数量设置。损坏的布局先留存在 `Corrupt/`，再尝试最新有效备份，无法恢复时使用默认布局。浮窗恢复时会根据当前显示器工作区修正越界位置。
+
 ## 测试
 
 测试项目位于 `Sources/Yohuke.DanmuNeo.Tests`，覆盖状态迁移、账号选择、播放器 HTML、歌词时间轴、屏蔽词替换、快捷键绑定、转发规则和历史导出等核心逻辑。提交前请至少执行：
@@ -98,3 +118,5 @@ pwsh -NoProfile -File ./Publish.ps1 -Clean -MacCodeSignIdentity "Developer ID Ap
 ```bash
 dotnet test Sources/Yohuke.DanmuNeo.sln --no-restore
 ```
+
+Dock 改造的自动化覆盖布局往返与恢复、面板唯一性和实例复用、隐藏恢复、浮窗关闭、自定义预设、播放异步归属、跨面板插入、菜单命令、设置保存和退出顺序。原生播放器的实际声画连续性、中文 IME、系统菜单、多显示器缩放及原生控件在模态期间的交互，需要在目标桌面环境中另外验收；无头测试和发布签名检查不代替这些结果。

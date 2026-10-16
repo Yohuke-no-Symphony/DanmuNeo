@@ -1,68 +1,7 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:components="clr-namespace:Yohuke.DanmuNeo.Views.Components">
-    <Styles.Resources>
-        <ResourceDictionary>
-            <FontFamily x:Key="ContentControlThemeFontFamily">PingFang SC, Microsoft YaHei UI, Noto Sans CJK SC, Noto Sans SC, sans-serif</FontFamily>
-            <SolidColorBrush x:Key="AppErrorBrush" Color="#EF4444" />
-            <ResourceDictionary.ThemeDictionaries>
-                <ResourceDictionary x:Key="Light">
-                    <SolidColorBrush x:Key="AppBackgroundBrush" Color="#F3F4F6" />
-                    <SolidColorBrush x:Key="AppTitleBarBrush" Color="#F3F4F6" />
-                    <SolidColorBrush x:Key="AppSidebarBrush" Color="#F9FAFB" />
-                    <SolidColorBrush x:Key="AppPanelBrush" Color="#FAFAFA" />
-                    <SolidColorBrush x:Key="AppCardBrush" Color="#FFFFFF" />
-                    <SolidColorBrush x:Key="AppDanmuAlternateRowBrush" Color="#EDF1F6" />
-                    <SolidColorBrush x:Key="AppBorderBrush" Color="#E5E7EB" />
-                    <SolidColorBrush x:Key="AppTextBrush" Color="#111827" />
-                    <SolidColorBrush x:Key="AppMutedTextBrush" Color="#6B7280" />
-                    <SolidColorBrush x:Key="AppPrimaryBrush" Color="#2563EB" />
-                    <SolidColorBrush x:Key="AppPrimaryTextBrush" Color="#FFFFFF" />
-                    <SolidColorBrush x:Key="AppSplitterBrush" Color="#E5E7EB" />
-                    <SolidColorBrush x:Key="AppOverlayBrush" Color="#99000000" />
-                    <SolidColorBrush x:Key="AppSidebarSelectedBrush" Color="#E8EDF7" />
-                    <SolidColorBrush x:Key="AppSidebarHoverBrush" Color="#EEF2F7" />
-                    <SolidColorBrush x:Key="AppSettingsFooterBrush" Color="#EEF0F3" />
-                    <SolidColorBrush x:Key="AppAvatarBrush" Color="#E6E0FF" />
-                    <SolidColorBrush x:Key="AppAvatarTextBrush" Color="#6D4AFF" />
-                    <SolidColorBrush x:Key="AppThemeCardSelectedBrush" Color="#7BB8F5" />
-                    <SolidColorBrush x:Key="AppPreviewLightBrush" Color="#F4F4F5" />
-                    <SolidColorBrush x:Key="AppPreviewDarkBrush" Color="#3A3A3D" />
-                    <SolidColorBrush x:Key="AppPreviewLineBrush" Color="#C9CDD2" />
-                    <x:Double x:Key="AppFontSizeBody">13</x:Double>
-                    <x:Double x:Key="AppFontSizeCaption">12</x:Double>
-                    <x:Double x:Key="AppFontSizeTitle">15</x:Double>
-                </ResourceDictionary>
-                <ResourceDictionary x:Key="Dark">
-                    <SolidColorBrush x:Key="AppBackgroundBrush" Color="#101114" />
-                    <SolidColorBrush x:Key="AppTitleBarBrush" Color="#101114" />
-                    <SolidColorBrush x:Key="AppSidebarBrush" Color="#15171B" />
-                    <SolidColorBrush x:Key="AppPanelBrush" Color="#181B20" />
-                    <SolidColorBrush x:Key="AppCardBrush" Color="#20242B" />
-                    <SolidColorBrush x:Key="AppDanmuAlternateRowBrush" Color="#2B323C" />
-                    <SolidColorBrush x:Key="AppBorderBrush" Color="#303640" />
-                    <SolidColorBrush x:Key="AppTextBrush" Color="#F3F4F6" />
-                    <SolidColorBrush x:Key="AppMutedTextBrush" Color="#A3AAB7" />
-                    <SolidColorBrush x:Key="AppPrimaryBrush" Color="#60A5FA" />
-                    <SolidColorBrush x:Key="AppPrimaryTextBrush" Color="#FFFFFF" />
-                    <SolidColorBrush x:Key="AppSplitterBrush" Color="#303640" />
-                    <SolidColorBrush x:Key="AppOverlayBrush" Color="#AA000000" />
-                    <SolidColorBrush x:Key="AppSidebarSelectedBrush" Color="#2F3136" />
-                    <SolidColorBrush x:Key="AppSidebarHoverBrush" Color="#262A30" />
-                    <SolidColorBrush x:Key="AppSettingsFooterBrush" Color="#2A2D31" />
-                    <SolidColorBrush x:Key="AppAvatarBrush" Color="#3E315D" />
-                    <SolidColorBrush x:Key="AppAvatarTextBrush" Color="#B895FF" />
-                    <SolidColorBrush x:Key="AppThemeCardSelectedBrush" Color="#7BB8F5" />
-                    <SolidColorBrush x:Key="AppPreviewLightBrush" Color="#F4F4F5" />
-                    <SolidColorBrush x:Key="AppPreviewDarkBrush" Color="#5B5B5E" />
-                    <SolidColorBrush x:Key="AppPreviewLineBrush" Color="#B9BDC4" />
-                    <x:Double x:Key="AppFontSizeBody">13</x:Double>
-                    <x:Double x:Key="AppFontSizeCaption">12</x:Double>
-                    <x:Double x:Key="AppFontSizeTitle">15</x:Double>
-                </ResourceDictionary>
-            </ResourceDictionary.ThemeDictionaries>
-        </ResourceDictionary>
-    </Styles.Resources>
+
 
     <Style Selector=":is(TemplatedControl)">
         <Setter Property="FontFamily" Value="{StaticResource ContentControlThemeFontFamily}" />
@@ -79,7 +18,7 @@
     <Style Selector="Border.sidebar">
         <Setter Property="Background" Value="{DynamicResource AppSidebarBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource AppBorderBrush}" />
-        <Setter Property="BorderThickness" Value="0,0,1,0" />
+        <Setter Property="BorderThickness" Value="0" />
     </Style>
 
     <Style Selector="Border.workspaceCard">
@@ -111,8 +50,8 @@
     </Style>
 
     <Style Selector="Button.iconButton">
-        <Setter Property="Width" Value="34" />
-        <Setter Property="Height" Value="30" />
+        <Setter Property="Width" Value="{StaticResource WorkbenchControlHeight}" />
+        <Setter Property="Height" Value="{StaticResource WorkbenchControlHeight}" />
         <Setter Property="Padding" Value="0" />
         <Setter Property="HorizontalContentAlignment" Value="Center" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
@@ -125,10 +64,12 @@
         <Setter Property="BorderThickness" Value="1" />
     </Style>
 
-    <Style Selector="Button">
+    <Style Selector="Button:not(.dockChromeButton)">
         <Setter Property="FontSize" Value="{DynamicResource AppFontSizeBody}" />
         <Setter Property="FontWeight" Value="Regular" />
-        <Setter Property="MinHeight" Value="30" />
+        <Setter Property="CornerRadius" Value="{StaticResource WorkbenchControlCornerRadius}" />
+        <Setter Property="Padding" Value="{StaticResource WorkbenchButtonPadding}" />
+        <Setter Property="MinHeight" Value="{StaticResource WorkbenchControlHeight}" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
     </Style>
 
@@ -188,7 +129,7 @@
     <Style Selector="Button.primaryButton">
         <Setter Property="Background" Value="{DynamicResource AppPrimaryBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource AppPrimaryTextBrush}" />
-        <Setter Property="CornerRadius" Value="7" />
+        <Setter Property="CornerRadius" Value="{StaticResource WorkbenchControlCornerRadius}" />
         <Setter Property="Padding" Value="14,8" />
     </Style>
 
@@ -212,7 +153,7 @@
         <Setter Property="Background" Value="{DynamicResource AppCardBrush}" />
         <Setter Property="BorderBrush" Value="Transparent" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="18" />
+        <Setter Property="CornerRadius" Value="{StaticResource WorkbenchPanelCornerRadius}" />
         <Setter Property="Padding" Value="12,8" />
     </Style>
 
@@ -288,7 +229,7 @@
     <Style Selector="Button.translateComposerSendButton">
         <Setter Property="MinHeight" Value="38" />
         <Setter Property="Padding" Value="16,8" />
-        <Setter Property="CornerRadius" Value="19" />
+        <Setter Property="CornerRadius" Value="{StaticResource WorkbenchControlCornerRadius}" />
         <Setter Property="Background" Value="{DynamicResource AppPrimaryBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource AppPrimaryTextBrush}" />
         <Setter Property="HorizontalContentAlignment" Value="Center" />
@@ -368,7 +309,7 @@
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />
-        <Setter Property="CornerRadius" Value="14" />
+        <Setter Property="CornerRadius" Value="8" />
         <Setter Property="Padding" Value="14,9" />
         <Setter Property="MinHeight" Value="48" />
     </Style>
@@ -387,7 +328,7 @@
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />
-        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="CornerRadius" Value="{StaticResource WorkbenchControlCornerRadius}" />
         <Setter Property="Padding" Value="32,7,12,7" />
         <Setter Property="MinHeight" Value="34" />
     </Style>
@@ -639,7 +580,7 @@
     </Style>
 
     <Style Selector="Border.settingsOverlay">
-        <Setter Property="Background" Value="{DynamicResource AppOverlayBrush}" />
+        <Setter Property="Background" Value="{DynamicResource AppBackgroundBrush}" />
     </Style>
 
     <Style Selector="Border.settingsDialogHeader">

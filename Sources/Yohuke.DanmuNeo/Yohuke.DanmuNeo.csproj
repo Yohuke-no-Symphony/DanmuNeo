@@ -31,6 +31,9 @@
             <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
         </PackageReference>
         <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.1" />
+        <PackageReference Include="Dock.Avalonia" Version="11.3.12.1" />
+        <PackageReference Include="Dock.Avalonia.Themes.Fluent" Version="11.3.12.1" />
+        <PackageReference Include="Dock.Model.Mvvm" Version="11.3.12.1" />
         <PackageReference Include="Lucide.Avalonia" Version="0.2.0" />
         <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
         <PackageReference Include="RestSharp" Version="114.0.0" />

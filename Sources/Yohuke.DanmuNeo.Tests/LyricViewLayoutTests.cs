@@ -12,6 +12,7 @@ using CommunityToolkit.Mvvm.Input;
 using Yohuke.DanmuNeo.Models.State;
 using Yohuke.DanmuNeo.Views;
 using Yohuke.DanmuNeo.Views.Components;
+using Yohuke.DanmuNeo.Windowing;
 
 namespace Yohuke.DanmuNeo.Tests;
 
@@ -255,18 +256,21 @@ public class LyricViewLayoutTests
     }
 
     /// <summary>
-    /// 正式侧栏默认显示本地歌词，切换状态在关闭重开和调整宽度后保留。
+    /// 独立歌词库默认显示本地歌词，调整宽度时保留标签选择并正确发出关闭请求。
     /// </summary>
     [AvaloniaFact]
-    public void SidebarKeepsTabSelectionWhileResizingAndReopening()
+    public void PickerKeepsTabSelectionWhileResizingAndRequestsClose()
     {
         using var context = new LyricViewTestContext();
         context.ViewModel.OpenLyricLibraryPicker();
         Application.Current!.RequestedThemeVariant = ThemeVariant.Dark;
-        var view = new LiveRoomWorkspaceView();
+        using var workbench = new WorkbenchContext(context.ViewModel);
+        using var view = new LyricLibraryPickerView(workbench);
+        var closeRequests = 0;
+        view.CloseRequested += (_, _) => closeRequests++;
         var window = new Window
         {
-            Width = 902,
+            Width = 480,
             Height = 700,
             DataContext = context.ViewModel,
             Content = view
@@ -289,26 +293,19 @@ public class LyricViewLayoutTests
             UpdateLayout(window);
             Assert.Equal(titleBounds, GetBounds(title, window));
             context.ViewModel.CloseLyricLibraryPicker();
+            Assert.Equal(1, closeRequests);
             context.ViewModel.OpenLyricLibraryPicker();
             UpdateLayout(window);
             Assert.Equal(1, tabs.SelectedIndex);
 
-            var columns = view.FindControl<Grid>("WorkspaceColumns")!;
-            var splitter = view.GetVisualDescendants().OfType<GridSplitter>()
-                .Single(control => control.ResizeDirection == GridResizeDirection.Columns);
-            var start = GetBounds(splitter, window).Center;
-            var initialWidth = columns.ColumnDefinitions[2].ActualWidth;
-            window.MouseMove(start);
-            window.MouseDown(start, MouseButton.Left);
-
             foreach (var width in new[] { 300d, 360d, 480d })
             {
-                window.MouseMove(start + new Vector(initialWidth - width, 0), RawInputModifiers.LeftMouseButton);
+                window.Width = width;
                 UpdateLayout(window);
-                Assert.Equal(width, columns.ColumnDefinitions[2].ActualWidth, 1);
                 var search = online.GetVisualDescendants().OfType<TextBox>().Single();
                 Assert.True(search.Bounds.Width > 100);
                 Assert.True(GetResults(online).Extent.Width <= GetResults(online).Viewport.Width + 0.5);
+                Assert.Equal(1, tabs.SelectedIndex);
             }
 
             SavePreview(window, "sidebar-480-dark");

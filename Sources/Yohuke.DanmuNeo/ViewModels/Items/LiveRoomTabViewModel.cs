@@ -16,7 +16,7 @@ namespace Yohuke.DanmuNeo.ViewModels.Items;
 /// <summary>
 /// 直播间标签页视图模型。
 /// </summary>
-public partial class LiveRoomTabViewModel : ViewModelBase
+public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
 {
     private const double MIN_LYRIC_PLAYBACK_RATE = 0.25;
     private const double MAX_LYRIC_PLAYBACK_RATE = 3.0;
@@ -34,6 +34,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
     private CancellationTokenSource? listenTokenSource;
     private ILiveDanmuSocket? activeListenSocket;
     private CancellationTokenSource? lyricTokenSource;
+    private readonly object forwardingGate = new();
     private readonly Dictionary<string, CancellationTokenSource> forwardTokenSources = [];
     private readonly HashSet<string> recentSuperChatIdentities = new(StringComparer.Ordinal);
     private readonly Queue<string> recentSuperChatIdentityOrder = new();
@@ -162,6 +163,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
                 return;
             }
 
+            StopLivePlayer();
             StopListening();
             State.RoomId = value;
             NotifyDanmuConfigurationAccountChanged();
@@ -519,6 +521,8 @@ public partial class LiveRoomTabViewModel : ViewModelBase
         IBilibiliDanmuConfigService? danmuConfigService = null,
         IEmoticonCacheService? emoticonCacheService = null)
     {
+        ObjectDisposedException.ThrowIf(isDisposed, this);
+        StopLivePlayer();
         var wasConfigurationActive = isDanmuConfigurationActive;
 
         if (wasConfigurationActive)
@@ -535,6 +539,11 @@ public partial class LiveRoomTabViewModel : ViewModelBase
         forwardAccounts = forwardAccountOptions ?? forwardAccounts;
         this.userNameService = userNameService ?? this.userNameService;
         this.danmuConfigService = danmuConfigService ?? this.danmuConfigService ?? new BilibiliDanmuConfigService();
+        if (this.sendService is not null)
+        {
+            this.sendService.RecordCreated -= OnSendRecordCreated;
+        }
+
         this.sendService = sendService;
         this.avatarCacheService = avatarCacheService;
         this.emoticonCacheService = emoticonCacheService ?? this.emoticonCacheService;
@@ -563,7 +572,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
     /// </summary>
     public async Task<bool> LoadAvatarAsync(bool force = false)
     {
-        if (avatarCacheService is null)
+        if (isDisposed || avatarCacheService is null)
         {
             return false;
         }
@@ -575,16 +584,23 @@ public partial class LiveRoomTabViewModel : ViewModelBase
             return true;
         }
 
+        var roomId = RoomId;
+        var ownerUid = OwnerUid;
         var account = resolveAccount?.Invoke(this);
-        var result = await avatarCacheService.GetRoomAvatarResultAsync(RoomId, OwnerUid, account?.Cookie);
+        var result = await avatarCacheService.GetRoomAvatarResultAsync(roomId, ownerUid, account?.Cookie);
 
-        if (string.IsNullOrWhiteSpace(result.AvatarPath))
+        if (isDisposed || RoomId != roomId || OwnerUid != ownerUid || string.IsNullOrWhiteSpace(result.AvatarPath))
         {
             return false;
         }
 
         Dispatcher.UIThread.Post(() =>
         {
+            if (isDisposed || RoomId != roomId || OwnerUid != ownerUid)
+            {
+                return;
+            }
+
             if (!string.IsNullOrWhiteSpace(result.OwnerUid) && OwnerUid != result.OwnerUid)
             {
                 State.OwnerUid = result.OwnerUid;
@@ -713,6 +729,11 @@ public partial class LiveRoomTabViewModel : ViewModelBase
     [RelayCommand]
     public async Task SendDraftAsync()
     {
+        if (isDisposed)
+        {
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(InputDraft))
         {
             return;
@@ -995,7 +1016,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
     [RelayCommand]
     public async Task StartAutoLyricAsync()
     {
-        if (IsLyricAutoSending)
+        if (isDisposed || IsLyricAutoSending)
         {
             return;
         }
@@ -1193,7 +1214,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
         bool forceSend,
         CancellationToken cancellationToken = default)
     {
-        if (!lyricLinesSending.TryAdd(line, 0))
+        if (isDisposed || !lyricLinesSending.TryAdd(line, 0))
         {
             return false;
         }
@@ -1274,7 +1295,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
     [RelayCommand]
     public void StartListening()
     {
-        if (IsListening)
+        if (isDisposed || IsListening)
         {
             return;
         }
@@ -1522,7 +1543,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
             return;
         }
 
-        await StartLivePlayerAsync(false);
+        await RunLivePlayerRequestAsync(true);
     }
 
     /// <summary>
@@ -1531,7 +1552,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
     [RelayCommand]
     public async Task PlayLiveAsync()
     {
-        await StartLivePlayerAsync(false);
+        await RunLivePlayerRequestAsync(true);
     }
 
     /// <summary>
@@ -1540,7 +1561,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
     [RelayCommand]
     public async Task RefreshLivePlayerAsync()
     {
-        await StartLivePlayerAsync(false);
+        await RunLivePlayerRequestAsync(true);
     }
 
     /// <summary>
@@ -1549,7 +1570,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
     [RelayCommand]
     public async Task ChaseLiveAsync()
     {
-        await StartLivePlayerAsync(true);
+        await RunLivePlayerRequestAsync(true);
     }
 
     /// <summary>
@@ -1558,7 +1579,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
     [RelayCommand]
     public async Task RefreshLiveQualitiesAsync()
     {
-        await RefreshLiveSourceAsync(false);
+        await RunLivePlayerRequestAsync(false);
     }
 
     /// <summary>
@@ -1567,10 +1588,17 @@ public partial class LiveRoomTabViewModel : ViewModelBase
     [RelayCommand]
     public void StopLivePlayer()
     {
-        livePlayerService?.Revoke(livePlayerToken);
-        livePlayerToken = null;
-        LivePlayerUrl = "";
-        IsLivePlayerVisible = false;
+        lock (livePlayerGate)
+        {
+            InvalidateLivePlayerRequest();
+            var previousToken = livePlayerToken;
+            var previousService = livePlayerSessionService;
+            livePlayerToken = null;
+            livePlayerSessionService = null;
+            LivePlayerUrl = "";
+            IsLivePlayerVisible = false;
+            previousService?.Revoke(previousToken);
+        }
     }
 
     /// <summary>
@@ -1621,35 +1649,6 @@ public partial class LiveRoomTabViewModel : ViewModelBase
         InsertDanmuContent(superChat.Content);
     }
 
-    private async Task StartLivePlayerAsync(bool isChasing)
-    {
-        if (liveStreamService is null || livePlayerService is null)
-        {
-            return;
-        }
-
-        try
-        {
-            var account = resolveAccount?.Invoke(this);
-            var source = await RefreshLiveSourceAsync(true);
-            var oldToken = livePlayerToken;
-            var session = await livePlayerService.CreatePlayerAsync(source, account?.Cookie);
-
-            livePlayerService.Revoke(oldToken);
-            livePlayerToken = session.Token;
-            LivePlayerUrl = session.PlayerUrl;
-            IsLivePlayerVisible = true;
-            StartListeningWithLivePlayerIfNeeded();
-        }
-        catch
-        {
-            if (string.IsNullOrWhiteSpace(livePlayerToken))
-            {
-                IsLivePlayerVisible = false;
-            }
-        }
-    }
-
     private void StartListeningWithLivePlayerIfNeeded()
     {
         if (IsListening || getSettings?.Invoke().AutoStartListeningWithLivePlayer != true)
@@ -1675,33 +1674,6 @@ public partial class LiveRoomTabViewModel : ViewModelBase
         return double.IsNaN(value) ||
                double.IsInfinity(value) ||
                Math.Abs(normalizedValue - value) > double.Epsilon;
-    }
-
-    private async Task<LiveStreamPlaySource> RefreshLiveSourceAsync(bool throwOnError)
-    {
-        if (liveStreamService is null)
-        {
-            throw new InvalidOperationException("直播流服务未初始化");
-        }
-
-        try
-        {
-            var account = resolveAccount?.Invoke(this);
-            var settings = getSettings?.Invoke();
-            var source = await liveStreamService.GetPlayableSourceAsync(
-                RoomId,
-                SelectedLiveQuality?.Quality ?? 0,
-                account?.Cookie,
-                settings is null ? null : TimeSpan.FromSeconds(settings.TimeoutSeconds));
-
-            RefreshLiveQualityOptions(source.QualityOptions, source.CurrentQuality);
-
-            return source;
-        }
-        catch when (!throwOnError)
-        {
-            return new();
-        }
     }
 
     private void RefreshLiveQualityOptions(IEnumerable<LiveQualityOption> qualityOptions, int currentQuality)
@@ -1777,6 +1749,11 @@ public partial class LiveRoomTabViewModel : ViewModelBase
 
     private void OnForwardRuleChanged(DanmuForwardRuleViewModel rule)
     {
+        if (isDisposed)
+        {
+            return;
+        }
+
         _ = HandleForwardRuleChangedAsync(rule);
     }
 
@@ -1791,6 +1768,11 @@ public partial class LiveRoomTabViewModel : ViewModelBase
     /// </summary>
     public void RestartForwarding()
     {
+        if (isDisposed)
+        {
+            return;
+        }
+
         foreach (var rule in ForwardRules.Where(rule => rule.IsEnabled))
         {
             StartForwardRule(rule);
@@ -1799,6 +1781,11 @@ public partial class LiveRoomTabViewModel : ViewModelBase
 
     private void StartForwardRule(DanmuForwardRuleViewModel rule)
     {
+        if (isDisposed)
+        {
+            return;
+        }
+
         StopForwardRule(rule);
 
         if (!rule.IsEnabled)
@@ -1853,34 +1840,58 @@ public partial class LiveRoomTabViewModel : ViewModelBase
         }
 
         var tokenSource = new CancellationTokenSource();
-        forwardTokenSources[rule.Id] = tokenSource;
+        var cancellationToken = tokenSource.Token;
+
+        lock (forwardingGate)
+        {
+            if (isDisposed)
+            {
+                tokenSource.Dispose();
+                return;
+            }
+
+            forwardTokenSources[rule.Id] = tokenSource;
+        }
+
         SetForwardRuleStatus(rule, "监听中");
 
         _ = Task.Run(async () =>
         {
-            var socket = liveDanmuSocketFactory.Create(sourceRoomId, sourceAccount.Cookie);
-            socket.DanmuReceived += (_, message) =>
-                _ = ForwardDanmuAsync(rule, message, targetAccount, settings, tokenSource.Token);
-            socket.ErrorReceived += (_, _) => SetForwardRuleStatus(rule, "连接中断，正在重连");
-            socket.Disconnected += (_, _) => SetForwardRuleStatus(rule, "连接中断，正在重连");
-            socket.Recovered += (_, _) => SetForwardRuleStatus(rule, "监听中");
+            ILiveDanmuSocket? socket = null;
+            EventHandler<BilibiliDanmuMessage> onDanmu = (_, message) =>
+                _ = ForwardDanmuAsync(rule, message, targetAccount, settings, cancellationToken);
+            EventHandler<Exception> onError = (_, _) => SetForwardRuleStatus(rule, "连接中断，正在重连");
+            EventHandler onDisconnected = (_, _) => SetForwardRuleStatus(rule, "连接中断，正在重连");
+            EventHandler onRecovered = (_, _) => SetForwardRuleStatus(rule, "监听中");
 
             try
             {
-                await socket.StartAsync(tokenSource.Token);
+                cancellationToken.ThrowIfCancellationRequested();
+                socket = liveDanmuSocketFactory.Create(sourceRoomId, sourceAccount.Cookie);
+                socket.DanmuReceived += onDanmu;
+                socket.ErrorReceived += onError;
+                socket.Disconnected += onDisconnected;
+                socket.Recovered += onRecovered;
+                await socket.StartAsync(cancellationToken);
             }
-            catch (OperationCanceledException) when (tokenSource.IsCancellationRequested)
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
+            }
+            catch (Exception exception)
+            {
+                SetForwardRuleStatus(rule, $"转发连接失败：{exception.Message}");
             }
             finally
             {
-                if (forwardTokenSources.TryGetValue(rule.Id, out var currentTokenSource) &&
-                    currentTokenSource == tokenSource)
+                if (socket is not null)
                 {
-                    forwardTokenSources.Remove(rule.Id);
+                    socket.DanmuReceived -= onDanmu;
+                    socket.ErrorReceived -= onError;
+                    socket.Disconnected -= onDisconnected;
+                    socket.Recovered -= onRecovered;
                 }
 
-                if (!tokenSource.IsCancellationRequested && rule.IsEnabled)
+                if (!cancellationToken.IsCancellationRequested && rule.IsEnabled)
                 {
                     SetForwardRuleStatus(rule, "已停止");
                 }
@@ -1890,7 +1901,16 @@ public partial class LiveRoomTabViewModel : ViewModelBase
                     disposable.Dispose();
                 }
 
-                tokenSource.Dispose();
+                lock (forwardingGate)
+                {
+                    if (forwardTokenSources.TryGetValue(rule.Id, out var currentTokenSource) &&
+                        ReferenceEquals(currentTokenSource, tokenSource))
+                    {
+                        forwardTokenSources.Remove(rule.Id);
+                    }
+
+                    tokenSource.Dispose();
+                }
             }
         });
     }
@@ -1937,7 +1957,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
         AppSettings settings,
         CancellationToken cancellationToken)
     {
-        if (cancellationToken.IsCancellationRequested)
+        if (isDisposed || cancellationToken.IsCancellationRequested)
         {
             return;
         }
@@ -1956,7 +1976,14 @@ public partial class LiveRoomTabViewModel : ViewModelBase
                 markGroup,
                 getSymbolGroups?.Invoke() ?? [markGroup]);
             await SendMessageAsync(messageText, targetAccount, settings, cancellationToken);
-            SetForwardRuleStatus(rule, $"已转发 {DateTime.Now:HH:mm:ss}");
+
+            if (!cancellationToken.IsCancellationRequested)
+            {
+                SetForwardRuleStatus(rule, $"已转发 {DateTime.Now:HH:mm:ss}");
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
         }
         catch (Exception exception)
         {
@@ -1966,9 +1993,12 @@ public partial class LiveRoomTabViewModel : ViewModelBase
 
     private void StopForwardRule(DanmuForwardRuleViewModel rule)
     {
-        if (forwardTokenSources.Remove(rule.Id, out var tokenSource))
+        lock (forwardingGate)
         {
-            tokenSource.Cancel();
+            if (forwardTokenSources.Remove(rule.Id, out var tokenSource))
+            {
+                tokenSource.Cancel();
+            }
         }
 
         SetForwardRuleStatus(rule, rule.IsEnabled ? "已停止" : "未启用");
@@ -1976,13 +2006,24 @@ public partial class LiveRoomTabViewModel : ViewModelBase
 
     private void SetForwardRuleStatus(DanmuForwardRuleViewModel rule, string status)
     {
+        if (isDisposed)
+        {
+            return;
+        }
+
         if (Dispatcher.UIThread.CheckAccess())
         {
             rule.StatusText = status;
             return;
         }
 
-        Dispatcher.UIThread.Post(() => rule.StatusText = status);
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (!isDisposed)
+            {
+                rule.StatusText = status;
+            }
+        });
     }
 
     private Task SaveStateAsync()
@@ -2016,7 +2057,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase
     private bool TrySetDraftSendFeedback(long operationId, long revision, string status, bool failed,
         string? draftToRestore = null)
     {
-        if (operationId != draftSendOperationId || revision != draftRevision)
+        if (isDisposed || operationId != draftSendOperationId || revision != draftRevision)
         {
             return false;
         }
@@ -2429,13 +2470,18 @@ public partial class LiveRoomTabViewModel : ViewModelBase
 
     private void OnSendRecordCreated(object? sender, DanmuFeedItem item)
     {
-        if (item.UserName != RoomId)
+        if (isDisposed || item.UserName != RoomId)
         {
             return;
         }
 
         Dispatcher.UIThread.Post(() =>
         {
+            if (isDisposed || item.UserName != RoomId)
+            {
+                return;
+            }
+
             TranslateHistoryItems.Insert(0, item);
             Trim(TranslateHistoryItems, 1000);
             OnPropertyChanged(nameof(HasTranslateHistory));

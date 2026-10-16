@@ -27,7 +27,7 @@ public class DraftComposerViewTests
     {
         using var context = new MarkGroupCycleTestContext();
         var room = context.ViewModel.Workspaces[0].Rooms[0];
-        var view = new LiveRoomWorkspaceView { DataContext = room };
+        var view = new LiveRoomWorkspaceView(new(context.ViewModel, room)) { DataContext = room };
         var window = new Window
         {
             Width = 1100, Height = 680, Content = view, DataContext = context.ViewModel,
@@ -82,7 +82,7 @@ public class DraftComposerViewTests
             () => context.ViewModel.SelectedWorkspaceMarkGroup!, () => context.ViewModel.SymbolGroups,
             _ => [], sendService, new FakeRoomAvatarService(), () => Task.CompletedTask,
             danmuConfigService: new FakeBilibiliDanmuConfigService());
-        var view = new LiveRoomWorkspaceView { DataContext = room };
+        var view = new LiveRoomWorkspaceView(new(context.ViewModel, room)) { DataContext = room };
         var window = new Window
         {
             Width = 1100, Height = 680, Content = view, DataContext = context.ViewModel,
@@ -146,7 +146,7 @@ public class DraftComposerViewTests
             () => context.ViewModel.SelectedWorkspaceMarkGroup!, () => context.ViewModel.SymbolGroups,
             _ => [], sendService, new FakeRoomAvatarService(), () => Task.CompletedTask,
             danmuConfigService: new FakeBilibiliDanmuConfigService());
-        var view = new LiveRoomWorkspaceView { DataContext = room };
+        var view = new LiveRoomWorkspaceView(new(context.ViewModel, room)) { DataContext = room };
         var window = new Window
         {
             Width = 1100, Height = 680, Content = view, DataContext = context.ViewModel,
@@ -205,7 +205,7 @@ public class DraftComposerViewTests
             () => context.ViewModel.SelectedWorkspaceMarkGroup!, () => context.ViewModel.SymbolGroups,
             _ => [], sendService, new FakeRoomAvatarService(), () => Task.CompletedTask,
             danmuConfigService: new FakeBilibiliDanmuConfigService());
-        var view = new LiveRoomWorkspaceView { DataContext = room };
+        var view = new LiveRoomWorkspaceView(new(context.ViewModel, room)) { DataContext = room };
         var window = new Window
         {
             Width = 1100, Height = 680, Content = view, DataContext = context.ViewModel

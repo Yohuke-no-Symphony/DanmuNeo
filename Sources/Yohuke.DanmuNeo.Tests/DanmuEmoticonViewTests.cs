@@ -64,7 +64,7 @@ public sealed class DanmuEmoticonViewTests : IDisposable
                 Width = 1100,
                 Height = 800,
                 DataContext = context.ViewModel,
-                Content = new LiveRoomWorkspaceView { DataContext = context.Room }
+                Content = new LiveRoomWorkspaceView(new(context.ViewModel, context.Room)) { DataContext = context.Room }
             };
         }
 

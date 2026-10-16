@@ -1,0 +1,202 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:dock="using:Dock.Avalonia.Controls">
+    <Styles.Resources>
+        <ResourceDictionary>
+            <x:Double x:Key="WorkbenchControlHeight">32</x:Double>
+            <CornerRadius x:Key="WorkbenchPanelCornerRadius">10</CornerRadius>
+            <CornerRadius x:Key="WorkbenchControlCornerRadius">6</CornerRadius>
+            <Thickness x:Key="WorkbenchButtonPadding">12,6</Thickness>
+            <FontFamily x:Key="ContentControlThemeFontFamily">PingFang SC, Microsoft YaHei UI, Noto Sans CJK SC, Noto Sans SC, sans-serif</FontFamily>
+            <SolidColorBrush x:Key="AppErrorBrush" Color="#EF4444" />
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="AppBackgroundBrush" Color="#F2F4F8" />
+                    <SolidColorBrush x:Key="AppTitleBarBrush" Color="#F2F4F8" />
+                    <SolidColorBrush x:Key="AppSidebarBrush" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="AppPanelBrush" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="AppCardBrush" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="AppDanmuAlternateRowBrush" Color="#F2F4F8" />
+                    <SolidColorBrush x:Key="AppBorderBrush" Color="#DDE2EA" />
+                    <SolidColorBrush x:Key="AppTextBrush" Color="#111827" />
+                    <SolidColorBrush x:Key="AppMutedTextBrush" Color="#627087" />
+                    <SolidColorBrush x:Key="AppPrimaryBrush" Color="{DynamicResource SystemAccentColor}" />
+                    <SolidColorBrush x:Key="AppPrimaryTextBrush" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="AppSplitterBrush" Color="#DDE2EA" />
+                    <SolidColorBrush x:Key="AppOverlayBrush" Color="#99000000" />
+                    <SolidColorBrush x:Key="AppSidebarSelectedBrush" Color="{DynamicResource SystemAccentColor}" Opacity="0.14" />
+                    <SolidColorBrush x:Key="AppSidebarHoverBrush" Color="{DynamicResource SystemAccentColor}" Opacity="0.06" />
+                    <SolidColorBrush x:Key="AppSettingsFooterBrush" Color="#F2F4F8" />
+                    <SolidColorBrush x:Key="AppAvatarBrush" Color="#E6E0FF" />
+                    <SolidColorBrush x:Key="AppAvatarTextBrush" Color="#6D4AFF" />
+                    <SolidColorBrush x:Key="AppThemeCardSelectedBrush" Color="#7BB8F5" />
+                    <SolidColorBrush x:Key="AppPreviewLightBrush" Color="#F4F4F5" />
+                    <SolidColorBrush x:Key="AppPreviewDarkBrush" Color="#3A3A3D" />
+                    <SolidColorBrush x:Key="AppPreviewLineBrush" Color="#C9CDD2" />
+                    <x:Double x:Key="AppFontSizeBody">13</x:Double>
+                    <x:Double x:Key="AppFontSizeCaption">12</x:Double>
+                    <x:Double x:Key="AppFontSizeTitle">15</x:Double>
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="AppBackgroundBrush" Color="#12151C" />
+                    <SolidColorBrush x:Key="AppTitleBarBrush" Color="#12151C" />
+                    <SolidColorBrush x:Key="AppSidebarBrush" Color="#1C222D" />
+                    <SolidColorBrush x:Key="AppPanelBrush" Color="#1C222D" />
+                    <SolidColorBrush x:Key="AppCardBrush" Color="#1C222D" />
+                    <SolidColorBrush x:Key="AppDanmuAlternateRowBrush" Color="#252D3A" />
+                    <SolidColorBrush x:Key="AppBorderBrush" Color="#303949" />
+                    <SolidColorBrush x:Key="AppTextBrush" Color="#F2F4F8" />
+                    <SolidColorBrush x:Key="AppMutedTextBrush" Color="#9AAAC2" />
+                    <SolidColorBrush x:Key="AppPrimaryBrush" Color="{DynamicResource SystemAccentColor}" />
+                    <SolidColorBrush x:Key="AppPrimaryTextBrush" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="AppSplitterBrush" Color="#303949" />
+                    <SolidColorBrush x:Key="AppOverlayBrush" Color="#AA000000" />
+                    <SolidColorBrush x:Key="AppSidebarSelectedBrush" Color="{DynamicResource SystemAccentColor}" Opacity="0.14" />
+                    <SolidColorBrush x:Key="AppSidebarHoverBrush" Color="{DynamicResource SystemAccentColor}" Opacity="0.06" />
+                    <SolidColorBrush x:Key="AppSettingsFooterBrush" Color="#12151C" />
+                    <SolidColorBrush x:Key="AppAvatarBrush" Color="#3E315D" />
+                    <SolidColorBrush x:Key="AppAvatarTextBrush" Color="#B895FF" />
+                    <SolidColorBrush x:Key="AppThemeCardSelectedBrush" Color="#7BB8F5" />
+                    <SolidColorBrush x:Key="AppPreviewLightBrush" Color="#F4F4F5" />
+                    <SolidColorBrush x:Key="AppPreviewDarkBrush" Color="#5B5B5E" />
+                    <SolidColorBrush x:Key="AppPreviewLineBrush" Color="#B9BDC4" />
+                    <x:Double x:Key="AppFontSizeBody">13</x:Double>
+                    <x:Double x:Key="AppFontSizeCaption">12</x:Double>
+                    <x:Double x:Key="AppFontSizeTitle">15</x:Double>
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary>
+    </Styles.Resources>
+    <StyleInclude Source="avares://Yohuke.DanmuNeo/Views/Styles/MainWindowStyles.axaml" />
+
+    <Style Selector="Window">
+        <Setter Property="Background" Value="{DynamicResource AppBackgroundBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource AppTextBrush}" />
+        <Setter Property="FontSize" Value="{DynamicResource AppFontSizeBody}" />
+    </Style>
+
+    <Style Selector="Menu.workbenchMenu">
+        <Setter Property="Background" Value="{DynamicResource AppBackgroundBrush}" />
+        <Setter Property="Padding" Value="8,0" />
+    </Style>
+
+    <Style Selector="Menu.workbenchMenu > MenuItem">
+        <Setter Property="FontSize" Value="{DynamicResource AppFontSizeBody}" />
+        <Setter Property="Padding" Value="10,4" />
+    </Style>
+
+    <Style Selector="Border.workbenchFrame">
+        <Setter Property="Background" Value="{DynamicResource AppPanelBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AppBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource WorkbenchPanelCornerRadius}" />
+        <Setter Property="ClipToBounds" Value="True" />
+    </Style>
+
+    <Style Selector="dock|ToolChromeControl">
+        <Setter Property="Background" Value="{DynamicResource AppPanelBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AppBorderBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <Style Selector="dock|ToolChromeControl /template/ Border#PART_Border">
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <Style Selector="dock|ToolChromeControl /template/ Grid#PART_Grip">
+        <Setter Property="Background" Value="{DynamicResource AppPanelBrush}" />
+    </Style>
+
+    <Style Selector="dock|ToolChromeControl:active /template/ Grid#PART_Grip">
+        <Setter Property="Background" Value="{DynamicResource AppPanelBrush}" />
+    </Style>
+
+    <Style Selector="dock|ToolChromeControl /template/ TextBlock#PART_Title">
+        <Setter Property="Foreground" Value="{DynamicResource AppMutedTextBrush}" />
+        <Setter Property="FontSize" Value="{DynamicResource AppFontSizeBody}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style Selector="dock|ToolChromeControl:active /template/ TextBlock#PART_Title">
+        <Setter Property="Foreground" Value="{DynamicResource AppPrimaryBrush}" />
+    </Style>
+
+    <Style Selector="dock|ToolChromeControl /template/ Path">
+        <Setter Property="Fill" Value="{DynamicResource AppMutedTextBrush}" />
+        <Setter Property="RenderTransformOrigin" Value="50%,50%" />
+        <Setter Property="RenderTransform">
+            <ScaleTransform ScaleX="0.5" ScaleY="0.5" />
+        </Setter>
+    </Style>
+
+    <Style Selector="dock|ToolChromeControl:active /template/ Path">
+        <Setter Property="Fill" Value="{DynamicResource AppPrimaryBrush}" />
+    </Style>
+
+    <Style Selector="Button.dockChromeButton">
+        <Setter Property="Width" Value="22" />
+        <Setter Property="Height" Value="22" />
+        <Setter Property="MinWidth" Value="22" />
+        <Setter Property="MinHeight" Value="22" />
+        <Setter Property="Padding" Value="2" />
+        <Setter Property="Margin" Value="1,0" />
+        <Setter Property="CornerRadius" Value="2" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <Style Selector="Button.dockChromeButton:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AppSidebarHoverBrush}" />
+    </Style>
+
+    <Style Selector="Button.dockChromeButton:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AppSidebarSelectedBrush}" />
+    </Style>
+
+    <Style Selector="dock|ToolControl /template/ Border#PART_Border">
+        <Setter Property="Background" Value="{DynamicResource AppPanelBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <Style Selector="dock|ToolTabStrip">
+        <Setter Property="Background" Value="{DynamicResource AppPanelBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <Style Selector="dock|ToolTabStrip /template/ Border#PART_BorderLeftFill, dock|ToolTabStrip /template/ Border#PART_BorderRightFill, dock|ToolTabStrip /template/ Border#PART_BorderFill">
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <Style Selector="dock|ToolTabStripItem">
+        <Setter Property="Padding" Value="8,4" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="FontSize" Value="{DynamicResource AppFontSizeBody}" />
+    </Style>
+
+    <Style Selector="dock|ToolTabStripItem:selected">
+        <Setter Property="Padding" Value="8,4" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <Style Selector="dock|ToolTabStripItem">
+        <Setter Property="Foreground" Value="{DynamicResource AppMutedTextBrush}" />
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <Style Selector="dock|ToolTabStripItem:pointerover">
+        <Setter Property="Background" Value="{DynamicResource AppBackgroundBrush}" />
+    </Style>
+
+    <Style Selector="dock|ToolTabStripItem:selected, dock|ToolTabStripItem:selected:pointerover">
+        <Setter Property="Foreground" Value="{DynamicResource AppPrimaryBrush}" />
+        <Setter Property="Background" Value="{DynamicResource AppSidebarSelectedBrush}" />
+    </Style>
+
+    <Style Selector="dock|ToolTabStripItem TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource AppMutedTextBrush}" />
+    </Style>
+
+    <Style Selector="dock|ToolTabStripItem:selected TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource AppPrimaryBrush}" />
+    </Style>
+</Styles>

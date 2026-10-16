@@ -41,7 +41,7 @@ public class LiveRoomFeedViewTests
             });
         }
 
-        var view = new LiveRoomWorkspaceView { DataContext = context.Room };
+        var view = new LiveRoomWorkspaceView(new(context.ViewModel, context.Room)) { DataContext = context.Room };
         var window = CreateWindow(context, view);
         window.RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light;
 
@@ -92,7 +92,7 @@ public class LiveRoomFeedViewTests
     {
         using var context = new LiveRoomFeedViewTestContext();
         context.ViewModel.IsCompactDanmuDisplay = compact;
-        var view = new LiveRoomWorkspaceView { DataContext = context.Room };
+        var view = new LiveRoomWorkspaceView(new(context.ViewModel, context.Room)) { DataContext = context.Room };
         var window = CreateWindow(context, view);
 
         try
@@ -173,7 +173,7 @@ public class LiveRoomFeedViewTests
             RoomId = "100", MessageId = "name-copy-sc", UserName = feeds[1].UserName, Content = feeds[1].Content,
             PriceText = "¥30"
         });
-        var view = new LiveRoomWorkspaceView { DataContext = context.Room };
+        var view = new LiveRoomWorkspaceView(new(context.ViewModel, context.Room)) { DataContext = context.Room };
         var window = CreateWindow(context, view);
 
         try
@@ -223,7 +223,7 @@ public class LiveRoomFeedViewTests
         using var context = new LiveRoomFeedViewTestContext();
         context.ViewModel.IsCompactDanmuDisplay = compact;
         context.Room.InputDraft = "原有草稿";
-        var view = new LiveRoomWorkspaceView { DataContext = context.Room };
+        var view = new LiveRoomWorkspaceView(new(context.ViewModel, context.Room)) { DataContext = context.Room };
         var window = CreateWindow(context, view);
 
         try
@@ -255,7 +255,7 @@ public class LiveRoomFeedViewTests
     public async Task GuardClickCopiesNameButSuperChatClickInsertsContent()
     {
         using var context = new LiveRoomFeedViewTestContext();
-        var view = new LiveRoomWorkspaceView { DataContext = context.Room };
+        var view = new LiveRoomWorkspaceView(new(context.ViewModel, context.Room)) { DataContext = context.Room };
         var window = CreateWindow(context, view);
 
         try
@@ -294,7 +294,7 @@ public class LiveRoomFeedViewTests
         var permission = new TaskCompletionSource<RoomModerationPermission>();
         context.ModerationService.RespondAsync =
             index => index == 1 ? permission.Task : Task.FromResult(CreatePermission());
-        var view = new LiveRoomWorkspaceView { DataContext = context.Room };
+        var view = new LiveRoomWorkspaceView(new(context.ViewModel, context.Room)) { DataContext = context.Room };
         var window = CreateWindow(context, view);
         ContextMenu? menu = null;
 
@@ -339,7 +339,7 @@ public class LiveRoomFeedViewTests
         using var context = new LiveRoomFeedViewTestContext();
         var permission = new TaskCompletionSource<RoomModerationPermission>();
         context.ModerationService.RespondAsync = _ => permission.Task;
-        var view = new LiveRoomWorkspaceView { DataContext = context.Room };
+        var view = new LiveRoomWorkspaceView(new(context.ViewModel, context.Room)) { DataContext = context.Room };
         var window = CreateWindow(context, view);
         ContextMenu? menu = null;
 

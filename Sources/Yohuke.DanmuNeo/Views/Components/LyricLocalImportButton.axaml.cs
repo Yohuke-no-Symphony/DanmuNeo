@@ -52,7 +52,7 @@ public partial class LyricLocalImportButton : UserControl
     private async void ImportLocalLyricFile_OnClick(object? sender, RoutedEventArgs e)
     {
         if (TopLevel.GetTopLevel(this) is not TopLevel topLevel ||
-            topLevel.DataContext is not MainWindowViewModel viewModel)
+            DataContext is not MainWindowViewModel viewModel)
         {
             return;
         }

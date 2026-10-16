@@ -1,209 +1,121 @@
-using System.ComponentModel;
-using System.Text.Json;
-using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
-using Avalonia.Input;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using CommunityToolkit.Mvvm.Input;
-using Yohuke.DanmuNeo.ViewModels;
+using Yohuke.DanmuNeo.Layouts;
 using Yohuke.DanmuNeo.Views;
-using Yohuke.DanmuNeo.Views.Components;
+using Yohuke.DanmuNeo.Windowing;
 
 namespace Yohuke.DanmuNeo.Tests;
 
 /// <summary>
-/// 验证整个工作区侧栏的折叠、恢复和布局保存。
+/// 验证旧侧栏状态迁移为全局 Dock 后的隐藏恢复及退出保存。
 /// </summary>
 public class WorkspaceSidebarLayoutTests
 {
     /// <summary>
-    /// 单击标题栏按钮释放侧栏和分隔线宽度，再次单击恢复原宽度。
-    /// </summary>
-    [AvaloniaTheory]
-    [InlineData(200)]
-    [InlineData(316)]
-    [InlineData(360)]
-    public async Task ToggleReclaimsWidthAndRestoresSidebar(double sidebarWidth)
-    {
-        using var context = new WorkspaceSidebarTestContext(sidebarWidth);
-        var window = new MainWindow { DataContext = context.ViewModel };
-
-        try
-        {
-            ShowWindow(window);
-            var columns = window.FindControl<Grid>("MainColumns")!;
-            var sidebar = window.GetVisualDescendants().OfType<WorkspaceSidebarView>().Single();
-            var splitter = columns.Children.OfType<GridSplitter>().Single();
-            var button = GetToggleButton(window);
-            var selectedWorkspace = context.ViewModel.SelectedWorkspace;
-            var selectedRoom = selectedWorkspace!.SelectedRoom;
-            var expandedContentWidth = columns.ColumnDefinitions[2].ActualWidth;
-            var splitterWidth = columns.ColumnDefinitions[1].ActualWidth;
-            Assert.Equal(sidebarWidth, columns.ColumnDefinitions[0].ActualWidth, 1);
-            CapturePreview(window, "expanded");
-
-            await ClickToggleAsync(window, button);
-
-            Assert.False(sidebar.IsVisible);
-            Assert.False(splitter.IsVisible);
-            Assert.True(button.IsEffectivelyVisible);
-            Assert.Equal(0, columns.ColumnDefinitions[0].ActualWidth);
-            Assert.Equal(0, columns.ColumnDefinitions[1].ActualWidth);
-            Assert.Equal(expandedContentWidth + sidebarWidth + splitterWidth,
-                columns.ColumnDefinitions[2].ActualWidth, 1);
-            Assert.Same(selectedWorkspace, context.ViewModel.SelectedWorkspace);
-            Assert.Same(selectedRoom, selectedWorkspace.SelectedRoom);
-            AssertSavedLayout(context, true, sidebarWidth);
-            CapturePreview(window, "collapsed");
-
-            await ClickToggleAsync(window, button);
-
-            Assert.True(sidebar.IsVisible);
-            Assert.True(splitter.IsVisible);
-            Assert.Equal(sidebarWidth, columns.ColumnDefinitions[0].ActualWidth, 1);
-            Assert.Equal(splitterWidth, columns.ColumnDefinitions[1].ActualWidth, 1);
-            Assert.Equal(expandedContentWidth, columns.ColumnDefinitions[2].ActualWidth, 1);
-            AssertSavedLayout(context, false, sidebarWidth);
-        }
-        finally
-        {
-            CloseWindow(window);
-        }
-    }
-
-    /// <summary>
-    /// 从折叠配置启动时没有空白列，恢复后保留之前保存的展开宽度。
+    /// 旧折叠状态只迁移一次，移除顶部折叠按钮，菜单恢复面板不改变房间。
     /// </summary>
     [AvaloniaFact]
-    public async Task StartsCollapsedAndRestoresSavedWidth()
+    public async Task CollapsedSidebarMigratesToHiddenDockAndReopensFromMenu()
     {
         using var context = new WorkspaceSidebarTestContext(316, true);
         var window = new MainWindow { DataContext = context.ViewModel };
 
         try
         {
-            ShowWindow(window);
-            var columns = window.FindControl<Grid>("MainColumns")!;
-            var sidebar = window.GetVisualDescendants().OfType<WorkspaceSidebarView>().Single();
-            var button = GetToggleButton(window);
+            window.Show();
+            await window.Initialization;
+            var workbench = Assert.IsType<WorkbenchSession>(window.Workbench);
+            var room = context.ViewModel.SelectedWorkspace!.SelectedRoom;
+            Assert.False(workbench.Layouts.IsVisible(WorkbenchPanelIds.WORKSPACE));
+            Assert.DoesNotContain(window.GetVisualDescendants().OfType<Button>(), button => button.Name == "SidebarToggleButton");
+            var entry = workbench.MenuCatalog.Entries.Single(group => group.Id == "views").Children!
+                .Single(item => item.Id == "panel:workspace");
+            entry.Command!.Execute(null);
+            Dispatcher.UIThread.RunJobs();
 
-            Assert.False(sidebar.IsVisible);
-            Assert.Equal(0, columns.ColumnDefinitions[0].ActualWidth);
-            Assert.Equal(0, columns.ColumnDefinitions[1].ActualWidth);
-            Assert.Equal(columns.Bounds.Width, columns.ColumnDefinitions[2].ActualWidth, 1);
-            Assert.True(button.IsEffectivelyVisible);
-
-            await ClickToggleAsync(window, button);
-
-            Assert.True(sidebar.IsVisible);
-            Assert.Equal(316, columns.ColumnDefinitions[0].ActualWidth, 1);
-            AssertSavedLayout(context, false, 316);
+            Assert.True(workbench.Layouts.IsVisible(WorkbenchPanelIds.WORKSPACE));
+            Assert.Same(room, workbench.Context.CurrentRoom);
+            entry.Command.Execute(null);
+            Assert.True(workbench.Layouts.IsVisible(WorkbenchPanelIds.WORKSPACE));
         }
         finally
         {
-            CloseWindow(window);
+            await window.CloseWorkbenchAsync();
         }
+
+        var restored = await new WorkspaceLayoutStore(context.StateService.ConfigDirectory).LoadAsync(context.ViewModel.Settings);
+        Assert.DoesNotContain(WorkbenchPanelIds.WORKSPACE, restored.CurrentLayout.HiddenPanelIds);
+        Assert.Equal(316, context.StateService.Load().Settings.SidebarWidth);
     }
 
     /// <summary>
-    /// 关闭折叠窗口时不把隐藏列的零宽度写回展开宽度。
+    /// 全部关闭后退出仍保存八个隐藏面板，不被浮窗清理覆盖为空配置。
     /// </summary>
     [AvaloniaFact]
-    public async Task ClosingCollapsedWindowPreservesExpandedWidth()
+    public async Task ClosingAllPanelsPersistsCompleteHiddenLayout()
     {
-        using var context = new WorkspaceSidebarTestContext(316);
+        using var context = new WorkspaceSidebarTestContext(240);
+        var window = new MainWindow { DataContext = context.ViewModel };
+        window.Show();
+        await window.Initialization;
+
+        try
+        {
+            var workbench = Assert.IsType<WorkbenchSession>(window.Workbench);
+
+            foreach (var id in WorkbenchPanelIds.All)
+            {
+                workbench.Layouts.HidePanel(id);
+            }
+
+            Assert.Equal(8, workbench.Layouts.Capture().HiddenPanelIds.Count);
+        }
+        finally
+        {
+            await window.CloseWorkbenchAsync();
+        }
+
+        Assert.False(window.IsVisible);
+        var saved = await new WorkspaceLayoutStore(context.StateService.ConfigDirectory).LoadAsync();
+        Assert.Null(saved.CurrentLayout.Main);
+        Assert.Equal(8, saved.CurrentLayout.HiddenPanelIds.Count);
+        Assert.True(WorkspaceLayoutValidator.TryValidate(saved, out var error), error);
+    }
+
+    /// <summary>
+    /// 直播间切换只变更共享上下文，不重建面板或修改用户布局。
+    /// </summary>
+    [AvaloniaFact]
+    public async Task RoomSelectionPreservesGlobalLayoutAndPanelInstances()
+    {
+        using var context = new WorkspaceSidebarTestContext(240);
         var window = new MainWindow { DataContext = context.ViewModel };
 
         try
         {
-            ShowWindow(window);
-            await ClickToggleAsync(window, GetToggleButton(window));
-            context.ViewModel.StatusMessage = "等待关闭保存";
-            var saved = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            var saveHandler = new PropertyChangedEventHandler((sender, e) =>
-            {
-                if (e.PropertyName == nameof(MainWindowViewModel.StatusMessage) &&
-                    sender is MainWindowViewModel viewModel &&
-                    viewModel.StatusMessage.StartsWith("已保存", StringComparison.Ordinal))
-                {
-                    saved.TrySetResult();
-                }
-            });
-            context.ViewModel.PropertyChanged += saveHandler;
+            window.Show();
+            await window.Initialization;
+            var workbench = Assert.IsType<WorkbenchSession>(window.Workbench);
+            workbench.Layouts.ApplyPreset(WorkspaceLayoutPresets.LYRICS);
+            workbench.Layouts.HidePanel(WorkbenchPanelIds.HISTORY);
+            var before = WorkspaceLayoutSerializer.Serialize(workbench.Layouts.CaptureFile());
+            var panels = workbench.Panels.Panels.ToDictionary(pair => pair.Key, pair => pair.Value);
+            var next = context.ViewModel.SelectedWorkspace!.AddRoom("200", "第二个直播间");
+            context.ViewModel.SelectedWorkspace.SelectedRoom = next;
 
-            try
-            {
-                window.Close();
-                await saved.Task.WaitAsync(TimeSpan.FromSeconds(10));
-            }
-            finally
-            {
-                context.ViewModel.PropertyChanged -= saveHandler;
-            }
+            Assert.Same(next, workbench.Context.CurrentRoom);
+            Assert.Equal(before, WorkspaceLayoutSerializer.Serialize(workbench.Layouts.CaptureFile()));
 
-            AssertSavedLayout(context, true, 316);
+            foreach (var (id, panel) in panels)
+            {
+                Assert.Same(panel, workbench.Panels.Panels[id]);
+            }
         }
         finally
         {
-            CloseWindow(window);
+            await window.CloseWorkbenchAsync();
         }
-    }
-
-    private static Button GetToggleButton(Window window)
-    {
-        return window.GetVisualDescendants().OfType<Button>()
-            .Single(control => control.Name == "SidebarToggleButton");
-    }
-
-    private static async Task ClickToggleAsync(Window window, Button button)
-    {
-        var command = Assert.IsType<IAsyncRelayCommand>(button.Command, exactMatch: false);
-        var point = button.TranslatePoint(new Point(button.Bounds.Width / 2, button.Bounds.Height / 2), window)!.Value;
-        window.MouseMove(point);
-        window.MouseDown(point, MouseButton.Left);
-        window.MouseUp(point, MouseButton.Left);
-        Assert.NotNull(command.ExecutionTask);
-        await command.ExecutionTask;
-        Dispatcher.UIThread.RunJobs();
-        window.UpdateLayout();
-    }
-
-    private static void AssertSavedLayout(WorkspaceSidebarTestContext context, bool isCollapsed, double sidebarWidth)
-    {
-        using var settings = JsonDocument.Parse(File.ReadAllText(context.StateService.SettingsFilePath));
-        Assert.Equal(isCollapsed, settings.RootElement.GetProperty("IsSidebarCollapsed").GetBoolean());
-        Assert.Equal(sidebarWidth, context.StateService.Load().Settings.SidebarWidth);
-    }
-
-    private static void ShowWindow(Window window)
-    {
-        window.Show();
-        Dispatcher.UIThread.RunJobs();
-        window.UpdateLayout();
-    }
-
-    private static void CloseWindow(Window window)
-    {
-        window.DataContext = null;
-        window.Close();
-        Dispatcher.UIThread.RunJobs();
-    }
-
-    private static void CapturePreview(Window window, string state)
-    {
-        var directory = Environment.GetEnvironmentVariable("YOHUKE_SIDEBAR_QA_OUTPUT");
-
-        if (string.IsNullOrWhiteSpace(directory))
-        {
-            return;
-        }
-
-        Directory.CreateDirectory(directory);
-        using var frame = window.CaptureRenderedFrame();
-        Assert.NotNull(frame);
-        frame.Save(Path.Combine(directory, $"sidebar-{state}.png"));
     }
 }

@@ -11,6 +11,7 @@ public class AppBackupService
     private static readonly string[] BACKUP_FILE_NAMES =
     [
         "settings.json",
+        "layouts.json",
         "accounts.json",
         "workspaces.json",
         "lyric-library.json",

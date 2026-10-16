@@ -21,7 +21,7 @@ public class DanmuForwardViewTests
     public async Task LeavingForwardPageKeepsSelectionsAndRunningSession(bool switchRoom, bool reuseView)
     {
         using var context = new DanmuForwardViewTestContext();
-        var view = new LiveRoomWorkspaceView { DataContext = context.Room };
+        var view = new LiveRoomWorkspaceView(new(context.ViewModel, context.Room)) { DataContext = context.Room };
         var window = new Window { DataContext = context.ViewModel, Content = view, Width = 1200, Height = 800 };
 
         try
@@ -48,7 +48,7 @@ public class DanmuForwardViewTests
                     }
                     else
                     {
-                        window.Content = new LiveRoomWorkspaceView { DataContext = context.Source };
+                        window.Content = new LiveRoomWorkspaceView(new(context.ViewModel, context.Source)) { DataContext = context.Source };
                     }
                 }
                 else
@@ -118,7 +118,7 @@ public class DanmuForwardViewTests
     public async Task AddedRuleCanSelectAccountAndSymbolGroup()
     {
         using var context = new DanmuForwardViewTestContext();
-        var view = new LiveRoomWorkspaceView { DataContext = context.Room };
+        var view = new LiveRoomWorkspaceView(new(context.ViewModel, context.Room)) { DataContext = context.Room };
         var window = new Window { DataContext = context.ViewModel, Content = view, Width = 1200, Height = 800 };
 
         try
@@ -165,7 +165,7 @@ public class DanmuForwardViewTests
         const string USER_NAME = "很长的同传用户名用于检查窄面板的省略显示";
         var service = new FakeBilibiliUserNameService { RespondAsync = (_, _) => Task.FromResult(USER_NAME) };
         using var context = new DanmuForwardViewTestContext(service);
-        var view = new LiveRoomWorkspaceView { DataContext = context.Room };
+        var view = new LiveRoomWorkspaceView(new(context.ViewModel, context.Room)) { DataContext = context.Room };
         var window = new Window { DataContext = context.ViewModel, Content = view, Width = width, Height = 800 };
 
         try
@@ -206,7 +206,7 @@ public class DanmuForwardViewTests
         var account = context.ViewModel.Accounts.Last();
         account.Cookie = "new-forward-cookie";
         var option = context.ViewModel.ForwardAccountOptions.Single(item => item.AccountId == account.Id);
-        var view = new LiveRoomWorkspaceView { DataContext = context.Room };
+        var view = new LiveRoomWorkspaceView(new(context.ViewModel, context.Room)) { DataContext = context.Room };
         var window = new Window { DataContext = context.ViewModel, Content = view, Width = 1200, Height = 800 };
 
         try
