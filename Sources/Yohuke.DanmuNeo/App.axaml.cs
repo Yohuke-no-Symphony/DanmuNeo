@@ -23,17 +23,19 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             StartupLog.Append("Create MainWindow begin");
+            var viewModel = new MainWindowViewModel();
             var mainWindow = new MainWindow
             {
-                DataContext = new MainWindowViewModel(),
+                DataContext = viewModel,
             };
-            AppThemeService.Apply(((MainWindowViewModel)mainWindow.DataContext).Settings.ThemeMode);
+            AppThemeService.Apply(viewModel.Settings.ThemeMode);
             StartupLog.Append("Create MainWindow end");
 
             desktop.MainWindow = mainWindow;
             mainWindow.Show();
             mainWindow.Activate();
             StartupLog.Append($"MainWindow visible={mainWindow.IsVisible} state={mainWindow.WindowState}");
+            _ = viewModel.CheckForUpdatesOnStartupAsync();
         }
 
         base.OnFrameworkInitializationCompleted();

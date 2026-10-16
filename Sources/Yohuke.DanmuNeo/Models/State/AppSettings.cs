@@ -6,6 +6,11 @@ namespace Yohuke.DanmuNeo.Models.State;
 public class AppSettings
 {
     /// <summary>
+    /// 是否在启动时检查应用正式发布版本。
+    /// </summary>
+    public bool CheckForUpdatesOnStartup { get; set; } = true;
+
+    /// <summary>
     /// 同传开标记。
     /// </summary>
     public string TranslateOpenMark { get; set; } = "【";

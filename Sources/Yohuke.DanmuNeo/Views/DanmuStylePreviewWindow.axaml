@@ -162,7 +162,7 @@
                                   Grid.Row="3"
                                   Margin="0,6,0,0">
                         <ItemsControl x:Name="DanmuItemsControl"
-                                      Classes="scrollSafeContent"
+                                      Classes="scrollSafeContent danmuFeedList"
                                       ItemsSource="{Binding DanmuItems}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate DataType="workspace:DanmuFeedItem">

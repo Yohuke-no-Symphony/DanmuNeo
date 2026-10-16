@@ -12,6 +12,7 @@
                     <SolidColorBrush x:Key="AppSidebarBrush" Color="#F9FAFB" />
                     <SolidColorBrush x:Key="AppPanelBrush" Color="#FAFAFA" />
                     <SolidColorBrush x:Key="AppCardBrush" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="AppDanmuAlternateRowBrush" Color="#EDF1F6" />
                     <SolidColorBrush x:Key="AppBorderBrush" Color="#E5E7EB" />
                     <SolidColorBrush x:Key="AppTextBrush" Color="#111827" />
                     <SolidColorBrush x:Key="AppMutedTextBrush" Color="#6B7280" />
@@ -38,6 +39,7 @@
                     <SolidColorBrush x:Key="AppSidebarBrush" Color="#15171B" />
                     <SolidColorBrush x:Key="AppPanelBrush" Color="#181B20" />
                     <SolidColorBrush x:Key="AppCardBrush" Color="#20242B" />
+                    <SolidColorBrush x:Key="AppDanmuAlternateRowBrush" Color="#2B323C" />
                     <SolidColorBrush x:Key="AppBorderBrush" Color="#303640" />
                     <SolidColorBrush x:Key="AppTextBrush" Color="#F3F4F6" />
                     <SolidColorBrush x:Key="AppMutedTextBrush" Color="#A3AAB7" />
@@ -870,6 +872,14 @@
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="CornerRadius" Value="6" />
+    </Style>
+
+    <Style Selector="ItemsControl.danmuFeedList Button.danmuFeedButton">
+        <Setter Property="Background" Value="{DynamicResource AppCardBrush}" />
+    </Style>
+
+    <Style Selector="ItemsControl.danmuFeedList > ContentPresenter:nth-child(2n) Button.danmuFeedButton">
+        <Setter Property="Background" Value="{DynamicResource AppDanmuAlternateRowBrush}" />
     </Style>
 
     <Style Selector="Button.danmuFeedButton:pointerover">

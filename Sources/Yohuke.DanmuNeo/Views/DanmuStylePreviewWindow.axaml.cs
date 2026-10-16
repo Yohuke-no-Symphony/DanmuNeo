@@ -44,7 +44,8 @@ public partial class DanmuStylePreviewWindow : Window
     {
         if (e.Handled || Owner?.DataContext is not MainWindowViewModel ownerViewModel ||
             ownerViewModel.IsRecordingShortcut || ownerViewModel.IsSettingsOpen || ownerViewModel.IsAddDialogOpen ||
-            ownerViewModel.IsConfirmDeleteDialogOpen || ownerViewModel.SelectedWorkspace is null ||
+            ownerViewModel.IsConfirmDeleteDialogOpen || ownerViewModel.IsUpdateDialogOpen ||
+            ownerViewModel.SelectedWorkspace is null ||
             ownerViewModel.SymbolGroups.Count == 0)
         {
             return;

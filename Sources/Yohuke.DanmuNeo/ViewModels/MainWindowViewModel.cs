@@ -62,9 +62,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         IRoomAvatarService? avatarCacheService = null,
         IBilibiliModerationService? moderationService = null,
         IBilibiliUserNameService? userNameService = null,
-        IBilibiliDanmuConfigService? danmuConfigService = null)
+        IBilibiliDanmuConfigService? danmuConfigService = null,
+        IAppUpdateService? appUpdateService = null)
     {
         this.stateService = stateService;
+        ownedAppUpdateService = appUpdateService is null ? new() : null;
+        this.appUpdateService = appUpdateService ?? ownedAppUpdateService!;
         appDirectoryService = new(stateService.ConfigDirectory);
         appDirectoryService.EnsureDirectories();
         appBackupService = new(appDirectoryService);
@@ -529,7 +532,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// <summary>
     /// 当前版本。
     /// </summary>
-    public string AppVersion => typeof(MainWindowViewModel).Assembly.GetName().Version?.ToString(3) ?? "开发版";
+    public string AppVersion => typeof(MainWindowViewModel).Assembly.GetName().Version is { } version
+        ? version.ToString(version.Revision > 0 ? 4 : 3)
+        : "开发版";
 
     /// <summary>
     /// 配置目录。
@@ -2109,6 +2114,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
 
         isDisposed = true;
+        DisposeUpdateCheck();
         ResetLiveRoomSearch();
         foreach (var room in Workspaces.SelectMany(workspace => workspace.Rooms))
         {

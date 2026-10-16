@@ -165,7 +165,8 @@ public partial class MainWindow : Window
     private bool TryHandleShortcut(KeyEventArgs e)
     {
         if (e.Handled || DataContext is not MainWindowViewModel viewModel || viewModel.IsRecordingShortcut ||
-            viewModel.IsSettingsOpen || viewModel.IsAddDialogOpen || viewModel.IsConfirmDeleteDialogOpen)
+            viewModel.IsSettingsOpen || viewModel.IsAddDialogOpen || viewModel.IsConfirmDeleteDialogOpen ||
+            viewModel.IsUpdateDialogOpen)
         {
             return false;
         }

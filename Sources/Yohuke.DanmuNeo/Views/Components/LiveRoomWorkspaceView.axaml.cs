@@ -557,7 +557,7 @@ public partial class LiveRoomWorkspaceView : UserControl
     {
         if (e.Handled || currentRoom is null || GetMainWindowViewModel() is not { } viewModel ||
             viewModel.IsRecordingShortcut || viewModel.IsSettingsOpen || viewModel.IsAddDialogOpen ||
-            viewModel.IsConfirmDeleteDialogOpen)
+            viewModel.IsConfirmDeleteDialogOpen || viewModel.IsUpdateDialogOpen)
         {
             return false;
         }

@@ -15,6 +15,7 @@ internal class AttachedDialogCoordinator : IDisposable
     private AttachedDialogWindow? addDialogWindow;
     private AttachedDialogWindow? settingsDialogWindow;
     private AttachedDialogWindow? confirmDeleteDialogWindow;
+    private AttachedDialogWindow? updateDialogWindow;
     private bool isBoundsUpdateQueued;
     private bool isDisposed;
 
@@ -62,6 +63,7 @@ internal class AttachedDialogCoordinator : IDisposable
         CloseDialog(ref addDialogWindow);
         CloseDialog(ref settingsDialogWindow);
         CloseDialog(ref confirmDeleteDialogWindow);
+        CloseDialog(ref updateDialogWindow);
     }
 
     private void Owner_OnPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
@@ -76,7 +78,8 @@ internal class AttachedDialogCoordinator : IDisposable
     {
         if (e.PropertyName is nameof(MainWindowViewModel.IsAddDialogOpen) or
             nameof(MainWindowViewModel.IsSettingsOpen) or
-            nameof(MainWindowViewModel.IsConfirmDeleteDialogOpen))
+            nameof(MainWindowViewModel.IsConfirmDeleteDialogOpen) or
+            nameof(MainWindowViewModel.IsUpdateDialogOpen))
         {
             SyncDialogs();
         }
@@ -89,6 +92,7 @@ internal class AttachedDialogCoordinator : IDisposable
             CloseDialog(ref addDialogWindow);
             CloseDialog(ref settingsDialogWindow);
             CloseDialog(ref confirmDeleteDialogWindow);
+            CloseDialog(ref updateDialogWindow);
             return;
         }
 
@@ -97,18 +101,22 @@ internal class AttachedDialogCoordinator : IDisposable
             HideDialog(addDialogWindow);
             HideDialog(settingsDialogWindow);
             HideDialog(confirmDeleteDialogWindow);
+            HideDialog(updateDialogWindow);
             return;
         }
 
         SyncDialog(ref addDialogWindow, viewModel.IsAddDialogOpen, () => new AddWorkspaceDialogView());
         SyncDialog(ref settingsDialogWindow, viewModel.IsSettingsOpen, () => new SettingsDialogView());
         SyncDialog(ref confirmDeleteDialogWindow, viewModel.IsConfirmDeleteDialogOpen, () => new ConfirmDeleteDialogView());
+        SyncDialog(ref updateDialogWindow, viewModel.IsUpdateDialogOpen, () => new AppUpdateDialogView(),
+            () => viewModel?.CloseUpdateDialog());
     }
 
     private void SyncDialog(
         ref AttachedDialogWindow? window,
         bool isOpen,
-        Func<Control> createContent)
+        Func<Control> createContent,
+        Action? onClosed = null)
     {
         if (!isOpen)
         {
@@ -131,6 +139,11 @@ internal class AttachedDialogCoordinator : IDisposable
                 DataContext = viewModel,
                 Content = content
             };
+
+            if (onClosed is not null)
+            {
+                window.Closed += (_, _) => onClosed();
+            }
 
             window.Show(owner);
             window.Activate();
@@ -159,6 +172,7 @@ internal class AttachedDialogCoordinator : IDisposable
         UpdateDialogBounds(addDialogWindow);
         UpdateDialogBounds(settingsDialogWindow);
         UpdateDialogBounds(confirmDeleteDialogWindow);
+        UpdateDialogBounds(updateDialogWindow);
     }
 
     private void RequestUpdateDialogBounds()
