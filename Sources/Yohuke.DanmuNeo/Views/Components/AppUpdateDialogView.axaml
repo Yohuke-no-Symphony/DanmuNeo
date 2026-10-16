@@ -3,48 +3,50 @@
              x:Class="Yohuke.DanmuNeo.Views.Components.AppUpdateDialogView"
              x:CompileBindings="False"
              x:Name="Root">
-    <Border Classes="addDialogOverlay"
+    <Border Background="{DynamicResource AppCardBrush}"
+            Padding="24"
             IsVisible="{Binding IsUpdateDialogOpen}">
-        <Border Classes="addDialogPanel">
-            <StackPanel Spacing="18">
-                <StackPanel Spacing="8">
-                    <TextBlock Text="{Binding UpdateCheckMessage}"
-                               FontSize="24"
-                               FontWeight="SemiBold"
-                               HorizontalAlignment="Center"/>
-                    <TextBlock Text="{Binding AvailableUpdate.TagName, StringFormat='最新版本：{0}'}"
-                               IsVisible="{Binding !!AvailableUpdate}"
-                               FontSize="16"
-                               HorizontalAlignment="Center"/>
-                    <TextBlock Text="{Binding AppVersion, StringFormat='当前版本：{0}'}"
-                               Classes="muted"
-                               HorizontalAlignment="Center"/>
-                    <TextBlock Text="前往 GitHub 发布页面查看更新说明并下载。"
-                               IsVisible="{Binding !!AvailableUpdate}"
-                               Classes="muted"
-                               HorizontalAlignment="Center"
-                               TextWrapping="Wrap"
-                               TextAlignment="Center"/>
-                </StackPanel>
-                <TextBlock x:Name="LaunchErrorText"
-                           Text="无法打开浏览器，请稍后重试。"
+        <StackPanel Spacing="18">
+            <StackPanel Spacing="8">
+                <TextBlock x:Name="UpdateMessageText"
+                           Text="{Binding UpdateCheckMessage}"
+                           FontSize="24"
+                           FontWeight="SemiBold"
+                           TextWrapping="Wrap"
+                           TextAlignment="Center"/>
+                <TextBlock Text="{Binding AvailableUpdate.TagName, StringFormat='最新版本：{0}'}"
+                           IsVisible="{Binding !!AvailableUpdate}"
+                           FontSize="16"
+                           TextWrapping="Wrap"
+                           TextAlignment="Center"/>
+                <TextBlock Text="{Binding AppVersion, StringFormat='当前版本：{0}'}"
                            Classes="muted"
-                           IsVisible="False"
-                           TextWrapping="Wrap"/>
-                <Grid ColumnDefinitions="*,Auto,Auto"
-                      ColumnSpacing="8">
-                    <Button x:Name="DismissUpdateButton"
-                            Grid.Column="1"
-                            Content="关闭"
-                            Command="{Binding CloseUpdateDialogCommand}"/>
-                    <Button x:Name="OpenReleaseButton"
-                            Grid.Column="2"
-                            Classes="primaryButton"
-                            Content="前往 GitHub"
-                            IsVisible="{Binding !!AvailableUpdate}"
-                            Command="{Binding #Root.OpenReleaseCommand}"/>
-                </Grid>
+                           TextWrapping="Wrap"
+                           TextAlignment="Center"/>
+                <TextBlock Text="前往 GitHub 发布页面查看更新说明并下载。"
+                           IsVisible="{Binding !!AvailableUpdate}"
+                           Classes="muted"
+                           TextWrapping="Wrap"
+                           TextAlignment="Center"/>
             </StackPanel>
-        </Border>
+            <TextBlock x:Name="LaunchErrorText"
+                       Text="无法打开浏览器，请稍后重试。"
+                       Classes="muted"
+                       IsVisible="False"
+                       TextWrapping="Wrap"/>
+            <Grid ColumnDefinitions="*,Auto,Auto"
+                  ColumnSpacing="8">
+                <Button x:Name="DismissUpdateButton"
+                        Grid.Column="1"
+                        Content="关闭"
+                        Command="{Binding CloseUpdateDialogCommand}"/>
+                <Button x:Name="OpenReleaseButton"
+                        Grid.Column="2"
+                        Classes="primaryButton"
+                        Content="前往 GitHub"
+                        IsVisible="{Binding !!AvailableUpdate}"
+                        Command="{Binding #Root.OpenReleaseCommand}"/>
+            </Grid>
+        </StackPanel>
     </Border>
 </UserControl>

@@ -7,86 +7,92 @@
                                x:Class="Yohuke.DanmuNeo.Views.Components.DraftComposerPanelView"
                                x:DataType="items:LiveRoomTabViewModel"
                                x:CompileBindings="True"
+                               MinHeight="124"
                                x:Name="Root">
-    <Border Classes="translateComposer"
+    <Border x:Name="ComposerFrame" Classes="translateComposer"
             Classes.sendFailed="{Binding IsDraftSendFailed}">
-        <Grid RowDefinitions="*,Auto"
+        <Grid x:Name="ComposerLayout" RowDefinitions="*,Auto"
               RowSpacing="4">
             <Grid>
                 <TextBox x:Name="InputDraftTextBox"
                          Classes="translateComposerInput"
+                         MinHeight="64"
+                         VerticalContentAlignment="Top"
                          Text="{Binding InputDraft}"
+                         Watermark="输入同传内容"
                          TextWrapping="Wrap"
                          AcceptsReturn="False"
                          KeyDown="InputDraft_OnKeyDown" />
-                <TextBlock Text="输入同传内容"
-                           Classes="muted"
-                           IsHitTestVisible="False"
-                           IsVisible="{Binding IsInputDraftEmpty}" />
             </Grid>
-            <WrapPanel Grid.Row="1" Orientation="Horizontal">
-                <ComboBox x:Name="ComposerMarkSelector"
-                          Classes="translateComposerMarkSelector"
-                          VerticalAlignment="Center"
-                          ItemsSource="{Binding #Root.Context.Application.SymbolGroups}"
-                          SelectedItem="{Binding #Root.Context.Application.SelectedWorkspaceMarkGroup}">
-                    <ComboBox.ItemTemplate>
-                        <DataTemplate x:DataType="state:MarkSymbolGroup">
-                            <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
-                        </DataTemplate>
-                    </ComboBox.ItemTemplate>
-                </ComboBox>
-                <TextBlock x:Name="DraftSendErrorText" MaxWidth="140" Margin="4,0,0,0"
+            <StackPanel x:Name="ComposerFooter" Grid.Row="1" Spacing="4">
+                <TextBlock x:Name="DraftSendErrorText"
                            Text="{Binding DraftSendError}"
                            ToolTip.Tip="{Binding DraftSendError}"
+                           IsVisible="{Binding IsDraftSendFailed}"
                            Foreground="{DynamicResource AppErrorBrush}"
-                           VerticalAlignment="Center"
-                           TextWrapping="NoWrap"
+                           TextWrapping="Wrap" MaxLines="2"
                            TextTrimming="CharacterEllipsis" />
-                <ComboBox x:Name="DanmuColorSelector" Width="100" Margin="4,0,0,0"
-                          Classes="translateComposerConfigSelector"
-                          PlaceholderText="颜色"
-                          ToolTip.Tip="{Binding DanmuConfigurationStatus}"
-                          IsEnabled="{Binding CanSelectDanmuColor}"
-                          ItemsSource="{Binding DanmuColorOptions}"
-                          SelectedItem="{Binding SelectedDanmuColor, Mode=TwoWay}"
-                          DropDownOpened="DanmuConfigSelector_OnDropDownOpened">
-                    <ComboBox.ItemTemplate>
-                        <DataTemplate x:DataType="workspace:DanmuColorOption">
-                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="5">
-                                <Border Width="10" Height="10" CornerRadius="3"
-                                        BorderThickness="1" BorderBrush="{DynamicResource AppMutedTextBrush}"
-                                        Background="{Binding ColorHex}" VerticalAlignment="Center" />
-                                <TextBlock Grid.Column="1" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
-                            </Grid>
-                        </DataTemplate>
-                    </ComboBox.ItemTemplate>
-                </ComboBox>
-                <ComboBox x:Name="DanmuModeSelector" Width="82" Margin="4,0,0,0"
-                          Classes="translateComposerConfigSelector"
-                          PlaceholderText="位置"
-                          ToolTip.Tip="{Binding DanmuConfigurationStatus}"
-                          IsEnabled="{Binding CanSelectDanmuMode}"
-                          ItemsSource="{Binding DanmuModeOptions}"
-                          SelectedItem="{Binding SelectedDanmuMode, Mode=TwoWay}"
-                          DropDownOpened="DanmuConfigSelector_OnDropDownOpened">
-                    <ComboBox.ItemTemplate>
-                        <DataTemplate x:DataType="workspace:DanmuModeOption">
-                            <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
-                        </DataTemplate>
-                    </ComboBox.ItemTemplate>
-                </ComboBox>
-                <Button
-                    Classes="translateComposerSendButton" Margin="4,0,0,0"
-                    ToolTip.Tip="发送同传"
-                    Command="{Binding SendDraftCommand}">
-                    <StackPanel Orientation="Horizontal"
-                                Spacing="6">
-                        <LucideIcon Kind="Send" />
-                        <TextBlock Text="发送" />
-                    </StackPanel>
-                </Button>
-            </WrapPanel>
+                <components:ComposerToolbarPanel x:Name="ComposerToolbar">
+                    <ComboBox x:Name="ComposerMarkSelector"
+                              Classes="translateComposerMarkSelector"
+                              VerticalAlignment="Center"
+                              ItemsSource="{Binding #Root.Context.Application.SymbolGroups}"
+                              SelectedItem="{Binding #Root.Context.Application.SelectedWorkspaceMarkGroup}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="state:MarkSymbolGroup">
+                                <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <WrapPanel x:Name="ComposerActions" Orientation="Horizontal"
+                               ItemsAlignment="End" ItemSpacing="4" LineSpacing="4">
+                        <ComboBox x:Name="DanmuColorSelector" Width="100"
+                                  Classes="translateComposerConfigSelector"
+                                  PlaceholderText="颜色"
+                                  ToolTip.Tip="{Binding DanmuConfigurationStatus}"
+                                  IsEnabled="{Binding CanSelectDanmuColor}"
+                                  ItemsSource="{Binding DanmuColorOptions}"
+                                  SelectedItem="{Binding SelectedDanmuColor, Mode=TwoWay}"
+                                  DropDownOpened="DanmuConfigSelector_OnDropDownOpened">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="workspace:DanmuColorOption">
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="5">
+                                        <Border Width="10" Height="10" CornerRadius="3"
+                                                BorderThickness="1" BorderBrush="{DynamicResource AppMutedTextBrush}"
+                                                Background="{Binding ColorHex}" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Name}"
+                                                   TextTrimming="CharacterEllipsis" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <ComboBox x:Name="DanmuModeSelector" Width="82"
+                                  Classes="translateComposerConfigSelector"
+                                  PlaceholderText="位置"
+                                  ToolTip.Tip="{Binding DanmuConfigurationStatus}"
+                                  IsEnabled="{Binding CanSelectDanmuMode}"
+                                  ItemsSource="{Binding DanmuModeOptions}"
+                                  SelectedItem="{Binding SelectedDanmuMode, Mode=TwoWay}"
+                                  DropDownOpened="DanmuConfigSelector_OnDropDownOpened">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="workspace:DanmuModeOption">
+                                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <Button
+                            Classes="translateComposerSendButton"
+                            ToolTip.Tip="发送同传"
+                            Command="{Binding SendDraftCommand}">
+                            <StackPanel Orientation="Horizontal"
+                                        Spacing="6">
+                                <LucideIcon Kind="Send" />
+                                <TextBlock Text="发送" />
+                            </StackPanel>
+                        </Button>
+                    </WrapPanel>
+                </components:ComposerToolbarPanel>
+            </StackPanel>
         </Grid>
     </Border>
 </components:WorkbenchRoomPanel>

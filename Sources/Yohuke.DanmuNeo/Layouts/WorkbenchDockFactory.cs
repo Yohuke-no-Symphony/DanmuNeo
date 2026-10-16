@@ -10,6 +10,8 @@ internal sealed class WorkbenchDockFactory : Factory
     private readonly Action beginMigration;
     private readonly Action<IDockable?> closing;
 
+    internal WorkbenchControlRecycling ControlRecycling { get; } = new();
+
     internal WorkbenchDockFactory(
         Func<IHostWindow?> createHost,
         Action changed,

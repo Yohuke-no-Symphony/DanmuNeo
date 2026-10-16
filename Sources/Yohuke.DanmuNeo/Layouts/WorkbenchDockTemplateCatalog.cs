@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Controls.Recycling;
 using Avalonia.Controls.Templates;
 using Avalonia.Data;
 using Avalonia.Data.Converters;
@@ -13,14 +14,15 @@ namespace Yohuke.DanmuNeo.Layouts;
 
 internal static class WorkbenchDockTemplateCatalog
 {
-    internal static void Install(DockControl host)
+    internal static void Install(DockControl host, WorkbenchControlRecycling recycling)
     {
         host.AutoCreateDataTemplates = false;
+        ControlRecyclingDataTemplate.SetControlRecycling(host, recycling);
         host.DataTemplates.Add(new WorkbenchDockPanelTemplate());
         host.DataTemplates.Add(new FuncDataTemplate<IRootDock>(value => value is not null, (_, _) => new RootDockControl()));
-        host.DataTemplates.Add(new FuncDataTemplate<IProportionalDock>(value => value is not null, (_, _) => new ProportionalDockControl()));
+        host.DataTemplates.Add(new FuncDataTemplate<IProportionalDock>(value => value is not null, (_, _) => new WorkbenchProportionalDockControl()));
         host.DataTemplates.Add(new FuncDataTemplate<IToolDock>(value => value is not null, (_, _) => CreateToolDockControl()));
-        host.DataTemplates.Add(new FuncDataTemplate<IProportionalDockSplitter>(value => value is not null, (_, _) => new ProportionalStackPanelSplitter
+        host.DataTemplates.Add(new FuncDataTemplate<IProportionalDockSplitter>(value => value is not null, (_, _) => new WorkbenchProportionalStackPanelSplitter
         {
             [!ProportionalStackPanelSplitter.IsResizingEnabledProperty] = new Binding(nameof(IProportionalDockSplitter.CanResize)),
             [!ProportionalStackPanelSplitter.PreviewResizeProperty] = new Binding(nameof(IProportionalDockSplitter.ResizePreview))
@@ -50,7 +52,8 @@ internal static class WorkbenchDockTemplateCatalog
                     },
                     Child = new WorkbenchToolChromeControl
                     {
-                        Content = new WorkbenchToolControl(),
+                        MinHeight = 0,
+                        Content = new WorkbenchToolControl { MinHeight = 0 },
                         [!ToolChromeControl.IsActiveProperty] = new Binding(nameof(IToolDock.IsActive))
                     }
                 }.RegisterInNameScope(scope);

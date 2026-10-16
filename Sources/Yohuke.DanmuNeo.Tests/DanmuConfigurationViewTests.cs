@@ -53,7 +53,7 @@ public class DanmuConfigurationViewTests
             Assert.Equal(1, Assert.IsType<DanmuModeOption>(mode.SelectedItem).Value);
 
             var controls = new Control[] { mark, color, mode, send };
-            var toolbar = composer.GetVisualDescendants().OfType<WrapPanel>().Single();
+            var toolbar = composer.GetVisualDescendants().OfType<ComposerToolbarPanel>().Single();
             var input = view.FindControl<TextBox>("InputDraftTextBox")!;
             var toolbarTop = toolbar.TranslatePoint(default, composer)!.Value.Y;
             var toolbarBottom = toolbarTop + toolbar.Bounds.Height;
@@ -73,7 +73,7 @@ public class DanmuConfigurationViewTests
 
             for (var index = 0; index < controls.Length; index++)
             {
-                Assert.Same(toolbar, controls[index].GetVisualParent());
+                Assert.Contains(toolbar, controls[index].GetVisualAncestors());
                 var left = controls[index].TranslatePoint(new Point(0, 0), composer)!.Value.X;
                 var right = left + controls[index].Bounds.Width;
                 var top = controls[index].TranslatePoint(default, composer)!.Value.Y;

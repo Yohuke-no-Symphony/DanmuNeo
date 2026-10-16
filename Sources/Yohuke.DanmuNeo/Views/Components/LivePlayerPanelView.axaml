@@ -10,10 +10,12 @@
                                x:Name="Root">
     <Grid
         RowDefinitions="Auto,*"
-        RowSpacing="10">
-        <WrapPanel Orientation="Horizontal"
+        RowSpacing="8">
+        <WrapPanel Orientation="Horizontal" ItemSpacing="8" LineSpacing="8"
+                   Margin="8,4,8,0"
                    VerticalAlignment="Center">
-            <ComboBox Height="30" Width="160" Margin="0,0,8,4"
+            <ComboBox Height="{StaticResource WorkbenchControlHeight}" Width="160"
+                      PlaceholderText="清晰度"
                       VerticalAlignment="Center"
                       VerticalContentAlignment="Center"
                       ItemsSource="{Binding LiveQualityOptions}"
@@ -24,45 +26,55 @@
                     </DataTemplate>
                 </ComboBox.ItemTemplate>
             </ComboBox>
-            <Button ToolTip.Tip="{Binding LivePlayerToggleToolTip}"
-                    Classes="iconButton"
-                    Classes.selected="{Binding IsLivePlayerVisible}"
-                    VerticalAlignment="Center"
-                    Command="{Binding ToggleLivePlayerCommand}">
-                <Grid>
-                    <LucideIcon Kind="CirclePlay"
-                                IsVisible="{Binding IsLivePlayerHidden}" />
-                    <LucideIcon Kind="CircleStop"
-                                IsVisible="{Binding IsLivePlayerVisible}" />
-                </Grid>
-            </Button>
-            <Button ToolTip.Tip="追帧"
-                    Classes="iconButton"
-                    VerticalAlignment="Center"
-                    Command="{Binding ChaseLiveCommand}">
-                <LucideIcon Kind="RefreshCw" />
-            </Button>
-            <Button ToolTip.Tip="静音"
-                    Classes="iconButton"
-                    Classes.selected="{Binding IsLivePlayerMuted}"
-                    VerticalAlignment="Center"
-                    Command="{Binding ToggleLivePlayerMutedCommand}">
-                <Grid>
-                    <LucideIcon Kind="Volume2"
-                                IsVisible="{Binding IsLivePlayerAudible}" />
-                    <LucideIcon Kind="VolumeX"
-                                IsVisible="{Binding IsLivePlayerMuted}" />
-                </Grid>
-            </Button>
-            <Slider Width="100" Margin="8,0,4,4" Minimum="0"
-                    Maximum="100"
-                    Value="{Binding LivePlayerVolumePercent}"
-                    VerticalAlignment="Center"
-                    ToolTip.Tip="音量" />
-            <TextBlock Text="{Binding LivePlayerVolumeText}"
-                       Classes="muted"
-                       HorizontalAlignment="Right"
-                       VerticalAlignment="Center" />
+            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Button ToolTip.Tip="{Binding LivePlayerToggleToolTip}"
+                        Classes="iconButton"
+                        Classes.selected="{Binding IsLivePlayerVisible}"
+                        VerticalAlignment="Center"
+                        Command="{Binding ToggleLivePlayerCommand}">
+                    <Grid>
+                        <LucideIcon Kind="CirclePlay"
+                                    IsVisible="{Binding IsLivePlayerHidden}" />
+                        <LucideIcon Kind="CircleStop"
+                                    IsVisible="{Binding IsLivePlayerVisible}" />
+                    </Grid>
+                </Button>
+                <Button ToolTip.Tip="追帧"
+                        Classes="iconButton"
+                        VerticalAlignment="Center"
+                        Command="{Binding ChaseLiveCommand}">
+                    <LucideIcon Kind="RefreshCw" />
+                </Button>
+                <Button ToolTip.Tip="静音"
+                        Classes="iconButton"
+                        Classes.selected="{Binding IsLivePlayerMuted}"
+                        VerticalAlignment="Center"
+                        Command="{Binding ToggleLivePlayerMutedCommand}">
+                    <Grid>
+                        <LucideIcon Kind="Volume2"
+                                    IsVisible="{Binding IsLivePlayerAudible}" />
+                        <LucideIcon Kind="VolumeX"
+                                    IsVisible="{Binding IsLivePlayerMuted}" />
+                    </Grid>
+                </Button>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                <Slider Width="100" Height="24" MinHeight="24" Padding="0" Minimum="0"
+                        Maximum="100"
+                        Value="{Binding LivePlayerVolumePercent}"
+                        VerticalAlignment="Center"
+                        ToolTip.Tip="音量">
+                    <Slider.Resources>
+                        <GridLength x:Key="SliderPreContentMargin">2</GridLength>
+                        <GridLength x:Key="SliderPostContentMargin">2</GridLength>
+                        <x:Double x:Key="SliderHorizontalHeight">24</x:Double>
+                    </Slider.Resources>
+                </Slider>
+                <TextBlock Text="{Binding LivePlayerVolumeText}"
+                           Classes="muted"
+                           MinWidth="34" HorizontalAlignment="Right"
+                           VerticalAlignment="Center" />
+            </StackPanel>
         </WrapPanel>
 
         <Grid Grid.Row="1">

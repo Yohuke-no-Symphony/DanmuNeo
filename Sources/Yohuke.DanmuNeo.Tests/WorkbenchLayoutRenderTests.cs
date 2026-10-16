@@ -5,8 +5,10 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using Dock.Avalonia.Controls;
 using Yohuke.DanmuNeo.Layouts;
 using Yohuke.DanmuNeo.Views;
+using Yohuke.DanmuNeo.Views.Components;
 using Yohuke.DanmuNeo.Windowing;
 
 namespace Yohuke.DanmuNeo.Tests;
@@ -88,15 +90,33 @@ public class WorkbenchLayoutRenderTests
             var toolbarBottom = toolbar.TranslatePoint(new Point(0, toolbar.Bounds.Height), player)!.Value.Y;
             Assert.True(videoTop >= toolbarBottom, $"播放器不能覆盖工具条：{videoTop} < {toolbarBottom}");
 
+            var composer = workbench.Panels.Composer;
+
+            if (composer.IsEffectivelyVisible)
+            {
+                AssertComposerFits(composer);
+            }
+
             var directory = Environment.GetEnvironmentVariable("YOHUKE_DOCK_QA_OUTPUT");
 
             if (!string.IsNullOrWhiteSpace(directory))
             {
                 Directory.CreateDirectory(directory);
                 main.MouseMove(new(-1, -1));
+                AvaloniaHeadlessPlatform.ForceRenderTimerTick(2);
+                Dispatcher.UIThread.RunJobs();
                 using var frame = main.CaptureRenderedFrame();
                 Assert.NotNull(frame);
                 frame.Save(Path.Combine(directory, $"{preset}-{width}x{height}-{(dark ? "dark" : "light")}.png"));
+            }
+
+            if (composer.IsEffectivelyVisible)
+            {
+                context.ViewModel.SelectedWorkspace!.SelectedRoom!.DraftSendError = "发送失败：" + new string('错', 100);
+                context.ViewModel.SelectedWorkspace.SelectedRoom.IsDraftSendFailed = true;
+                Dispatcher.UIThread.RunJobs();
+                main.UpdateLayout();
+                AssertComposerFits(composer);
             }
         }
         finally
@@ -120,5 +140,13 @@ public class WorkbenchLayoutRenderTests
                 yield return panelId;
             }
         }
+    }
+
+    private static void AssertComposerFits(DraftComposerPanelView composer)
+    {
+        var host = composer.GetVisualAncestors().OfType<ToolControl>().First();
+        var bottom = composer.TranslatePoint(new Point(0, composer.Bounds.Height), host)!.Value.Y;
+        Assert.InRange(bottom, 0, host.Bounds.Height + 0.5);
+        Assert.True(composer.Input.Bounds.Height >= 64);
     }
 }

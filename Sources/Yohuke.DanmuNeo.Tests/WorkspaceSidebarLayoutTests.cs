@@ -4,6 +4,7 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Yohuke.DanmuNeo.Layouts;
 using Yohuke.DanmuNeo.Views;
+using Yohuke.DanmuNeo.Views.Components;
 using Yohuke.DanmuNeo.Windowing;
 
 namespace Yohuke.DanmuNeo.Tests;
@@ -13,6 +14,58 @@ namespace Yohuke.DanmuNeo.Tests;
 /// </summary>
 public class WorkspaceSidebarLayoutTests
 {
+    /// <summary>
+    /// Dock 提供面板标题，子视图只保留工作区新增与历史导出、清空入口。
+    /// </summary>
+    [AvaloniaFact]
+    public async Task DockTitlesReplaceDuplicatePanelHeadingsAndKeepActions()
+    {
+        using var context = new WorkspaceSidebarTestContext(240);
+        var room = context.ViewModel.SelectedWorkspace!.SelectedRoom!;
+        room.TranslateHistoryItems.Add(new() { Content = "需要保留的同传记录" });
+        var window = new MainWindow { DataContext = context.ViewModel };
+
+        try
+        {
+            window.Show();
+            await window.Initialization;
+            var workbench = Assert.IsType<WorkbenchSession>(window.Workbench);
+            workbench.Layouts.ShowPanel(WorkbenchPanelIds.HISTORY);
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            var workspaceAdapter = workbench.Layouts.PanelAdapters[WorkbenchPanelIds.WORKSPACE];
+            var workspace = Assert.IsType<WorkspaceSidebarView>(workspaceAdapter.View);
+            var history = workbench.Panels.History;
+            Assert.Equal("工作区", workspaceAdapter.Title);
+            Assert.Equal("历史", workbench.Layouts.PanelAdapters[WorkbenchPanelIds.HISTORY].Title);
+            Assert.DoesNotContain(workspace.GetVisualDescendants().OfType<TextBlock>(),
+                text => text.Text is "工作区" or "右键工作区可添加直播间、导入或导出分享");
+            Assert.DoesNotContain(history.GetVisualDescendants().OfType<TextBlock>(),
+                text => text.Text == "同传历史");
+
+            var historyButtons = history.GetVisualDescendants().OfType<Button>().ToArray();
+            var export = Assert.Single(historyButtons, button => Equals(ToolTip.GetTip(button), "导出 Excel"));
+            var clear = Assert.Single(historyButtons, button => Equals(ToolTip.GetTip(button), "清空历史"));
+            Assert.True(export.IsEffectivelyVisible && export.IsEnabled);
+            Assert.True(clear.IsEffectivelyVisible && clear.IsEnabled);
+            Assert.Same(room.ClearTranslateHistoryCommand, clear.Command);
+            clear.Command!.Execute(null);
+            Assert.Empty(room.TranslateHistoryItems);
+
+            var addWorkspace = Assert.Single(workspace.GetVisualDescendants().OfType<Button>(),
+                button => ReferenceEquals(button.Command, workspace.OpenAddWorkspaceDialogCommand));
+            Assert.True(addWorkspace.IsEffectivelyVisible && addWorkspace.IsEnabled);
+            addWorkspace.Command!.Execute(null);
+            Assert.True(context.ViewModel.IsAddDialogOpen);
+            Assert.True(context.ViewModel.IsAddingWorkspace);
+            context.ViewModel.CloseAddDialog();
+        }
+        finally
+        {
+            await window.CloseWorkbenchAsync();
+        }
+    }
+
     /// <summary>
     /// 旧折叠状态只迁移一次，移除顶部折叠按钮，菜单恢复面板不改变房间。
     /// </summary>

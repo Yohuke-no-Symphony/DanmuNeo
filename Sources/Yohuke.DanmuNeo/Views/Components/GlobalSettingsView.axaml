@@ -11,16 +11,19 @@
             <StackPanel Spacing="12">
                 <TextBlock Text="外观"
                            Classes="sectionTitle"/>
-                <ItemsControl ItemsSource="{Binding ThemeModeOptions}">
+                <ItemsControl x:Name="ThemeModeChoices"
+                              ItemsSource="{Binding ThemeModeOptions}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <StackPanel Orientation="Horizontal"
-                                        Spacing="16"/>
+                            <WrapPanel Orientation="Horizontal"
+                                       ItemSpacing="16"
+                                       LineSpacing="16"/>
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="items:ThemeModeOption">
                             <Button Classes="themeCardButton"
+                                    MaxWidth="{Binding #ThemeModeChoices.Bounds.Width}"
                                     Classes.selected="{Binding IsSelected}"
                                     Command="{Binding #Root.SelectThemeModeCommand}"
                                     CommandParameter="{Binding}">
@@ -104,15 +107,17 @@
                                  Text="{Binding Settings.TimeoutSeconds}"/>
                     </StackPanel>
                 </Grid>
-                <StackPanel Orientation="Horizontal"
-                            Spacing="16">
+                <WrapPanel x:Name="GlobalSendingOptions"
+                           Orientation="Horizontal"
+                           ItemSpacing="16"
+                           LineSpacing="8">
                     <CheckBox Content="开启屏蔽词处理"
                               IsChecked="{Binding Settings.EnableShieldProcessing}"/>
                     <CheckBox Content="屏蔽时重发"
                               IsChecked="{Binding Settings.ResendWhenShielded}"/>
                     <CheckBox Content="播放/追帧时自动监听"
                               IsChecked="{Binding Settings.AutoStartListeningWithLivePlayer}"/>
-                </StackPanel>
+                </WrapPanel>
                 <Grid ColumnDefinitions="*,*"
                       ColumnSpacing="8">
                     <StackPanel Spacing="4">

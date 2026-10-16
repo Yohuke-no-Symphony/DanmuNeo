@@ -1,3 +1,4 @@
+using Avalonia.Controls;
 using Avalonia.Controls.Presenters;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
@@ -10,10 +11,74 @@ using Yohuke.DanmuNeo.Windowing;
 namespace Yohuke.DanmuNeo.Tests;
 
 /// <summary>
-/// 验证工作台输入路由让预编辑中的输入法优先处理按键。
+/// 验证工作台输入路由和提示文字在输入法预编辑期间保持正确状态。
 /// </summary>
 public class WorkbenchCompositionTests
 {
+    /// <summary>
+    /// 空草稿开始预编辑时隐藏提示，取消后恢复，提交文字后保持隐藏。
+    /// </summary>
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task EmptyDraftWatermarkFollowsCompositionStartCancelAndCommit(bool floating)
+    {
+        using var context = new MarkGroupCycleTestContext();
+        var main = new MainWindow { DataContext = context.ViewModel };
+
+        try
+        {
+            main.Show();
+            await main.Initialization;
+            var workbench = Assert.IsType<WorkbenchSession>(main.Workbench);
+
+            if (floating)
+            {
+                workbench.Layouts.FloatPanel(Layouts.WorkbenchPanelIds.COMPOSER);
+            }
+
+            var owner = floating ? Assert.Single(workbench.Layouts.FloatingWindows) : main;
+            var room = workbench.Context.CurrentRoom!;
+            room.InputDraft = "";
+            workbench.Panels.FocusInputDraft();
+            PumpLayout(owner);
+            var input = workbench.Panels.Composer.Input;
+            var presenter = input.GetVisualDescendants().OfType<TextPresenter>().Single();
+            var watermark = input.GetVisualDescendants().OfType<TextBlock>()
+                .Single(text => text.Name == "PART_Watermark");
+            Assert.Equal("输入同传内容", input.Watermark);
+            Assert.True(watermark.IsEffectivelyVisible);
+
+            presenter.PreeditText = "pinyin";
+            PumpLayout(owner);
+            Assert.Equal("", room.InputDraft);
+            Assert.False(watermark.IsEffectivelyVisible);
+
+            presenter.PreeditText = null;
+            PumpLayout(owner);
+            Assert.Equal("", room.InputDraft);
+            Assert.True(watermark.IsEffectivelyVisible);
+
+            presenter.PreeditText = "pinyin";
+            PumpLayout(owner);
+            Assert.False(watermark.IsEffectivelyVisible);
+            presenter.PreeditText = null;
+            owner.KeyTextInput("拼音");
+            PumpLayout(owner);
+            Assert.Equal("拼音", room.InputDraft);
+            Assert.Equal(2, input.CaretIndex);
+            Assert.False(watermark.IsEffectivelyVisible);
+
+            input.Text = "";
+            PumpLayout(owner);
+            Assert.True(watermark.IsEffectivelyVisible);
+        }
+        finally
+        {
+            await main.CloseWorkbenchAsync();
+        }
+    }
+
     /// <summary>
     /// 有预编辑文本时，Enter 不提交发送，Tab 不轮切预设。
     /// </summary>
@@ -61,5 +126,11 @@ public class WorkbenchCompositionTests
         {
             await main.CloseWorkbenchAsync();
         }
+    }
+
+    private static void PumpLayout(Window window)
+    {
+        Dispatcher.UIThread.RunJobs();
+        window.UpdateLayout();
     }
 }

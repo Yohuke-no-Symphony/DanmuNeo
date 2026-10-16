@@ -18,6 +18,7 @@ internal sealed class WorkbenchLayoutController : IAsyncDisposable
     private readonly Dictionary<string, WorkbenchDockPanel> panels;
     private readonly WorkbenchDockFactory factory;
     private readonly WorkbenchDockSnapshotCodec codec;
+    private readonly WorkbenchLayoutConstraints constraints;
     private readonly WorkspaceLayoutSaveScheduler persistence;
     private readonly List<WorkspaceLayoutPreset> userPresets;
     private readonly List<WorkbenchFloatingHostWindow> floatingHosts = [];
@@ -68,12 +69,14 @@ internal sealed class WorkbenchLayoutController : IAsyncDisposable
         panels = panelViews.ToDictionary(pair => pair.Key, pair => new WorkbenchDockPanel(pair.Key, pair.Value), StringComparer.Ordinal);
         factory = new(CreateFloatingHost, ScheduleCapture, BeginMigration, OnDockableClosing);
         codec = new(factory, panels);
+        constraints = new(panels.Values);
         persistence = new(store.SaveAsync);
         persistence.SaveFailed += OnSaveFailed;
         userPresets = file.UserPresets;
         CurrentPresetId = file.CurrentPresetId;
         Host = new() { Factory = factory, InitializeFactory = false, InitializeLayout = false };
-        WorkbenchDockTemplateCatalog.Install(Host);
+        WorkbenchDockTemplateCatalog.Install(Host, factory.ControlRecycling);
+        constraints.Attach(Host);
         owner.Opened += OnOwnerOpened;
         ApplySnapshot(file.CurrentLayout, false);
     }
@@ -367,9 +370,11 @@ internal sealed class WorkbenchLayoutController : IAsyncDisposable
             persistence.SaveFailed -= OnSaveFailed;
             Unwatch();
             applying = true;
+            constraints.Dispose();
             Host.Layout = null;
             Host.UpdateLayout();
             CloseFloatingHosts();
+            factory.ControlRecycling.Clear();
             restoredWindowScales.Clear();
             CompleteMigration();
             completion.TrySetResult();
@@ -405,6 +410,7 @@ internal sealed class WorkbenchLayoutController : IAsyncDisposable
             Host.Layout = null;
             Host.UpdateLayout();
             CloseFloatingHosts();
+            factory.ControlRecycling.Clear();
             restoredWindowScales.Clear();
 
             foreach (var panel in panels.Values)
@@ -466,6 +472,7 @@ internal sealed class WorkbenchLayoutController : IAsyncDisposable
     private WorkbenchFloatingHostWindow CreateFloatingHost()
     {
         var host = new WorkbenchFloatingHostWindow(owner, factory, OnFloatingClosing, ScheduleCapture);
+        constraints.Attach(host.DockHost);
         floatingHosts.Add(host);
         registerFloatingWindow?.Invoke(host);
         host.Closed += OnFloatingClosed;
@@ -476,6 +483,7 @@ internal sealed class WorkbenchLayoutController : IAsyncDisposable
     {
         if (sender is WorkbenchFloatingHostWindow host)
         {
+            constraints.Detach(host.DockHost);
             host.Closed -= OnFloatingClosed;
 
             if (floatingHosts.Remove(host))
@@ -551,6 +559,7 @@ internal sealed class WorkbenchLayoutController : IAsyncDisposable
         foreach (var host in floatingHosts.ToArray())
         {
             host.IsInternalClose = true;
+            constraints.Detach(host.DockHost);
             host.IsTracked = false;
             host.DockHost.Layout = null;
             host.DockHost.UpdateLayout();

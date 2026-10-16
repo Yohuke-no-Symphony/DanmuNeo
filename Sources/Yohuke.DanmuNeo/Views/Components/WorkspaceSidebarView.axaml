@@ -23,20 +23,12 @@
         </Border.ContextMenu>
         <Grid RowDefinitions="Auto,*"
               Margin="14,10,14,12">
-            <StackPanel Spacing="8">
-                <Grid ColumnDefinitions="*,Auto">
-                    <TextBlock Text="工作区"
-                               Classes="sectionTitle"
-                               VerticalAlignment="Center" />
-                    <Button Grid.Column="1"
-                            Classes="iconButton"
-                            Command="{Binding #Root.OpenAddWorkspaceDialogCommand}">
-                        <LucideIcon Kind="FolderPlus" />
-                    </Button>
-                </Grid>
-                <TextBlock Text="右键工作区可添加直播间、导入或导出分享"
-                           Classes="muted" />
-            </StackPanel>
+            <Button Classes="iconButton"
+                    HorizontalAlignment="Right"
+                    ToolTip.Tip="新建工作区"
+                    Command="{Binding #Root.OpenAddWorkspaceDialogCommand}">
+                <LucideIcon Kind="FolderPlus" />
+            </Button>
 
             <ScrollViewer Grid.Row="1"
                           Margin="0,16,0,16">

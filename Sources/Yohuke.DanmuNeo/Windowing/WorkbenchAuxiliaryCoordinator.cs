@@ -44,7 +44,7 @@ internal sealed class WorkbenchAuxiliaryCoordinator : IDisposable
         windows.OpenAuxiliary("about", "关于 Yohuke Danmu Neo", () =>
         {
             var link = new Button { Content = "项目主页" };
-            var error = new TextBlock { TextWrapping = TextWrapping.Wrap };
+            var error = new TextBlock { TextWrapping = TextWrapping.Wrap, IsVisible = false };
             link.Click += async (_, _) =>
             {
                 try
@@ -53,11 +53,13 @@ internal sealed class WorkbenchAuxiliaryCoordinator : IDisposable
                             new("https://github.com/Yohuke-no-Symphony/DanmuNeo")))
                     {
                         error.Text = "无法打开浏览器。";
+                        error.IsVisible = true;
                     }
                 }
                 catch (Exception)
                 {
                     error.Text = "无法打开浏览器。";
+                    error.IsVisible = true;
                 }
             };
             return new StackPanel
@@ -65,14 +67,14 @@ internal sealed class WorkbenchAuxiliaryCoordinator : IDisposable
                 Margin = new(24), Spacing = 16,
                 Children =
                 {
-                    new TextBlock { Text = "Yohuke Danmu Neo", FontSize = 24, FontWeight = FontWeight.SemiBold },
-                    new TextBlock { Text = $"版本 {application.AppVersion}" },
-                    new TextBlock { Text = "开发者：Yohuke no Symphony" },
+                    new TextBlock { Text = "Yohuke Danmu Neo", FontSize = 24, FontWeight = FontWeight.SemiBold, TextWrapping = TextWrapping.Wrap },
+                    new TextBlock { Text = $"版本 {application.AppVersion}", TextWrapping = TextWrapping.Wrap },
+                    new TextBlock { Text = "开发者：Yohuke no Symphony", TextWrapping = TextWrapping.Wrap },
                     new TextBlock { Text = "https://github.com/Yohuke-no-Symphony/DanmuNeo", TextWrapping = TextWrapping.Wrap },
                     link, error
                 }
             };
-        }, width: 560, height: 330);
+        }, width: 560, sizing: WorkbenchAuxiliarySizing.ContentHeight);
     }
 
     internal void CheckForUpdates()
@@ -87,7 +89,7 @@ internal sealed class WorkbenchAuxiliaryCoordinator : IDisposable
         windows.OpenAuxiliary("save-layout", "另存为布局", () =>
         {
             var name = new TextBox { Watermark = "布局名称" };
-            var error = new TextBlock { TextWrapping = TextWrapping.Wrap };
+            var error = new TextBlock { TextWrapping = TextWrapping.Wrap, IsVisible = false };
             var save = new Button { Content = "保存", HorizontalAlignment = HorizontalAlignment.Right };
             save.Click += (_, _) =>
             {
@@ -99,10 +101,11 @@ internal sealed class WorkbenchAuxiliaryCoordinator : IDisposable
                 catch (ArgumentException exception)
                 {
                     error.Text = exception.Message;
+                    error.IsVisible = true;
                 }
             };
             return new StackPanel { Margin = new(24), Spacing = 16, Children = { name, error, save } };
-        }, true, width: 480, height: 280);
+        }, true, width: 480, sizing: WorkbenchAuxiliarySizing.ContentHeight);
     }
 
     internal void ManageLayouts()
@@ -175,7 +178,8 @@ internal sealed class WorkbenchAuxiliaryCoordinator : IDisposable
                             new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, Children = { cancel, confirm } }
                         }
                     };
-                }, true, owner: windows.FindAuxiliary("manage-layouts"), width: 440, height: 240);
+                }, true, owner: windows.FindAuxiliary("manage-layouts"), width: 440,
+                    sizing: WorkbenchAuxiliarySizing.ContentHeight);
             };
             Refresh();
             return new StackPanel
@@ -244,7 +248,7 @@ internal sealed class WorkbenchAuxiliaryCoordinator : IDisposable
         {
             windows.OpenAuxiliary("confirm", "确认删除", () => new ConfirmDeleteDialogView { DataContext = application },
                 true, () => { application.CloseDeleteDialog(); return Task.CompletedTask; },
-                windows.ActiveWindow, 600, 360);
+                windows.CurrentDialogOwner, 600, sizing: WorkbenchAuxiliarySizing.ContentHeight);
         }
         else
         {
@@ -254,7 +258,8 @@ internal sealed class WorkbenchAuxiliaryCoordinator : IDisposable
         if (application.IsUpdateDialogOpen)
         {
             windows.OpenAuxiliary("update", "检查更新", () => new AppUpdateDialogView { DataContext = application },
-                false, () => { application.CloseUpdateDialog(); return Task.CompletedTask; }, width: 620, height: 380);
+                false, () => { application.CloseUpdateDialog(); return Task.CompletedTask; }, width: 620,
+                sizing: WorkbenchAuxiliarySizing.ContentHeight);
         }
         else
         {

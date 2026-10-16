@@ -3,35 +3,35 @@
              x:Class="Yohuke.DanmuNeo.Views.Components.ConfirmDeleteDialogView"
              x:CompileBindings="False"
              x:Name="Root">
-    <Border Classes="addDialogOverlay"
+    <Border Background="{DynamicResource AppCardBrush}"
+            Padding="24"
             IsVisible="{Binding IsConfirmDeleteDialogOpen}">
-        <Border Classes="addDialogPanel">
-            <Grid RowDefinitions="Auto,Auto"
-                  RowSpacing="18">
-                <StackPanel Spacing="8">
-                    <TextBlock Text="{Binding DeleteDialogTitle}"
-                               FontSize="24"
-                               FontWeight="SemiBold"
-                               HorizontalAlignment="Center"/>
-                    <TextBlock Text="{Binding DeleteDialogDescription}"
-                               Classes="muted"
-                               HorizontalAlignment="Center"
-                               TextWrapping="Wrap"
-                               TextAlignment="Center"/>
-                </StackPanel>
+        <Grid RowDefinitions="Auto,Auto"
+              RowSpacing="18">
+            <StackPanel Spacing="8">
+                <TextBlock Text="{Binding DeleteDialogTitle}"
+                           FontSize="24"
+                           FontWeight="SemiBold"
+                           TextWrapping="Wrap"
+                           TextAlignment="Center"/>
+                <TextBlock Text="{Binding DeleteDialogDescription}"
+                           Classes="muted"
+                           TextWrapping="Wrap"
+                           TextAlignment="Center"/>
+            </StackPanel>
 
-                <Grid Grid.Row="1"
-                      ColumnDefinitions="*,Auto,Auto"
-                      ColumnSpacing="8">
-                    <Button Grid.Column="1"
-                            Content="取消"
-                            Command="{Binding #Root.CloseDeleteDialogCommand}"/>
-                    <Button Grid.Column="2"
-                            Classes="primaryButton"
-                            Content="{Binding DeleteDialogPrimaryText}"
-                            Command="{Binding #Root.ConfirmDeleteDialogCommand}"/>
-                </Grid>
+            <Grid Grid.Row="1"
+                  ColumnDefinitions="*,Auto,Auto"
+                  ColumnSpacing="8">
+                <Button x:Name="CancelDeleteButton"
+                        Grid.Column="1"
+                        Content="取消"
+                        Command="{Binding #Root.CloseDeleteDialogCommand}"/>
+                <Button Grid.Column="2"
+                        Classes="primaryButton"
+                        Content="{Binding DeleteDialogPrimaryText}"
+                        Command="{Binding #Root.ConfirmDeleteDialogCommand}"/>
             </Grid>
-        </Border>
+        </Grid>
     </Border>
 </UserControl>

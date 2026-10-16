@@ -23,12 +23,30 @@ public partial class DraftComposerPanelView : WorkbenchRoomPanel
     public DraftComposerPanelView()
     {
         InitializeComponent();
+        ComposerFooter.SizeChanged += ComposerFooter_OnSizeChanged;
     }
 
     /// <summary>
     /// 提供给工作台焦点和光标协调器的输入控件。
     /// </summary>
     public TextBox Input => InputDraftTextBox;
+
+    private void ComposerFooter_OnSizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        if (ComposerFooter.Bounds.Height <= 0)
+        {
+            return;
+        }
+
+        var minimumHeight = InputDraftTextBox.MinHeight + ComposerFooter.Bounds.Height + ComposerLayout.RowSpacing +
+                            ComposerFrame.Padding.Top + ComposerFrame.Padding.Bottom +
+                            ComposerFrame.BorderThickness.Top + ComposerFrame.BorderThickness.Bottom;
+
+        if (Math.Abs(MinHeight - minimumHeight) > 0.5)
+        {
+            MinHeight = minimumHeight;
+        }
+    }
 
     private void InputDraft_OnKeyDown(object? sender, KeyEventArgs e)
     {

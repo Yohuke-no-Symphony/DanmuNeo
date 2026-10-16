@@ -24,6 +24,7 @@ internal sealed class WorkbenchWindowRegistry : IDisposable
     internal bool IsInteractionBlocked => shutdownPending || IsModal;
     internal bool IsShutdownPending => shutdownPending;
     internal Window ActiveWindow { get; private set; }
+    internal Window CurrentDialogOwner => modalWindows.LastOrDefault() ?? ActiveWindow;
     internal IReadOnlyCollection<Window> BusinessWindows => businessWindows;
 
     internal void SetShutdownPending(bool value)
@@ -65,7 +66,8 @@ internal sealed class WorkbenchWindowRegistry : IDisposable
         Func<Task>? beforeClose = null,
         Window? owner = null,
         double width = 640,
-        double height = 480)
+        double height = 480,
+        WorkbenchAuxiliarySizing sizing = WorkbenchAuxiliarySizing.Resizable)
     {
         ObjectDisposedException.ThrowIf(isDisposed, this);
 
@@ -75,14 +77,9 @@ internal sealed class WorkbenchWindowRegistry : IDisposable
             return existing;
         }
 
-        var window = new WorkbenchAuxiliaryWindow(beforeClose)
+        var window = new WorkbenchAuxiliaryWindow(owner ?? mainWindow, createContent(), width, height, sizing, beforeClose)
         {
-            Title = title,
-            Width = width,
-            Height = height,
-            MinWidth = Math.Min(440, width),
-            MinHeight = Math.Min(300, height),
-            Content = createContent()
+            Title = title
         };
         auxiliaryWindows.Add(key, window);
         window.Activated += OnActivated;

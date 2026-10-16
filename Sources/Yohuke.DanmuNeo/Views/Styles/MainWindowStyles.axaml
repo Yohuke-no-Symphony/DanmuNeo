@@ -49,9 +49,21 @@
         <Setter Property="Background" Value="{DynamicResource AppSplitterBrush}" />
     </Style>
 
+    <Style Selector="Button:not(.dockChromeButton)">
+        <Setter Property="FontSize" Value="{DynamicResource AppFontSizeBody}" />
+        <Setter Property="FontWeight" Value="Regular" />
+        <Setter Property="CornerRadius" Value="{StaticResource WorkbenchControlCornerRadius}" />
+        <Setter Property="Padding" Value="{StaticResource WorkbenchButtonPadding}" />
+        <Setter Property="MinHeight" Value="{StaticResource WorkbenchControlHeight}" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
     <Style Selector="Button.iconButton">
         <Setter Property="Width" Value="{StaticResource WorkbenchControlHeight}" />
         <Setter Property="Height" Value="{StaticResource WorkbenchControlHeight}" />
+        <Setter Property="MinWidth" Value="{StaticResource WorkbenchControlHeight}" />
+        <Setter Property="MinHeight" Value="{StaticResource WorkbenchControlHeight}" />
         <Setter Property="Padding" Value="0" />
         <Setter Property="HorizontalContentAlignment" Value="Center" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
@@ -62,15 +74,6 @@
         <Setter Property="Background" Value="{DynamicResource AppSidebarSelectedBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource AppPrimaryBrush}" />
         <Setter Property="BorderThickness" Value="1" />
-    </Style>
-
-    <Style Selector="Button:not(.dockChromeButton)">
-        <Setter Property="FontSize" Value="{DynamicResource AppFontSizeBody}" />
-        <Setter Property="FontWeight" Value="Regular" />
-        <Setter Property="CornerRadius" Value="{StaticResource WorkbenchControlCornerRadius}" />
-        <Setter Property="Padding" Value="{StaticResource WorkbenchButtonPadding}" />
-        <Setter Property="MinHeight" Value="{StaticResource WorkbenchControlHeight}" />
-        <Setter Property="VerticalContentAlignment" Value="Center" />
     </Style>
 
     <Style Selector="TextBox">
@@ -169,21 +172,45 @@
         <Setter Property="Padding" Value="0" />
         <Setter Property="FontSize" Value="14" />
         <Setter Property="Cursor" Value="IBeam" />
+        <Setter Property="VerticalContentAlignment" Value="Top" />
         <Setter Property="FocusAdorner" Value="{x:Null}" />
         <Setter Property="Template">
             <ControlTemplate>
-                <TextPresenter Name="PART_TextPresenter"
-                               Background="Transparent"
-                               CaretBrush="{TemplateBinding Foreground}"
-                               SelectionBrush="{DynamicResource AppPrimaryBrush}"
-                               Text="{TemplateBinding Text}"
-                               PasswordChar="{TemplateBinding PasswordChar}"
-                               RevealPassword="{TemplateBinding RevealPassword}"
-                               SelectionStart="{TemplateBinding SelectionStart}"
-                               SelectionEnd="{TemplateBinding SelectionEnd}"
-                               TextAlignment="{TemplateBinding TextAlignment}"
-                               TextWrapping="{TemplateBinding TextWrapping}"
-                               VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                <ScrollViewer Name="PART_ScrollViewer"
+                              HorizontalScrollBarVisibility="Disabled"
+                              VerticalScrollBarVisibility="Auto">
+                    <Panel>
+                        <TextBlock Name="PART_Watermark"
+                                   Classes="muted"
+                                   Text="{TemplateBinding Watermark}"
+                                   TextAlignment="{TemplateBinding TextAlignment}"
+                                   TextWrapping="{TemplateBinding TextWrapping}"
+                                   HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                   VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                   IsHitTestVisible="False">
+                            <TextBlock.IsVisible>
+                                <MultiBinding Converter="{x:Static BoolConverters.And}">
+                                    <Binding ElementName="PART_TextPresenter" Path="PreeditText"
+                                             Converter="{x:Static StringConverters.IsNullOrEmpty}" />
+                                    <Binding RelativeSource="{RelativeSource TemplatedParent}" Path="Text"
+                                             Converter="{x:Static StringConverters.IsNullOrEmpty}" />
+                                </MultiBinding>
+                            </TextBlock.IsVisible>
+                        </TextBlock>
+                        <TextPresenter Name="PART_TextPresenter"
+                                       Background="Transparent"
+                                       CaretBrush="{TemplateBinding Foreground}"
+                                       SelectionBrush="{DynamicResource AppPrimaryBrush}"
+                                       Text="{TemplateBinding Text}"
+                                       PasswordChar="{TemplateBinding PasswordChar}"
+                                       RevealPassword="{TemplateBinding RevealPassword}"
+                                       SelectionStart="{TemplateBinding SelectionStart}"
+                                       SelectionEnd="{TemplateBinding SelectionEnd}"
+                                       TextAlignment="{TemplateBinding TextAlignment}"
+                                       TextWrapping="{TemplateBinding TextWrapping}"
+                                       VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                    </Panel>
+                </ScrollViewer>
             </ControlTemplate>
         </Setter>
     </Style>

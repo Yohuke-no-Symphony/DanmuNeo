@@ -8,6 +8,7 @@ namespace Yohuke.DanmuNeo.Layouts;
 
 internal sealed class WorkbenchFloatingHostWindow : HostWindow, IHostWindow
 {
+    internal const double DEFAULT_MIN_HEIGHT = 180;
     private readonly Window mainOwner;
     private readonly Action<WorkbenchFloatingHostWindow, bool> closing;
     private readonly Action changed;
@@ -22,10 +23,10 @@ internal sealed class WorkbenchFloatingHostWindow : HostWindow, IHostWindow
         this.closing = closing;
         this.changed = changed;
         MinWidth = 260;
-        MinHeight = 180;
+        MinHeight = DEFAULT_MIN_HEIGHT;
         ShowInTaskbar = false;
         DockHost = new() { Factory = factory, InitializeFactory = false, InitializeLayout = false };
-        WorkbenchDockTemplateCatalog.Install(DockHost);
+        WorkbenchDockTemplateCatalog.Install(DockHost, factory.ControlRecycling);
         Content = DockHost;
         PositionChanged += (_, _) => changed();
         SizeChanged += (_, _) => changed();
