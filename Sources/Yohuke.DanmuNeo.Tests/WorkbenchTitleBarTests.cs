@@ -7,6 +7,7 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Yohuke.DanmuNeo.Views;
 using Yohuke.DanmuNeo.Views.Components;
+using Yohuke.DanmuNeo.Windowing;
 
 namespace Yohuke.DanmuNeo.Tests;
 
@@ -120,6 +121,56 @@ public class WorkbenchTitleBarTests
                 Assert.True(title.IsDragRegion(GetBounds(workspaceName, main).Center));
                 Assert.False(title.IsDragRegion(GetBounds(pin, main).Center));
             }
+        }
+        finally
+        {
+            await main.CloseWorkbenchAsync();
+        }
+    }
+
+    /// <summary>
+    /// 原生按钮中心在最小标题行的上下两侧时，文字、菜单和操作按钮仍与其中心对齐。
+    /// </summary>
+    [AvaloniaTheory]
+    [InlineData(19, false)]
+    [InlineData(19, true)]
+    [InlineData(27, false)]
+    [InlineData(27, true)]
+    [InlineData(26.25, true)]
+    public async Task CaptionContentFollowsMeasuredNativeButtonCenter(double center, bool windowMenu)
+    {
+        using var context = new WorkspaceSidebarTestContext(240);
+        context.ViewModel.Settings.WindowWidth = 980;
+        context.ViewModel.Settings.UseWindowMenuOnMac = windowMenu;
+        var main = new MainWindow { DataContext = context.ViewModel };
+
+        try
+        {
+            main.Show();
+            await main.Initialization;
+            var title = main.GetVisualDescendants().OfType<TitleBarView>().Single();
+            var caption = new Rect(14, center - 7, 52, 14);
+            title.Height = MacOsCaptionGeometry.GetTitleBarHeight(42, caption);
+            title.CaptionInsets = MacOsCaptionGeometry.GetCaptionInsets(caption, title.Height);
+            PumpLayout(main);
+
+            var content = title.GetVisualDescendants().OfType<Grid>().Single(grid => grid.Classes.Contains("titleBar"));
+            var name = title.GetVisualDescendants().OfType<TextBlock>().Single(text => text.Text == "夜半同传");
+            var pin = title.FindControl<Button>("PinButton")!;
+            var menu = main.FindControl<Menu>("WindowMenu")!;
+            var roundingTolerance = 0.5 / main.RenderScaling;
+            Assert.InRange(Math.Abs(GetBounds(content, main).Center.Y - center), 0, roundingTolerance);
+            Assert.InRange(Math.Abs(GetBounds(name, main).Center.Y - center), 0, roundingTolerance);
+            Assert.InRange(Math.Abs(GetBounds(pin, main).Center.Y - center), 0, roundingTolerance);
+            Assert.Equal(32, pin.Bounds.Height);
+
+            if (menu.IsVisible)
+            {
+                Assert.InRange(Math.Abs(GetBounds(menu, main).Center.Y - center), 0, roundingTolerance);
+            }
+
+            var listen = main.FindControl<Button>("ListenToggleButton")!;
+            Assert.True(GetBounds(listen, main).Top >= title.Height);
         }
         finally
         {
