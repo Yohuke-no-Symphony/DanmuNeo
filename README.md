@@ -1,7 +1,20 @@
-# Yohuke Danmu Neo
+<p align="center">
+  <img src="Sources/Yohuke.DanmuNeo/Assets/favicon.png" width="112" alt="Yohuke Danmu Neo 图标" />
+</p>
+
+<h1 align="center">Yohuke Danmu Neo</h1>
+
+<p align="center">面向 B 站直播同传的跨平台桌面工作台</p>
+
+<p align="center">
+  <a href="#功能">功能介绍</a> ·
+  <a href="#开发">开发指南</a> ·
+  <a href="#数据目录">数据目录</a>
+</p>
 
 Yohuke Danmu Neo 是一个面向 B 站直播同传工作的桌面工具，基于 .NET、Avalonia 和 WebView 构建。它把直播监听、同传发送、歌词发送、弹幕转发、屏蔽词替换和多工作区管理集中在一个可配置的工作台里。
 
+![](./Screenshots/1.webp)
 
 ## 功能
 
@@ -80,9 +93,6 @@ Yohuke Danmu Neo 是一个面向 B 站直播同传工作的桌面工具，基于
 语言包沿用 AegiNext 的外置 JSON 格式，源码位于 `Sources/Yohuke.DanmuNeo/I18n/Languages/`，构建和发布时复制到可执行文件旁的 `i18n/`。macOS App 对应 `Contents/MacOS/i18n/`。添加语言时，复制一份现有 JSON，设置 `LanguageName` 和有效的 `LanguageID`，保留 `Strings` 中的语义键与 `{0}` 等位置参数，翻译后放入该目录，重启应用即可出现在语言列表中。
 
 英文语言包是必需的回退资源。其他语言缺少的条目会回退到英文；无效或重复 ID 的语言包会被排除。若保存的语言包暂时不可用，应用显示英文，并保留原语言选择，恢复语言包后可在下次启动继续使用。
-
-![](./Screenshots/1.png)  
-![](./Screenshots/2.png)
 
 ## 环境
 
