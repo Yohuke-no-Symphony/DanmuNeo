@@ -83,6 +83,13 @@ internal sealed class WorkbenchMenuProjection : IDisposable
 
                 foreach (var item in group.Children ?? [])
                 {
+                    if (item.IsSeparator)
+                    {
+                        windowGroup.Items.Add(new Separator());
+                        nativeGroup.Menu.Items.Add(new NativeMenuItemSeparator());
+                        continue;
+                    }
+
                     var toggle = item.IsCheckable ? MenuItemToggleType.CheckBox : MenuItemToggleType.None;
                     var windowItem = new MenuItem
                     {
@@ -106,7 +113,7 @@ internal sealed class WorkbenchMenuProjection : IDisposable
             }
         }
 
-        foreach (var item in entries.SelectMany(group => group.Children ?? []))
+        foreach (var item in entries.SelectMany(group => group.Children ?? []).Where(item => !item.IsSeparator))
         {
             windowItems[item.Id].Header = item.Header;
             windowItems[item.Id].IsChecked = item.IsChecked;

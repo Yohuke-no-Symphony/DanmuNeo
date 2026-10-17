@@ -16,6 +16,58 @@ namespace Yohuke.DanmuNeo.Tests;
 public class WorkbenchMenuTests
 {
     /// <summary>
+    /// 内置、用户预设和操作分组使用真实分隔线，增删最后一个用户布局后不会留下空分组。
+    /// </summary>
+    [AvaloniaTheory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public async Task LayoutMenuSeparatesBuiltInUserPresetsAndActions(int userCount)
+    {
+        await using var context = new WorkbenchLayoutTestContext();
+        using var catalog = new WorkbenchMenuCatalog(context.Controller, () => { }, () => { }, () => { },
+            () => { }, () => { }, () => false);
+        using var icons = new WorkbenchMenuIcons();
+        var menu = new Menu();
+        using var projection = new WorkbenchMenuProjection(catalog, icons, menu);
+        var root = projection.NativeMenu;
+        var userIds = new List<string>();
+        var expected = new List<string> { "默认", "同传", "歌词", "转发", "|" };
+
+        for (var index = 0; index < userCount; index++)
+        {
+            var name = $"我的布局{index + 1}";
+            userIds.Add(context.Controller.SaveAs(name));
+            expected.Add(name);
+        }
+
+        if (userCount > 0)
+        {
+            expected.Add("|");
+        }
+
+        expected.AddRange(["保存当前布局", "另存为布局…", "管理布局…", "恢复默认布局"]);
+        AssertLayoutMenu(menu, root, expected);
+        Assert.Same(root, projection.NativeMenu);
+
+        if (userCount > 0)
+        {
+            Assert.True(context.Controller.Rename(userIds[0], "已重命名"));
+            expected[5] = "已重命名";
+            AssertLayoutMenu(menu, root, expected);
+        }
+
+        foreach (var id in userIds)
+        {
+            Assert.True(context.Controller.Delete(id));
+        }
+
+        AssertLayoutMenu(menu, root,
+            ["默认", "同传", "歌词", "转发", "|", "保存当前布局", "另存为布局…", "管理布局…", "恢复默认布局"]);
+        Assert.Same(root, projection.NativeMenu);
+    }
+
+    /// <summary>
     /// 顶层始终显示四个文字标题，展开后的面板菜单同时显示图标和文字。
     /// </summary>
     [AvaloniaFact]
@@ -92,11 +144,13 @@ public class WorkbenchMenuTests
             Assert.Equal(group.Header, nativeGroups[groupIndex].Header);
             var firstItems = firstGroups[groupIndex].Items.OfType<MenuItem>().ToArray();
             var secondItems = secondGroups[groupIndex].Items.OfType<MenuItem>().ToArray();
-            var nativeItems = nativeGroups[groupIndex].Menu!.Items.OfType<NativeMenuItem>().ToArray();
+            var nativeItems = nativeGroups[groupIndex].Menu!.Items.OfType<NativeMenuItem>()
+                .Where(item => item is not NativeMenuItemSeparator).ToArray();
+            var commands = group.Children!.Where(item => !item.IsSeparator).ToArray();
 
-            for (var itemIndex = 0; itemIndex < group.Children!.Count; itemIndex++)
+            for (var itemIndex = 0; itemIndex < commands.Length; itemIndex++)
             {
-                var definition = group.Children[itemIndex];
+                var definition = commands[itemIndex];
                 var windowItem = firstItems[itemIndex];
                 var kind = Assert.IsType<LucideIconKind>(definition.Icon);
                 Assert.Equal(definition.Header, windowItem.Header);
@@ -109,7 +163,7 @@ public class WorkbenchMenuTests
             }
         }
 
-        var entries = definitions.SelectMany(group => group.Children!).ToArray();
+        var entries = definitions.SelectMany(group => group.Children!).Where(item => !item.IsSeparator).ToArray();
         Assert.Equal(8, entries.Where(item => item.Id.StartsWith("panel:")).Select(item => item.Icon).Distinct().Count());
         Assert.Equal(4, entries.Where(item => item.Id.StartsWith("layout-")).Select(item => item.Icon).Distinct().Count());
         Assert.Equal(LucideIconKind.LayoutTemplate, entries.Single(item => item.Id == $"layout:{customId}").Icon);
@@ -180,5 +234,23 @@ public class WorkbenchMenuTests
             .Where(item => item.Id.StartsWith("layout:")).ToArray();
         Assert.All(layouts, item => Assert.True(item.IsCheckable));
         Assert.Equal($"layout:{context.Controller.CurrentPresetId}", Assert.Single(layouts, item => item.IsChecked).Id);
+    }
+
+    private static void AssertLayoutMenu(Menu menu, NativeMenu nativeMenu, IReadOnlyList<string> expected)
+    {
+        var windowLayouts = menu.Items.OfType<MenuItem>().Single(item => Equals(item.Header, "布局"));
+        var nativeLayouts = nativeMenu.Items.OfType<NativeMenuItem>().Single(item => item.Header == "布局");
+        Assert.Equal(expected, windowLayouts.Items.Select(item => item switch
+        {
+            Separator => "|",
+            MenuItem command => command.Header?.ToString(),
+            _ => throw new InvalidOperationException("窗口菜单包含未知项目。")
+        }));
+        Assert.Equal(expected, nativeLayouts.Menu!.Items.Select(item => item switch
+        {
+            NativeMenuItemSeparator => "|",
+            NativeMenuItem command => command.Header,
+            _ => throw new InvalidOperationException("原生菜单包含未知项目。")
+        }));
     }
 }

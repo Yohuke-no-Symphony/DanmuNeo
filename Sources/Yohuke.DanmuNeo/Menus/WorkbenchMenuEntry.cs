@@ -12,4 +12,5 @@ internal sealed record WorkbenchMenuEntry(
     bool IsChecked = false,
     bool IsCheckable = false,
     KeyGesture? Gesture = null,
-    IReadOnlyList<WorkbenchMenuEntry>? Children = null);
+    IReadOnlyList<WorkbenchMenuEntry>? Children = null,
+    bool IsSeparator = false);

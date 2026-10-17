@@ -53,9 +53,17 @@ internal sealed class WorkbenchMenuCatalog : IDisposable
         get
         {
             var layoutEntries = new List<WorkbenchMenuEntry>();
+            var builtInIds = WorkspaceLayoutPresets.BuiltIn.Select(preset => preset.Id).ToHashSet(StringComparer.Ordinal);
+            var hasUserPresets = false;
 
             foreach (var preset in layouts.Presets)
             {
+                if (!builtInIds.Contains(preset.Id) && !hasUserPresets)
+                {
+                    layoutEntries.Add(new("separator:layout-users", "", IsSeparator: true));
+                    hasUserPresets = true;
+                }
+
                 if (!layoutCommands.TryGetValue(preset.Id, out var command))
                 {
                     command = CreateCommand(() => layouts.ApplyPreset(preset.Id));
@@ -67,6 +75,7 @@ internal sealed class WorkbenchMenuCatalog : IDisposable
             }
 
             layoutEntries.AddRange([
+                new("separator:layout-actions", "", IsSeparator: true),
                 new("layout-save", "保存当前布局", LucideIconKind.Save, saveLayout),
                 new("layout-save-as", "另存为布局…", LucideIconKind.SaveAll, saveAsLayout),
                 new("layout-manage", "管理布局…", LucideIconKind.SlidersHorizontal, manageLayouts),
