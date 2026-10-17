@@ -15,10 +15,12 @@ namespace Yohuke.DanmuNeo.Tests;
 public class WorkbenchWindowTests
 {
     /// <summary>
-    /// 设置保持单实例并阻止所有业务窗交互，关闭按钮保存和结束录制后恢复交互。
+    /// 设置保持单实例并阻止业务窗交互，保留停靠或浮动播放器的显示，关闭后保存并恢复交互。
     /// </summary>
-    [AvaloniaFact]
-    public async Task SettingsAreSingleInstanceModalAndSaveOnNativeClose()
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SettingsAreSingleInstanceModalAndSaveOnNativeClose(bool floatingPlayer)
     {
         using var context = new WorkspaceSidebarTestContext(240);
         var main = new MainWindow { DataContext = context.ViewModel };
@@ -28,9 +30,11 @@ public class WorkbenchWindowTests
             main.Show();
             await main.Initialization;
             var workbench = Assert.IsType<WorkbenchSession>(main.Workbench);
-            workbench.Layouts.FloatPanel(WorkbenchPanelIds.COMPOSER);
+            workbench.Layouts.FloatPanel(floatingPlayer ? WorkbenchPanelIds.LIVE_PLAYER : WorkbenchPanelIds.COMPOSER);
             Dispatcher.UIThread.RunJobs();
             var floating = Assert.Single(workbench.Layouts.FloatingWindows);
+            var video = workbench.Panels.Player.FindControl<Border>("LivePlayerHost")!;
+            Assert.True(video.IsEffectivelyVisible);
             workbench.MenuCatalog.SettingsCommand.Execute(null);
             var settings = Assert.IsAssignableFrom<Window>(workbench.Windows.FindAuxiliary("settings"));
             workbench.MenuCatalog.SettingsCommand.Execute(null);
@@ -40,6 +44,8 @@ public class WorkbenchWindowTests
             Assert.False(main.IsEnabled);
             Assert.False(floating.IsEnabled);
             Assert.True(settings.IsEnabled);
+            Assert.True(video.IsEffectivelyVisible);
+            Assert.False(video.IsEffectivelyEnabled);
             context.ViewModel.UseWindowMenuOnMac = true;
             var recording = context.ViewModel.ShortcutBindingGroups.SelectMany(group => group.Bindings).First();
             context.ViewModel.BeginRecordShortcut(recording);
@@ -54,6 +60,8 @@ public class WorkbenchWindowTests
             Assert.False(workbench.Windows.IsModal);
             Assert.True(main.IsEnabled);
             Assert.True(floating.IsEnabled);
+            Assert.True(video.IsEffectivelyVisible);
+            Assert.True(video.IsEffectivelyEnabled);
             Assert.True(main.FindControl<Menu>("WindowMenu")!.IsVisible);
         }
         finally

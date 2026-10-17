@@ -80,11 +80,9 @@ public sealed class WorkbenchPanelSet : IDisposable
         return Player.BeginLayoutMigration();
     }
 
-    /// <summary>阻止模态期间的原生播放器交互。</summary>
+    /// <summary>交互锁定时结束长按操作，保留面板显示。</summary>
     public void SetInteractionBlocked(bool blocked)
     {
-        Player.SetInteractionBlocked(blocked);
-
         if (blocked)
         {
             StopHeldActions();

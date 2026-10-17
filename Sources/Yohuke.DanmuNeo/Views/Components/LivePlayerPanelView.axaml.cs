@@ -72,14 +72,6 @@ public partial class LivePlayerPanelView : WorkbenchRoomPanel
         });
     }
 
-    /// <summary>
-    /// 模态窗口期间阻止原生播放器接收指针输入，保留会话和声音。
-    /// </summary>
-    public void SetInteractionBlocked(bool blocked)
-    {
-        LivePlayerHost.IsVisible = !blocked;
-    }
-
     /// <inheritdoc/>
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
