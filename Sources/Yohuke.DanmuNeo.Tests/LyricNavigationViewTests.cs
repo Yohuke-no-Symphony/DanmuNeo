@@ -69,13 +69,16 @@ public class LyricNavigationViewTests
         {
             var view = await ShowLyricsAsync(window);
             var button = Assert.IsType<Button>(view.FindControl<Button>("NextLyricButton"));
+            var playButton = Assert.IsType<Button>(view.FindControl<Button>("NextLyricAndPlayButton"));
             Assert.False(button.IsEffectivelyEnabled);
+            Assert.False(playButton.IsEffectivelyEnabled);
 
             context.ViewModel.Settings.ShieldReplacementRules[0].ReplacementText = "有效句";
             await context.ViewModel.CloseSettingsAsync();
             PumpLayout(window);
 
             Assert.True(button.IsEffectivelyEnabled);
+            Assert.True(playButton.IsEffectivelyEnabled);
             Click(window, button);
             Assert.Equal(["【♪有效句】"], context.SendService.SentMessages);
         }
@@ -292,12 +295,13 @@ public class LyricNavigationViewTests
     }
 
     /// <summary>
-    /// 播放时手动滚动暂停跟随后，下一句按钮和快捷键使目标行重新进入视野。
+    /// 播放时手动滚动暂停跟随后，两个下一句按钮和快捷键使目标行重新进入视野。
     /// </summary>
     [AvaloniaTheory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task NextLineRestoresFollowingAfterManualScroll(bool clickButton)
+    [InlineData("shortcut")]
+    [InlineData("NextLyricButton")]
+    [InlineData("NextLyricAndPlayButton")]
+    public async Task NextLineRestoresFollowingAfterManualScroll(string source)
     {
         using var context = new LyricNavigationViewTestContext();
         context.Room.LyricInput = string.Join('\n', Enumerable.Range(0, 80)
@@ -316,13 +320,13 @@ public class LyricNavigationViewTests
             context.Room.SeekLyricLineStart(context.Room.Lyrics[60]);
             PumpLayout(window);
 
-            if (clickButton)
+            if (source == "shortcut")
             {
-                Click(window, view.FindControl<Button>("NextLyricButton")!);
+                Press(window, PhysicalKey.ArrowDown, RawInputModifiers.Control | RawInputModifiers.Shift);
             }
             else
             {
-                Press(window, PhysicalKey.ArrowDown, RawInputModifiers.Control | RawInputModifiers.Shift);
+                Click(window, view.FindControl<Button>(source)!);
             }
 
             PumpLayout(window);

@@ -35,6 +35,148 @@ public class LyricNavigationTests
     }
 
     /// <summary>
+    /// 发送下一句后启动播放，跳过空行且自动循环不重复发送，播放中仍可再次跳转。
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task NextAndPlaySendsOnceAndRemainsUsableDuringPlayback(bool preventRepeatedSend)
+    {
+        var sendService = new FakeDanmuSendService();
+        using var room = CreateRoom(sendService, "[00:01]第一句\n[00:02]\n[00:10]第二句\n[00:20]第三句");
+        room.TranslatedLyricInput = "[00:10]第二句翻译\n[00:20]第三句翻译";
+        room.ApplyLyric();
+        room.PreventRepeatedLyricSend = preventRepeatedSend;
+        var playback = room.SeekNextAndPlayLyricCommand.ExecuteAsync(null);
+
+        try
+        {
+            await Task.Delay(120);
+            Assert.Equal(["【♪第二句】", "【♪第二句翻译】"], sendService.SentMessages);
+            Assert.Same(room.Lyrics[2], room.ActiveLyricLine);
+            Assert.True(room.IsLyricAutoSending);
+            Assert.True(room.LyricPlaybackPositionSeconds >= 10);
+            Assert.True(room.SeekNextAndPlayLyricCommand.CanExecute(null));
+
+            await room.SeekNextAndPlayLyricCommand.ExecuteAsync(null);
+            await Task.Delay(120);
+
+            Assert.Equal(["【♪第二句】", "【♪第二句翻译】", "【♪第三句】", "【♪第三句翻译】"], sendService.SentMessages);
+            Assert.Same(room.Lyrics[3], room.ActiveLyricLine);
+            Assert.True(room.IsLyricAutoSending);
+            Assert.False(room.SeekNextAndPlayLyricCommand.CanExecute(null));
+        }
+        finally
+        {
+            room.StopAutoLyric();
+            await playback;
+        }
+    }
+
+    /// <summary>
+    /// 没有下一句、没有时间轴或只有空行时，不发送也不启动播放。
+    /// </summary>
+    [Theory]
+    [InlineData("")]
+    [InlineData("[00:01]唯一一句")]
+    [InlineData("[00:01]\n[00:02] \t")]
+    [InlineData("第一句\n第二句")]
+    public async Task NextAndPlayRequiresNextContentAndTimeline(string lyricText)
+    {
+        var sendService = new FakeDanmuSendService();
+        using var room = CreateRoom(sendService, lyricText);
+
+        Assert.False(room.SeekNextAndPlayLyricCommand.CanExecute(null));
+        await room.SeekNextAndPlayLyricAsync();
+
+        Assert.Empty(sendService.SentMessages);
+        Assert.False(room.IsLyricAutoSending);
+    }
+
+    /// <summary>
+    /// 发送等待期间停止、清空、重载或释放后，旧操作不能重新启动播放。
+    /// </summary>
+    [Theory]
+    [InlineData("stop", 1d)]
+    [InlineData("clear", 0d)]
+    [InlineData("reload", 3d)]
+    [InlineData("dispose", 10d)]
+    [InlineData("seek", 1d)]
+    public async Task PendingNextAndPlayDoesNotRestartAfterPlaybackIntentChanges(string action, double position)
+    {
+        var sendService = new BlockingDanmuSendService();
+        using var room = CreateRoom(sendService);
+        var pending = room.SeekNextAndPlayLyricAsync();
+
+        try
+        {
+            await sendService.FirstSendStarted.WaitAsync(TimeSpan.FromSeconds(1));
+
+            switch (action)
+            {
+                case "stop":
+                    room.StopAutoLyric();
+                    break;
+                case "clear":
+                    room.ClearLyric();
+                    break;
+                case "reload":
+                    room.LyricInput = "[00:03]新第一句\n[00:06]新第二句";
+                    room.ApplyLyric();
+                    break;
+                case "dispose":
+                    room.Dispose();
+                    break;
+                case "seek":
+                    room.SeekLyricLineStart(room.Lyrics[0]);
+                    break;
+            }
+
+            sendService.ReleaseFirstSend();
+            await pending.WaitAsync(TimeSpan.FromSeconds(1));
+
+            Assert.False(room.IsLyricAutoSending);
+            Assert.Equal(position, room.LyricPlaybackPositionSeconds, 3);
+        }
+        finally
+        {
+            room.StopAutoLyric();
+            sendService.ReleaseFirstSend();
+            await pending;
+        }
+    }
+
+    /// <summary>
+    /// 播放中发送下一句尚未完成时，暂停优先于旧操作的自动播放意图。
+    /// </summary>
+    [Fact]
+    public async Task PausingDuringPendingNextAndPlayKeepsPlaybackPaused()
+    {
+        var sendService = new BlockingDanmuSendService();
+        using var room = CreateRoom(sendService);
+        room.Lyrics[0].IsSent = true;
+        var playback = room.StartAutoLyricAsync();
+        var pending = room.SeekNextAndPlayLyricAsync();
+
+        try
+        {
+            await sendService.FirstSendStarted.WaitAsync(TimeSpan.FromSeconds(1));
+            await room.ToggleAutoLyricAsync();
+            await playback;
+            sendService.ReleaseFirstSend();
+            await pending.WaitAsync(TimeSpan.FromSeconds(1));
+
+            Assert.False(room.IsLyricAutoSending);
+        }
+        finally
+        {
+            room.StopAutoLyric();
+            sendService.ReleaseFirstSend();
+            await Task.WhenAll(playback, pending);
+        }
+    }
+
+    /// <summary>
     /// 空列表和最后一句禁用下一句，调用也不会发送或改变位置。
     /// </summary>
     [Fact]
@@ -444,12 +586,16 @@ public class LyricNavigationTests
         room.LyricSendMode = LyricSendMode.OriginalOnly;
         Assert.False(room.SeekNextLyricCommand.CanExecute(null));
         var notified = false;
+        var playNotified = false;
         room.SeekNextLyricCommand.CanExecuteChanged += (_, _) => notified = true;
+        room.SeekNextAndPlayLyricCommand.CanExecuteChanged += (_, _) => playNotified = true;
 
         room.LyricSendMode = LyricSendMode.TranslationOnly;
 
         Assert.True(notified);
+        Assert.True(playNotified);
         Assert.True(room.SeekNextLyricCommand.CanExecute(null));
+        Assert.True(room.SeekNextAndPlayLyricCommand.CanExecute(null));
         await room.SeekNextLyricAsync();
         Assert.Equal(["【♪译文】"], sendService.SentMessages);
     }

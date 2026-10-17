@@ -1455,6 +1455,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         foreach (var room in Workspaces.SelectMany(workspace => workspace.Rooms))
         {
             room.SeekNextLyricCommand.NotifyCanExecuteChanged();
+            room.SeekNextAndPlayLyricCommand.NotifyCanExecuteChanged();
         }
 
         await SaveAsync();

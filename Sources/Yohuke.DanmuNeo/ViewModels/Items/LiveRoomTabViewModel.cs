@@ -65,6 +65,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
     private DateTimeOffset lyricPlaybackStartedAt;
     private double lyricPlaybackStartPositionSeconds;
     private int lastAutoEnteredLyricIndex = -1;
+    private long lyricPlaybackIntentRevision;
     private readonly ConcurrentDictionary<LyricLineState, byte> lyricLinesSending = new();
     private long draftSendOperationId;
     private long draftRevision;
@@ -478,6 +479,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
 
         State.LyricSendMode = normalizedValue;
         SeekNextLyricCommand.NotifyCanExecuteChanged();
+        SeekNextAndPlayLyricCommand.NotifyCanExecuteChanged();
     }
 
     partial void OnPreventRepeatedLyricSendChanged(bool value)
@@ -888,9 +890,38 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
         await SeekAndSendLyricLineAsync(Lyrics[ActiveLyricIndex + 1]);
     }
 
+    /// <summary>
+    /// 发送下一条非空歌词，并从目标位置开始自动播放。
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanSeekNextAndPlayLyric), AllowConcurrentExecutions = true)]
+    public async Task SeekNextAndPlayLyricAsync()
+    {
+        if (!CanSeekNextAndPlayLyric())
+        {
+            return;
+        }
+
+        var revision = Interlocked.Read(ref lyricPlaybackIntentRevision);
+        var line = Lyrics[FindNextSendableLyricIndex(ActiveLyricIndex + 1)];
+        await SeekAndSendLyricLineAsync(line);
+
+        if (isDisposed || revision != Interlocked.Read(ref lyricPlaybackIntentRevision) ||
+            !ReferenceEquals(ActiveLyricLine, line))
+        {
+            return;
+        }
+
+        await StartAutoLyricAsync();
+    }
+
     private bool CanSeekNextLyric()
     {
         return ActiveLyricIndex >= 0 && FindNextSendableLyricIndex(ActiveLyricIndex + 1) >= 0;
+    }
+
+    private bool CanSeekNextAndPlayLyric()
+    {
+        return !isDisposed && LyricTimelineService.HasTimeline(Lyrics) && CanSeekNextLyric();
     }
 
     /// <summary>
@@ -1002,6 +1033,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
     {
         if (IsLyricAutoSending)
         {
+            Interlocked.Increment(ref lyricPlaybackIntentRevision);
             lyricTokenSource?.Cancel();
             IsLyricAutoSending = false;
             return;
@@ -1048,6 +1080,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
 
     private void StopAutoLyric(bool resetPosition)
     {
+        Interlocked.Increment(ref lyricPlaybackIntentRevision);
         lyricTokenSource?.Cancel();
         IsLyricAutoSending = false;
 
@@ -1096,6 +1129,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
             LyricPlaybackPositionSeconds = 0;
             ActiveLyricLine = null;
             SeekNextLyricCommand.NotifyCanExecuteChanged();
+            SeekNextAndPlayLyricCommand.NotifyCanExecuteChanged();
             return;
         }
 
@@ -2130,6 +2164,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
             ? Lyrics[ActiveLyricIndex]
             : null;
         SeekNextLyricCommand.NotifyCanExecuteChanged();
+        SeekNextAndPlayLyricCommand.NotifyCanExecuteChanged();
     }
 
     private void OnDanmuReceived(object? sender, BilibiliDanmuMessage message)
