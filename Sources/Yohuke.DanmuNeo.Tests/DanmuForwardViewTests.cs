@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
@@ -155,7 +156,7 @@ public class DanmuForwardViewTests
     }
 
     /// <summary>
-    /// 用户名在 UID 右侧显示，长名字在窄面板内省略且保留完整提示。
+    /// 用户名在 UID 框内右侧显示，长名字在窄面板内省略且保留完整提示。
     /// </summary>
     [AvaloniaTheory]
     [InlineData(600)]
@@ -177,15 +178,17 @@ public class DanmuForwardViewTests
             PumpLayout(window);
             var name = view.GetVisualDescendants().OfType<TextBlock>()
                 .Single(control => control.Name == "ForwardSenderUserNameText");
-            var row = Assert.IsType<Grid>(name.GetVisualParent());
-            var input = row.Children.OfType<TextBox>().Single();
+            var badge = Assert.IsType<Border>(name.GetVisualParent());
+            var input = name.GetVisualAncestors().OfType<TextBox>().Single();
+            var origin = name.TranslatePoint(default, input)!.Value;
 
             Assert.Equal(USER_NAME, name.Text);
             Assert.Equal(USER_NAME, ToolTip.GetTip(name));
-            Assert.InRange(name.Bounds.Width, 1, 120);
+            Assert.Same(badge, input.InnerRightContent);
+            Assert.InRange(name.Bounds.Width, 1, 100);
             Assert.True(input.Bounds.Width > 0);
-            Assert.True(name.Bounds.Left >= input.Bounds.Right);
-            Assert.True(name.Bounds.Right <= row.Bounds.Width + 0.1);
+            Assert.True(origin.X > 0);
+            Assert.True(origin.X + name.Bounds.Width <= input.Bounds.Width + 0.1);
             Assert.Equal([42L], service.RequestedUids);
         }
         finally

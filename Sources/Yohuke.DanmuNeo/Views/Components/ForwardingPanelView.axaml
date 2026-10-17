@@ -4,119 +4,194 @@
                                xmlns:state="clr-namespace:Yohuke.DanmuNeo.Models.State"
                                xmlns:components="clr-namespace:Yohuke.DanmuNeo.Views.Components"
                                xmlns:items="clr-namespace:Yohuke.DanmuNeo.ViewModels.Items"
+                               xmlns:converters="using:Avalonia.Data.Converters"
                                x:Class="Yohuke.DanmuNeo.Views.Components.ForwardingPanelView"
                                x:DataType="items:LiveRoomTabViewModel"
                                x:CompileBindings="True"
                                x:Name="Root">
+    <components:WorkbenchRoomPanel.Styles>
+        <Style Selector="Border.forwardRuleCard">
+            <Setter Property="Padding" Value="8" />
+            <Setter Property="Margin" Value="0" />
+        </Style>
+        <Style Selector="Border.forwardRuleCard.selected">
+            <Setter Property="BorderBrush" Value="{DynamicResource AppPrimaryBrush}" />
+            <Setter Property="Background" Value="{DynamicResource AppSidebarSelectedBrush}" />
+        </Style>
+        <Style Selector="Button.forwardDragHandle">
+            <Setter Property="Width" Value="20" />
+            <Setter Property="MinWidth" Value="20" />
+            <Setter Property="Height" Value="{StaticResource WorkbenchControlHeight}" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Cursor" Value="SizeAll" />
+        </Style>
+        <Style Selector="Button.forwardDragHandle LucideIcon">
+            <Setter Property="Foreground" Value="{DynamicResource AppMutedTextBrush}" />
+        </Style>
+        <Style Selector="Button.forwardDragHandle.selected LucideIcon">
+            <Setter Property="Foreground" Value="{DynamicResource AppPrimaryBrush}" />
+        </Style>
+        <Style Selector="ToggleButton.forwardEnabledToggle">
+            <Setter Property="Width" Value="{StaticResource WorkbenchControlHeight}" />
+            <Setter Property="Height" Value="{StaticResource WorkbenchControlHeight}" />
+            <Setter Property="MinWidth" Value="{StaticResource WorkbenchControlHeight}" />
+            <Setter Property="MinHeight" Value="{StaticResource WorkbenchControlHeight}" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="{StaticResource WorkbenchControlCornerRadius}" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="ToggleButton.forwardEnabledToggle LucideIcon">
+            <Setter Property="Size" Value="16" />
+            <Setter Property="Foreground" Value="{DynamicResource AppMutedTextBrush}" />
+        </Style>
+        <Style Selector="ToggleButton.forwardEnabledToggle:checked">
+            <Setter Property="Background" Value="{DynamicResource AppSidebarSelectedBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AppPrimaryBrush}" />
+        </Style>
+        <Style Selector="ToggleButton.forwardEnabledToggle:checked LucideIcon">
+            <Setter Property="Foreground" Value="{DynamicResource AppPrimaryBrush}" />
+        </Style>
+        <Style Selector="ComboBox.forwardSelector">
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="TextBox.forwardInput">
+            <Setter Property="MinWidth" Value="0" />
+        </Style>
+        <Style Selector="Border.forwardUserNameBadge">
+            <Setter Property="Padding" Value="5,1" />
+            <Setter Property="Margin" Value="4,0,6,0" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Background" Value="{DynamicResource AppSidebarHoverBrush}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="TextBlock.forwardClipboardStatus.error">
+            <Setter Property="Foreground" Value="{DynamicResource AppErrorBrush}" />
+        </Style>
+    </components:WorkbenchRoomPanel.Styles>
     <Border Padding="{StaticResource WorkbenchPanelPadding}">
-        <Grid RowDefinitions="Auto,*"
-              RowSpacing="10"
-              Margin="0">
-            <Grid ColumnDefinitions="*,Auto"
-                  ColumnSpacing="8">
-                <StackPanel>
-                    <TextBlock Text="监听其它直播间并转发匹配弹幕"
-                               Classes="sectionTitle" />
-                    <TextBlock Text="UID 和正则至少填写一个；都填写时需同时满足。命中后会自动套用开闭规则。"
-                               Classes="muted" />
-                </StackPanel>
-                <Button Grid.Column="1"
-                        Classes="iconButton"
-                        ToolTip.Tip="添加转发规则"
+        <Grid RowDefinitions="Auto,Auto,*" RowSpacing="8">
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="6">
+                <TextBlock Text="转发规则" Classes="sectionTitle" VerticalAlignment="Center"
+                           ToolTip.Tip="UID 和正则至少填写一个；都填写时需同时满足。命中后自动套用开闭规则。&#10;点击拖拽手柄可多选，拖动已选规则可整体排序。" />
+                <Border Grid.Column="1" Height="1" Margin="4,0"
+                        VerticalAlignment="Center" Background="{DynamicResource AppBorderBrush}" />
+                <Button x:Name="ForwardCopyButton" Grid.Column="2" Classes="iconButton"
+                        ToolTip.Tip="复制选中规则；未选中时复制全部" AutomationProperties.Name="复制转发规则"
+                        Click="CopyForwardRules_OnClick">
+                    <LucideIcon Kind="Copy" />
+                </Button>
+                <Button x:Name="ForwardPasteButton" Grid.Column="3" Classes="iconButton"
+                        ToolTip.Tip="粘贴转发规则，追加后默认禁用" AutomationProperties.Name="粘贴转发规则"
+                        Click="PasteForwardRules_OnClick">
+                    <LucideIcon Kind="ClipboardPaste" />
+                </Button>
+                <Button x:Name="ForwardAddButton" Grid.Column="4" Classes="iconButton"
+                        ToolTip.Tip="添加转发规则" AutomationProperties.Name="添加转发规则"
                         Command="{Binding AddForwardRuleCommand}">
                     <LucideIcon Kind="Plus" />
                 </Button>
             </Grid>
-            <ScrollViewer Grid.Row="1">
-                <ItemsControl Classes="scrollSafeContent"
+            <TextBlock x:Name="ForwardClipboardStatus" Grid.Row="1" IsVisible="False"
+                       Classes="muted forwardClipboardStatus" TextWrapping="Wrap"
+                       AutomationProperties.LiveSetting="Polite" />
+            <ScrollViewer x:Name="ForwardRulesScrollViewer" Grid.Row="2"
+                          HorizontalScrollBarVisibility="Disabled">
+                <ItemsControl x:Name="ForwardRulesItems" Classes="scrollSafeContent"
                               ItemsSource="{Binding ForwardRules}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="items:DanmuForwardRuleViewModel">
-                            <Border Classes="forwardRuleCard">
-                                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto"
-                                      RowSpacing="8">
-                                    <Grid ColumnDefinitions="Auto,*,Auto"
-                                          ColumnSpacing="8">
-                                        <CheckBox IsChecked="{Binding IsEnabled}"
-                                                  VerticalAlignment="Center" />
-                                        <ComboBox Grid.Column="1"
-                                                  HorizontalAlignment="Stretch"
-                                                  ItemsSource="{Binding SourceRoomOptions}"
-                                                  SelectedValue="{Binding SourceRoomKey}"
-                                                  SelectedValueBinding="{Binding Key}">
-                                            <ComboBox.ItemTemplate>
-                                                <DataTemplate
-                                                    x:DataType="workspace:ForwardSourceRoomOption">
-                                                    <TextBlock Text="{Binding DisplayName}"
-                                                               TextTrimming="CharacterEllipsis" />
-                                                </DataTemplate>
-                                            </ComboBox.ItemTemplate>
-                                        </ComboBox>
-                                        <Button Grid.Column="2"
-                                                Classes="iconButton"
-                                                ToolTip.Tip="删除规则"
-                                                Command="{Binding #Root.Context.CurrentRoom.RemoveForwardRuleCommand}"
-                                                CommandParameter="{Binding}">
-                                            <LucideIcon Kind="Trash2" />
-                                        </Button>
-                                    </Grid>
-                                    <Grid Grid.Row="1"
-                                          ColumnDefinitions="*,Auto"
-                                          ColumnSpacing="8">
-                                        <TextBox Watermark="发送人 UID"
-                                                 Text="{Binding SenderUid}" />
-                                        <TextBlock Grid.Column="1"
-                                                   x:Name="ForwardSenderUserNameText"
-                                                   Classes="muted"
-                                                   Text="{Binding SenderUserNameDisplayText}"
-                                                   ToolTip.Tip="{Binding SenderUserNameDisplayText}"
-                                                   VerticalAlignment="Center"
-                                                   MaxWidth="120"
+                            <Grid Margin="0,0,0,8">
+                                <Border x:Name="ForwardRuleCard" Classes="forwardRuleCard">
+                                    <Grid RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="6">
+                                        <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto" ColumnSpacing="6">
+                                            <Button x:Name="ForwardDragHandle" Classes="forwardDragHandle"
+                                                    ToolTip.Tip="点击选择，可多选；拖动排序" AutomationProperties.Name="选择或拖动转发规则"
+                                                    Click="ForwardDragHandle_OnClick" KeyDown="ForwardDragHandle_OnKeyDown"
+                                                    PointerCaptureLost="ForwardDragHandle_OnPointerCaptureLost">
+                                                <LucideIcon Kind="GripVertical" />
+                                            </Button>
+                                            <ToggleButton x:Name="ForwardEnabledToggle" Grid.Column="1"
+                                                          Classes="forwardEnabledToggle" IsChecked="{Binding IsEnabled}"
+                                                          ToolTip.Tip="启用或禁用转发规则" AutomationProperties.Name="启用转发规则">
+                                                <LucideIcon Kind="Power" />
+                                            </ToggleButton>
+                                            <ComboBox x:Name="ForwardSourceRoomSelector" Grid.Column="2" Classes="forwardSelector"
+                                                      AutomationProperties.Name="转发来源直播间"
+                                                      ItemsSource="{Binding SourceRoomOptions}" SelectedValue="{Binding SourceRoomKey}"
+                                                      SelectedValueBinding="{Binding Key}">
+                                                <ComboBox.ItemTemplate>
+                                                    <DataTemplate x:DataType="workspace:ForwardSourceRoomOption">
+                                                        <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
+                                                    </DataTemplate>
+                                                </ComboBox.ItemTemplate>
+                                            </ComboBox>
+                                            <Button x:Name="ForwardCopyRuleButton" Grid.Column="3" Classes="iconButton"
+                                                    ToolTip.Tip="复制此规则" AutomationProperties.Name="复制此转发规则"
+                                                    Click="CopyForwardRule_OnClick">
+                                                <LucideIcon Kind="Copy" />
+                                            </Button>
+                                            <Button x:Name="ForwardDeleteRuleButton" Grid.Column="4" Classes="iconButton"
+                                                    ToolTip.Tip="删除规则" AutomationProperties.Name="删除此转发规则"
+                                                    Command="{Binding #Root.Context.CurrentRoom.RemoveForwardRuleCommand}"
+                                                    CommandParameter="{Binding}">
+                                                <LucideIcon Kind="Trash2" />
+                                            </Button>
+                                        </Grid>
+                                        <Grid Grid.Row="1" ColumnDefinitions="*,*" ColumnSpacing="6">
+                                            <TextBox x:Name="ForwardUidInput" Classes="forwardInput"
+                                                     Watermark="发送人 UID" Text="{Binding SenderUid}"
+                                                     AutomationProperties.Name="转发发送人 UID" SizeChanged="ForwardUidInput_OnSizeChanged">
+                                                <TextBox.InnerRightContent>
+                                                    <Border x:Name="ForwardUserNameBadge" Classes="forwardUserNameBadge" MaxWidth="100"
+                                                            IsVisible="{Binding SenderUserNameDisplayText, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}">
+                                                        <TextBlock x:Name="ForwardSenderUserNameText" Classes="muted"
+                                                                   Text="{Binding SenderUserNameDisplayText}"
+                                                                   ToolTip.Tip="{Binding SenderUserNameDisplayText}"
+                                                                   FontSize="{DynamicResource AppFontSizeCaption}"
+                                                                   TextTrimming="CharacterEllipsis" />
+                                                    </Border>
+                                                </TextBox.InnerRightContent>
+                                            </TextBox>
+                                            <TextBox x:Name="ForwardPatternInput" Grid.Column="1" Classes="forwardInput"
+                                                     Watermark="内容正则" Text="{Binding ContentPattern}"
+                                                     ToolTip.Tip="同传格式正则，例如 ^【.*?】$" AutomationProperties.Name="转发内容正则" />
+                                        </Grid>
+                                        <Grid Grid.Row="2" ColumnDefinitions="*,*" ColumnSpacing="6">
+                                            <ComboBox x:Name="ForwardAccountSelector" Classes="forwardSelector"
+                                                      ToolTip.Tip="转发发送账号" AutomationProperties.Name="转发发送账号"
+                                                      ItemsSource="{Binding AccountOptions}" SelectedValue="{Binding AccountOverrideId}"
+                                                      SelectedValueBinding="{Binding AccountId}">
+                                                <ComboBox.ItemTemplate>
+                                                    <DataTemplate x:DataType="items:ForwardAccountOption">
+                                                        <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
+                                                    </DataTemplate>
+                                                </ComboBox.ItemTemplate>
+                                            </ComboBox>
+                                            <ComboBox x:Name="ForwardSymbolSelector" Grid.Column="1" Classes="forwardSelector"
+                                                      ToolTip.Tip="转发开闭规则" AutomationProperties.Name="转发符号组"
+                                                      ItemsSource="{Binding SymbolGroups}" SelectedValue="{Binding MarkSymbolGroupId}"
+                                                      SelectedValueBinding="{Binding Id}">
+                                                <ComboBox.ItemTemplate>
+                                                    <DataTemplate x:DataType="state:MarkSymbolGroup">
+                                                        <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                                    </DataTemplate>
+                                                </ComboBox.ItemTemplate>
+                                            </ComboBox>
+                                        </Grid>
+                                        <TextBlock x:Name="ForwardRuleStatusText" Grid.Row="3" Classes="muted"
+                                                   Text="{Binding StatusText}" ToolTip.Tip="{Binding StatusText}"
                                                    TextTrimming="CharacterEllipsis" />
                                     </Grid>
-                                    <Grid Grid.Row="2"
-                                          ColumnDefinitions="*">
-                                        <TextBox
-                                            Watermark="同传格式正则，例如 ^【.*?】$"
-                                            Text="{Binding ContentPattern}" />
-                                    </Grid>
-                                    <Grid Grid.Row="3"
-                                          ColumnDefinitions="*">
-                                        <ComboBox
-                                            HorizontalAlignment="Stretch"
-                                            ToolTip.Tip="转发发送账号"
-                                            ItemsSource="{Binding AccountOptions}"
-                                            SelectedValue="{Binding AccountOverrideId}"
-                                            SelectedValueBinding="{Binding AccountId}">
-                                            <ComboBox.ItemTemplate>
-                                                <DataTemplate x:DataType="items:ForwardAccountOption">
-                                                    <TextBlock Text="{Binding DisplayName}"
-                                                               TextTrimming="CharacterEllipsis" />
-                                                </DataTemplate>
-                                            </ComboBox.ItemTemplate>
-                                        </ComboBox>
-                                    </Grid>
-                                    <Grid Grid.Row="4"
-                                          ColumnDefinitions="*">
-                                        <ComboBox
-                                            HorizontalAlignment="Stretch"
-                                            ToolTip.Tip="转发开闭规则"
-                                            ItemsSource="{Binding SymbolGroups}"
-                                            SelectedValue="{Binding MarkSymbolGroupId}"
-                                            SelectedValueBinding="{Binding Id}">
-                                            <ComboBox.ItemTemplate>
-                                                <DataTemplate x:DataType="state:MarkSymbolGroup">
-                                                    <TextBlock Text="{Binding Name}"
-                                                               TextTrimming="CharacterEllipsis" />
-                                                </DataTemplate>
-                                            </ComboBox.ItemTemplate>
-                                        </ComboBox>
-                                    </Grid>
-                                    <TextBlock Grid.Row="5"
-                                               Text="{Binding StatusText}"
-                                               Classes="muted" />
-                                </Grid>
-                            </Border>
+                                </Border>
+                                <Border x:Name="ForwardDropIndicator" Height="2" Margin="0,-4,0,-4"
+                                        Background="{DynamicResource AppPrimaryBrush}" VerticalAlignment="Top"
+                                        IsVisible="False" IsHitTestVisible="False" />
+                            </Grid>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
