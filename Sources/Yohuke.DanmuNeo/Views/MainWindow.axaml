@@ -5,7 +5,7 @@
         x:Class="Yohuke.DanmuNeo.Views.MainWindow"
         x:DataType="viewModels:MainWindowViewModel"
         x:CompileBindings="True"
-        Width="1280" Height="820" MinWidth="980" MinHeight="640"
+        Width="1280" Height="820" MinWidth="720" MinHeight="480"
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaChromeHints="PreferSystemChrome"
         ExtendClientAreaTitleBarHeightHint="{x:Static components:WindowTitleBar.DEFAULT_HEIGHT}"
