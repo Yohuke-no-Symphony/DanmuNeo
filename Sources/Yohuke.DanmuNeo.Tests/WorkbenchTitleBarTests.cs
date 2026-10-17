@@ -213,9 +213,9 @@ public class WorkbenchTitleBarTests
                 Assert.False(title.IsDragRegion(new(titleBounds.Right - rightInset / 2, titleBounds.Center.Y)));
             }
 
-            var listen = main.FindControl<Button>("ListenToggleButton")!;
+            var listen = title.FindControl<Button>("ListenToggleButton")!;
             var toolbarTop = listen.TranslatePoint(default, main)!.Value.Y;
-            Assert.InRange(toolbarTop, 42, 54);
+            Assert.InRange(toolbarTop, titleBounds.Top, titleBounds.Bottom - listen.Bounds.Height);
             Assert.False(title.IsDragRegion(GetBounds(listen, main).Center));
             var views = menu.Items.OfType<MenuItem>().Single(item => Equals(item.Header, "视图"));
             var point = GetBounds(views, main).Center;
@@ -241,7 +241,7 @@ public class WorkbenchTitleBarTests
             title.Height = 56;
             PumpLayout(main);
             Assert.Equal(56, title.Bounds.Height);
-            Assert.Equal(toolbarTop + 14, listen.TranslatePoint(default, main)!.Value.Y);
+            Assert.Equal(toolbarTop + 7, listen.TranslatePoint(default, main)!.Value.Y);
             Assert.InRange(GetBounds(menu, main).Bottom, 0, GetBounds(title, main).Bottom);
 
             foreach (var windowMode in new[] { false, true })
@@ -249,7 +249,7 @@ public class WorkbenchTitleBarTests
                 context.ViewModel.UseWindowMenuOnMac = windowMode;
                 PumpLayout(main);
                 Assert.Equal(56, title.Bounds.Height);
-                Assert.Equal(toolbarTop + 14, listen.TranslatePoint(default, main)!.Value.Y);
+                Assert.Equal(toolbarTop + 7, listen.TranslatePoint(default, main)!.Value.Y);
                 Assert.Equal(windowMode || !OperatingSystem.IsMacOS(), menu.IsVisible);
                 Assert.True(title.IsDragRegion(GetBounds(workspaceName, main).Center));
                 Assert.False(title.IsDragRegion(GetBounds(pin, main).Center));
@@ -302,8 +302,87 @@ public class WorkbenchTitleBarTests
                 Assert.InRange(Math.Abs(GetBounds(menu, main).Center.Y - center), 0, roundingTolerance);
             }
 
-            var listen = main.FindControl<Button>("ListenToggleButton")!;
-            Assert.True(GetBounds(listen, main).Top >= title.Height);
+            var listen = title.FindControl<Button>("ListenToggleButton")!;
+            Assert.InRange(Math.Abs(GetBounds(listen, main).Center.Y - center), 0, roundingTolerance);
+        }
+        finally
+        {
+            await main.CloseWorkbenchAsync();
+        }
+    }
+
+    /// <summary>
+    /// 房间信息在菜单与右侧操作之间居中，切换房间、长文本和操作提示不会遮挡监听按钮。
+    /// </summary>
+    [AvaloniaTheory]
+    [InlineData(980, 92, 0)]
+    [InlineData(980, 0, 146)]
+    [InlineData(1280, 92, 0)]
+    [InlineData(1280, 0, 146)]
+    public async Task RoomHeaderStaysCenteredAndFollowsSelectedRoom(double width, double leftInset, double rightInset)
+    {
+        using var context = new WorkspaceSidebarTestContext(240);
+        context.ViewModel.Settings.WindowWidth = width;
+        context.ViewModel.Settings.UseWindowMenuOnMac = true;
+        context.ViewModel.SelectedWorkspace!.Name = new string('区', 50);
+        var main = new MainWindow { DataContext = context.ViewModel };
+
+        try
+        {
+            main.Show();
+            await main.Initialization;
+            var title = main.GetVisualDescendants().OfType<TitleBarView>().Single();
+            title.CaptionInsets = new(leftInset, 0, rightInset, 0);
+            var region = title.FindControl<Grid>("RoomHeaderRegion")!;
+            var header = title.FindControl<Grid>("RoomHeader")!;
+            var roomName = title.FindControl<TextBlock>("CurrentRoomName")!;
+            var roomId = title.FindControl<TextBlock>("CurrentRoomId")!;
+            var listen = title.FindControl<Button>("ListenToggleButton")!;
+            var buttons = title.FindControl<StackPanel>("WindowButtons")!;
+            var menu = main.FindControl<Menu>("WindowMenu")!;
+            var dock = main.FindControl<ContentControl>("DockHost")!;
+            var workspace = context.ViewModel.SelectedWorkspace;
+            var firstRoom = workspace.SelectedRoom!;
+            var secondRoom = workspace.AddRoom("21685677", new string('铃', 80), "");
+            var position = main.Position;
+
+            foreach (var room in new[] { firstRoom, secondRoom, firstRoom })
+            {
+                workspace.SelectedRoom = room;
+                context.ViewModel.StatusMessage = "已保存设置：" + new string('长', 100);
+                PumpLayout(main);
+                Assert.Same(room, header.DataContext);
+                Assert.Same(room.ToggleListeningCommand, listen.Command);
+                Assert.Equal(room.RoomName, roomName.Text);
+                Assert.Equal(room.RoomId, roomId.Text);
+                Assert.DoesNotContain(title.GetVisualDescendants().OfType<TextBlock>(),
+                    text => text.Text == context.ViewModel.StatusMessage);
+                var regionBounds = GetBounds(region, main);
+                var headerBounds = GetBounds(header, main);
+                var listenBounds = GetBounds(listen, main);
+                Assert.InRange(Math.Abs(headerBounds.Center.X - regionBounds.Center.X), 0, 0.5);
+                Assert.True(regionBounds.Left >= GetBounds(menu, main).Right);
+                Assert.True(regionBounds.Right <= GetBounds(buttons, main).Left);
+                Assert.True(headerBounds.Left >= regionBounds.Left);
+                Assert.True(headerBounds.Right <= regionBounds.Right);
+                Assert.True(GetBounds(roomName, main).Right <= GetBounds(roomId, main).Left);
+                Assert.True(GetBounds(roomId, main).Right < listenBounds.Left);
+                Assert.True(listenBounds.Right <= regionBounds.Right);
+                Assert.InRange(GetBounds(dock, main).Top, title.Bounds.Bottom, title.Bounds.Bottom + 1);
+                Assert.False(title.IsDragRegion(listenBounds.Center));
+                Click(main, listenBounds.Center);
+                Click(main, listenBounds.Center);
+                Assert.Equal(WindowState.Normal, main.WindowState);
+                Assert.Equal(position, main.Position);
+            }
+
+            context.ViewModel.StatusMessage = "";
+            context.ViewModel.UseWindowMenuOnMac = false;
+            PumpLayout(main);
+            Assert.InRange(Math.Abs(GetBounds(header, main).Center.X - GetBounds(region, main).Center.X), 0, 0.5);
+            workspace.SelectedRoom = null;
+            PumpLayout(main);
+            Assert.False(header.IsEffectivelyVisible);
         }
         finally
         {

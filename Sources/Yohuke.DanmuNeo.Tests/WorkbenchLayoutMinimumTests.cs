@@ -263,7 +263,7 @@ public class WorkbenchLayoutMinimumTests
     }
 
     /// <summary>
-    /// 实际八个面板全部竖排并显示发送错误时，最小主窗内仍容纳内容声明的高度下限。
+    /// 全部实际面板竖排并显示发送错误时，最小主窗内仍容纳内容声明的高度下限。
     /// </summary>
     [AvaloniaFact]
     public async Task EightRealPanelsFitMinimumWindowWithComposerError()

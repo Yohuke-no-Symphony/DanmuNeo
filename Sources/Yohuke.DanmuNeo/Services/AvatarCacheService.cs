@@ -2,6 +2,7 @@ using System.Net.Http;
 using System.Security.Cryptography;
 using Yohuke.DanmuNeo.Apis;
 using Yohuke.DanmuNeo.Models.Workspace;
+using Yohuke.DanmuNeo.Models.Logging;
 
 namespace Yohuke.DanmuNeo.Services;
 
@@ -102,8 +103,13 @@ public class AvatarCacheService : IRoomAvatarService, IDisposable
                 AvatarPath = avatarPath
             };
         }
-        catch
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            StartupLog.Append($"获取头像失败：房间 {roomId}", AppLogLevel.ERROR, "头像", exception);
             return new();
         }
     }
@@ -131,8 +137,13 @@ public class AvatarCacheService : IRoomAvatarService, IDisposable
                 };
             }
         }
-        catch
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            StartupLog.Append($"用户头像接口失败，将尝试备用接口：UID {ownerUid}", AppLogLevel.WARNING, "头像", exception);
         }
 
         try
@@ -150,8 +161,13 @@ public class AvatarCacheService : IRoomAvatarService, IDisposable
                 };
             }
         }
-        catch
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            StartupLog.Append($"备用用户头像接口失败：UID {ownerUid}", AppLogLevel.WARNING, "头像", exception);
         }
 
         return new();
@@ -197,8 +213,13 @@ public class AvatarCacheService : IRoomAvatarService, IDisposable
             DeleteOldRoomAvatarFiles(roomId, filePath);
             return filePath;
         }
-        catch
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            StartupLog.Append($"头像下载失败：{roomId}", AppLogLevel.WARNING, "头像", exception);
             return "";
         }
     }
@@ -238,8 +259,9 @@ public class AvatarCacheService : IRoomAvatarService, IDisposable
             {
                 File.Delete(filePath);
             }
-            catch
+            catch (Exception exception)
             {
+                StartupLog.Append("旧头像缓存清理失败", AppLogLevel.WARNING, "头像", exception);
             }
         }
     }

@@ -121,7 +121,7 @@ public class WorkbenchToolbarTests
     }
 
     /// <summary>
-    /// 固定顶部工具条保留监听按钮的状态颜色、图标和原命令。
+    /// 标题栏保留监听按钮的状态颜色、图标和原命令。
     /// </summary>
     [AvaloniaFact]
     public async Task RoomToolbarPreservesListeningStatePresentation()
@@ -134,7 +134,8 @@ public class WorkbenchToolbarTests
             window.Show();
             await window.Initialization;
             var room = fixture.ViewModel.SelectedWorkspace!.SelectedRoom!;
-            var button = window.FindControl<Button>("ListenToggleButton")!;
+            var title = window.GetVisualDescendants().OfType<TitleBarView>().Single();
+            var button = title.FindControl<Button>("ListenToggleButton")!;
             Assert.Same(room.ToggleListeningCommand, button.Command);
             Assert.Contains("listenToggleButton", button.Classes);
 

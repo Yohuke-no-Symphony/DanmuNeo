@@ -2,6 +2,7 @@ using System.Net;
 using Avalonia.Controls;
 using Avalonia.Platform;
 using Yohuke.DanmuNeo.Models.BrowserLogin;
+using Yohuke.DanmuNeo.Models.Logging;
 using Yohuke.DanmuNeo.Services;
 
 namespace Yohuke.DanmuNeo.Views;
@@ -87,7 +88,7 @@ public partial class BrowserCookieLoginWindow : Window
             }
             catch (Exception exception)
             {
-                StartupLog.Append($"Browser login WebView stop failed platform={platform} exception={exception.GetType().Name}");
+                StartupLog.Append($"浏览器停止失败：{platform}", AppLogLevel.ERROR, "浏览器登录", exception);
             }
         }
 
@@ -115,7 +116,7 @@ public partial class BrowserCookieLoginWindow : Window
             WebViewPlaceholderText.Text = MESSAGE;
             WebViewHost.Child = WebViewPlaceholderText;
             WebViewPlaceholderText.IsVisible = true;
-            StartupLog.Append($"Browser login WebView create failed platform={platform} exception={exception}");
+            StartupLog.Append($"浏览器初始化失败：{platform}", AppLogLevel.ERROR, "浏览器登录", exception);
         }
     }
 
@@ -214,7 +215,7 @@ public partial class BrowserCookieLoginWindow : Window
             if (!isClosed)
             {
                 StatusText.Text = exception.Message;
-                StartupLog.Append($"Browser login capture failed platform={platform} exception={exception.GetType().Name}");
+                StartupLog.Append($"读取登录状态失败：{platform}", AppLogLevel.ERROR, "浏览器登录", exception);
             }
         }
         finally

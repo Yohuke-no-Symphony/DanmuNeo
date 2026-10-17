@@ -1,3 +1,4 @@
+using Newtonsoft.Json.Linq;
 using Yohuke.DanmuNeo.Apis;
 using Yohuke.DanmuNeo.Models.State;
 
@@ -8,6 +9,18 @@ namespace Yohuke.DanmuNeo.Services;
 /// </summary>
 public class MusicLyricImportService
 {
+    private const int NET_EASE_SUCCESS_CODE = 200;
+    private const int QQ_MUSIC_SUCCESS_CODE = 0;
+    private readonly HttpClient? httpClient;
+
+    /// <summary>
+    /// 创建音乐歌词导入服务；注入的 HTTP 客户端由调用方管理。
+    /// </summary>
+    public MusicLyricImportService(HttpClient? httpClient = null)
+    {
+        this.httpClient = httpClient;
+    }
+
     /// <summary>
     /// 搜索音乐平台歌曲。
     /// </summary>
@@ -17,6 +30,8 @@ public class MusicLyricImportService
         string qqMusicCookie,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (string.IsNullOrWhiteSpace(keyword))
         {
             return [];
@@ -37,6 +52,8 @@ public class MusicLyricImportService
         string qqMusicCookie,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         return result.Source switch
         {
             "qq" => await ImportQQMusicAsync(result, qqMusicCookie, cancellationToken),
@@ -44,32 +61,38 @@ public class MusicLyricImportService
         };
     }
 
-    private static async Task<List<MusicLyricSearchResult>> SearchNetEaseAsync(
+    private async Task<List<MusicLyricSearchResult>> SearchNetEaseAsync(
         string keyword,
         CancellationToken cancellationToken)
     {
-        using var api = new NetEaseMusicApi();
+        using var api = new NetEaseMusicApi(httpClient: httpClient);
         var response = await api.SearchSongsAsync(keyword, cancellationToken: cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        EnsureSuccess(response.Code, NET_EASE_SUCCESS_CODE, "网易云音乐搜索", response.ExtraData);
+        var songs = response.Result?.Songs ?? throw new InvalidDataException("网易云音乐未返回搜索结果。");
 
-        return response.Result?.Songs.Select(song => new MusicLyricSearchResult
+        return songs.Select(song => new MusicLyricSearchResult
         {
             Source = "wy",
             SourceSongId = song.Id.ToString(),
             Title = song.Name,
             Artist = string.Join(" / ", song.Artists.Select(artist => artist.Name).Where(name => !string.IsNullOrWhiteSpace(name))),
             Album = song.Album?.Name ?? ""
-        }).ToList() ?? [];
+        }).ToList();
     }
 
-    private static async Task<List<MusicLyricSearchResult>> SearchQQMusicAsync(
+    private async Task<List<MusicLyricSearchResult>> SearchQQMusicAsync(
         string keyword,
         string qqMusicCookie,
         CancellationToken cancellationToken)
     {
-        using var api = new QQMusicApi(qqMusicCookie);
+        using var api = new QQMusicApi(qqMusicCookie, httpClient: httpClient);
         var response = await api.SearchSongsV1Async(keyword, cancellationToken: cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        EnsureSuccess(response.Code, QQ_MUSIC_SUCCESS_CODE, "QQ 音乐搜索", response.ExtraData);
+        var songs = response.Data?.Song?.List ?? throw new InvalidDataException("QQ 音乐未返回搜索结果。");
 
-        return response.Data?.Song?.List.Select(song => new MusicLyricSearchResult
+        return songs.Select(song => new MusicLyricSearchResult
         {
             Source = "qq",
             SourceSongId = song.SongId.ToString(),
@@ -77,16 +100,18 @@ public class MusicLyricImportService
             Title = song.SongName,
             Artist = string.Join(" / ", song.Singer.Select(singer => singer.Name).Where(name => !string.IsNullOrWhiteSpace(name))),
             Album = song.AlbumName
-        }).ToList() ?? [];
+        }).ToList();
     }
 
-    private static async Task<LyricLibraryItem> ImportNetEaseAsync(
+    private async Task<LyricLibraryItem> ImportNetEaseAsync(
         MusicLyricSearchResult result,
         CancellationToken cancellationToken)
     {
-        using var api = new NetEaseMusicApi();
+        using var api = new NetEaseMusicApi(httpClient: httpClient);
         var songId = long.TryParse(result.SourceSongId, out var parsedSongId) ? parsedSongId : 0;
         var lyric = await api.GetLyricAsync(songId, cancellationToken: cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        EnsureSuccess(lyric.Code, NET_EASE_SUCCESS_CODE, "网易云音乐歌词获取", lyric.ExtraData);
 
         return CreateLibraryItem(
             result,
@@ -94,13 +119,15 @@ public class MusicLyricImportService
             lyric.TranslatedLyric?.Lyric ?? "");
     }
 
-    private static async Task<LyricLibraryItem> ImportQQMusicAsync(
+    private async Task<LyricLibraryItem> ImportQQMusicAsync(
         MusicLyricSearchResult result,
         string qqMusicCookie,
         CancellationToken cancellationToken)
     {
-        using var api = new QQMusicApi(qqMusicCookie);
+        using var api = new QQMusicApi(qqMusicCookie, httpClient: httpClient);
         var lyric = await api.GetLyricAsync(result.SongMid, cancellationToken: cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        EnsureSuccess(lyric.Code, QQ_MUSIC_SUCCESS_CODE, "QQ 音乐歌词获取", lyric.ExtraData);
 
         return CreateLibraryItem(
             result,
@@ -113,6 +140,11 @@ public class MusicLyricImportService
         string lyricText,
         string translatedLyricText)
     {
+        if (string.IsNullOrWhiteSpace(lyricText) && string.IsNullOrWhiteSpace(translatedLyricText))
+        {
+            throw new InvalidDataException($"{result.SourceLabel}未返回可用的歌词内容。");
+        }
+
         return new()
         {
             Title = result.Title,
@@ -125,5 +157,31 @@ public class MusicLyricImportService
             LyricText = lyricText,
             TranslatedLyricText = translatedLyricText
         };
+    }
+
+    private static void EnsureSuccess(int code, int successCode, string operation,
+        IDictionary<string, JToken>? extraData)
+    {
+        if (code == successCode)
+        {
+            return;
+        }
+
+        string? message = null;
+
+        foreach (var key in new[] { "message", "msg" })
+        {
+            var token = extraData?.FirstOrDefault(pair =>
+                string.Equals(pair.Key, key, StringComparison.OrdinalIgnoreCase)).Value;
+
+            if (token is { Type: JTokenType.String } && !string.IsNullOrWhiteSpace(token.Value<string>()))
+            {
+                message = token.Value<string>();
+                break;
+            }
+        }
+
+        var reason = string.IsNullOrWhiteSpace(message) ? string.Empty : $"：{message}";
+        throw new InvalidOperationException($"{operation}失败（状态码 {code}）{reason}");
     }
 }

@@ -2,7 +2,9 @@ using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
 using System.Text;
+using System.Text.Json;
 using Yohuke.DanmuNeo.Apis;
+using Yohuke.DanmuNeo.Models.Logging;
 using Yohuke.DanmuNeo.Models.Workspace;
 
 namespace Yohuke.DanmuNeo.Services;
@@ -13,6 +15,8 @@ namespace Yohuke.DanmuNeo.Services;
 public class LivePlayerService : ILivePlayerService, IDisposable
 {
     private const string MPEGTS_RESOURCE_NAME = "Yohuke.DanmuNeo.Assets.Player.mpegts.js";
+    private const int MAXIMUM_DIAGNOSTIC_LENGTH = 4096;
+    private const int MAXIMUM_DIAGNOSTIC_SIGNATURES = 64;
     private readonly Dictionary<string, LivePlayerStreamEntry> streams = [];
     private readonly Lock gate = new();
 
@@ -131,7 +135,7 @@ public class LivePlayerService : ILivePlayerService, IDisposable
             }
             catch (Exception exception)
             {
-                StartupLog.Append($"Live player listener failed exception={exception}");
+                StartupLog.Append("播放器 HTTP 服务监听失败", AppLogLevel.ERROR, "播放器", exception);
                 break;
             }
 
@@ -159,6 +163,12 @@ public class LivePlayerService : ILivePlayerService, IDisposable
                 return;
             }
 
+            if (path.StartsWith("/diagnostic/", StringComparison.Ordinal))
+            {
+                await ReceiveDiagnosticAsync(context, path["/diagnostic/".Length..], cancellationToken);
+                return;
+            }
+
             if (path.StartsWith("/stream/", StringComparison.Ordinal))
             {
                 await ProxyStreamAsync(context, path["/stream/".Length..], cancellationToken);
@@ -167,9 +177,19 @@ public class LivePlayerService : ILivePlayerService, IDisposable
 
             context.Response.StatusCode = 404;
         }
+        catch (OperationCanceledException)
+        {
+        }
         catch (Exception exception)
         {
-            StartupLog.Append($"Live player request failed exception={exception}");
+            var path = context.Request.Url?.AbsolutePath ?? "";
+            var active = !path.StartsWith("/stream/", StringComparison.Ordinal) ||
+                         FindStream(path["/stream/".Length..]) is not null;
+
+            if (!cancellationToken.IsCancellationRequested && active)
+            {
+                StartupLog.Append("播放器请求失败", AppLogLevel.ERROR, "播放器", exception);
+            }
 
             if (context.Response.OutputStream.CanWrite)
             {
@@ -182,6 +202,145 @@ public class LivePlayerService : ILivePlayerService, IDisposable
         {
             TryClose(context.Response);
         }
+    }
+
+    private LivePlayerStreamEntry? FindStream(string rawToken)
+    {
+        lock (gate)
+        {
+            return streams.GetValueOrDefault(Uri.UnescapeDataString(rawToken));
+        }
+    }
+
+    private async Task ReceiveDiagnosticAsync(HttpListenerContext context, string rawToken,
+        CancellationToken cancellationToken)
+    {
+        if (context.Request.HttpMethod != "POST")
+        {
+            context.Response.StatusCode = 405;
+            return;
+        }
+
+        if (context.Request.Headers["Origin"] is { } origin && origin != $"http://127.0.0.1:{port}")
+        {
+            context.Response.StatusCode = 403;
+            return;
+        }
+
+        var entry = FindStream(rawToken);
+
+        if (entry is null)
+        {
+            context.Response.StatusCode = 404;
+            return;
+        }
+
+        using var reader = new StreamReader(context.Request.InputStream, Encoding.UTF8);
+        var buffer = new char[MAXIMUM_DIAGNOSTIC_LENGTH + 1];
+        var count = 0;
+
+        while (count < buffer.Length)
+        {
+            var read = await reader.ReadAsync(buffer.AsMemory(count), cancellationToken);
+
+            if (read == 0)
+            {
+                break;
+            }
+
+            count += read;
+        }
+
+        if (count > MAXIMUM_DIAGNOSTIC_LENGTH)
+        {
+            context.Response.StatusCode = 413;
+            return;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(new string(buffer, 0, count));
+            var root = document.RootElement;
+
+            if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("kind", out var kind) ||
+                kind.ValueKind != JsonValueKind.String || !root.TryGetProperty("message", out var message) ||
+                message.ValueKind != JsonValueKind.String)
+            {
+                context.Response.StatusCode = 400;
+                return;
+            }
+
+            var diagnostic = kind.GetString();
+
+            if (diagnostic is not ("error" or "warning" or "recovered"))
+            {
+                context.Response.StatusCode = 400;
+                return;
+            }
+
+            if (diagnostic != "recovered" && string.IsNullOrWhiteSpace(message.GetString()))
+            {
+                context.Response.StatusCode = 400;
+                return;
+            }
+
+            var networkFailure = root.TryGetProperty("category", out var category) &&
+                                 category.ValueKind == JsonValueKind.String && category.GetString() == "network";
+            ReportDiagnostic(entry, diagnostic == "recovered" ? null : message.GetString(),
+                diagnostic == "warning" ? AppLogLevel.WARNING : AppLogLevel.ERROR,
+                networkFailure: networkFailure);
+            context.Response.StatusCode = 204;
+        }
+        catch (JsonException)
+        {
+            context.Response.StatusCode = 400;
+        }
+    }
+
+    private void ReportDiagnostic(LivePlayerStreamEntry entry, string? message, AppLogLevel level,
+        bool upstreamFailure = false, bool networkFailure = false)
+    {
+        var safeMessage = message is null ? null : AppLogSanitizer.Sanitize(message);
+
+        lock (gate)
+        {
+            if (!streams.Values.Contains(entry) || networkFailure && entry.HasUpstreamFailure)
+            {
+                return;
+            }
+
+            if (safeMessage is null)
+            {
+                if (entry.ReportedDiagnostics.Count == 0)
+                {
+                    return;
+                }
+
+                entry.ReportedDiagnostics.Clear();
+                entry.DiagnosticOrder.Clear();
+                entry.HasUpstreamFailure = false;
+            }
+            else
+            {
+                entry.HasUpstreamFailure |= upstreamFailure;
+                var signature = $"{level}|{safeMessage}";
+
+                if (!entry.ReportedDiagnostics.Add(signature))
+                {
+                    return;
+                }
+
+                entry.DiagnosticOrder.Enqueue(signature);
+
+                while (entry.DiagnosticOrder.Count > MAXIMUM_DIAGNOSTIC_SIGNATURES)
+                {
+                    entry.ReportedDiagnostics.Remove(entry.DiagnosticOrder.Dequeue());
+                }
+            }
+        }
+
+        StartupLog.Append(safeMessage ?? "直播播放已恢复", safeMessage is null ? AppLogLevel.INFO : level,
+            $"播放器/房间 {entry.RoomId}");
     }
 
     private async Task ProxyStreamAsync(
@@ -234,8 +393,14 @@ public class LivePlayerService : ILivePlayerService, IDisposable
         if (!response.IsSuccessStatusCode)
         {
             var errorText = $"直播流请求失败：{(int)response.StatusCode} {response.ReasonPhrase}";
+            ReportDiagnostic(entry, errorText, AppLogLevel.ERROR, upstreamFailure: true);
             await WriteTextAsync(context.Response, errorText, "text/plain; charset=utf-8", linkedTokenSource.Token);
             return;
+        }
+
+        lock (gate)
+        {
+            entry.HasUpstreamFailure = false;
         }
 
         await using var stream = await response.Content.ReadAsStreamAsync(linkedTokenSource.Token);
@@ -336,6 +501,27 @@ public class LivePlayerService : ILivePlayerService, IDisposable
                      status.textContent = text;
                    }
 
+                   function reportDiagnostic(kind, message, category = "playback") {
+                     if (!token) {
+                       return;
+                     }
+                     fetch(`/diagnostic/${encodeURIComponent(token)}`, {
+                       method: "POST",
+                       headers: { "Content-Type": "application/json" },
+                       body: JSON.stringify({ kind, category, message: String(message || "").slice(0, 2000) })
+                     }).catch(() => {});
+                   }
+
+                   window.addEventListener("error", event => {
+                     reportDiagnostic("error", event.error && event.error.stack || event.message || "播放器脚本错误");
+                   });
+                   window.addEventListener("unhandledrejection", event => {
+                     const error = event.reason;
+                     if (!error || error.name !== "AbortError") {
+                       reportDiagnostic("error", error && (error.stack || error.message) || "播放器异步操作失败");
+                     }
+                   });
+
                    function setSoundGateVisible(isVisible) {
                      soundGate.classList.toggle("hidden", !isVisible);
                    }
@@ -370,6 +556,9 @@ public class LivePlayerService : ILivePlayerService, IDisposable
                      }
 
                      setStatus(`播放启动失败${message ? `：${message}` : ""}`);
+                     if (!error || error.name !== "AbortError") {
+                       reportDiagnostic("error", `播放启动失败：${message}`);
+                     }
                    }
 
                    function playVideo() {
@@ -557,12 +746,14 @@ public class LivePlayerService : ILivePlayerService, IDisposable
                      isRecovering = true;
 
                      if (recoveryCount >= maxRecoveries) {
+                       reportDiagnostic("error", `${reason}，已停止自动恢复`);
                        setStatus(`${reason}，已停止自动恢复，请点击追帧。`);
                        destroyPlayer();
                        return;
                      }
 
                      recoveryCount++;
+                     reportDiagnostic("warning", reason);
 
                          if (seekToLiveEdge(reason)) {
                            lastActiveAt = Date.now();
@@ -645,6 +836,7 @@ public class LivePlayerService : ILivePlayerService, IDisposable
                      }
 
                      if (!window.mpegts || !mpegts.isSupported()) {
+                       reportDiagnostic("error", "当前 WebView 不支持 MSE 直播播放");
                        setStatus("当前 WebView 不支持 MSE 直播播放");
                        return;
                          }
@@ -676,6 +868,8 @@ public class LivePlayerService : ILivePlayerService, IDisposable
                          : JSON.stringify(errorInfo || {});
                        const message = `播放中断：${errorType || "Unknown"} / ${errorDetail || "Unknown"} ${infoText}`;
                        setStatus(message);
+                       reportDiagnostic("error", message,
+                         errorType === mpegts.ErrorTypes.NETWORK_ERROR ? "network" : "media");
                        console.error(message, errorInfo);
 
                        if (retryCount >= maxRetries) {
@@ -711,6 +905,7 @@ public class LivePlayerService : ILivePlayerService, IDisposable
                            updateVideoMetrics();
                          });
                          video.onplaying = () => {
+                           reportDiagnostic("recovered", "");
                            retryCount = 0;
                            isRecovering = false;
                            markTimelineActive();
@@ -729,6 +924,7 @@ public class LivePlayerService : ILivePlayerService, IDisposable
                      video.onstalled = () => recoverFromStuck("直播流停止响应");
                      video.onerror = () => {
                        const error = video.error;
+                       reportDiagnostic("error", error ? `播放器错误：${error.code}` : "播放器错误");
                        setStatus(error ? `播放器错误：${error.code}` : "播放器错误");
                      };
                      playVideo();

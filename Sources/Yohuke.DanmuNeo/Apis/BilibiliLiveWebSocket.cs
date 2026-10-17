@@ -104,7 +104,6 @@ public class BilibiliLiveWebSocket : BaseApi, ILiveDanmuSocket
         var reconnectCoordinator = new LiveDanmuReconnectCoordinator(ConnectOnceAsync);
         reconnectCoordinator.ErrorReceived += (_, exception) =>
         {
-            StartupLog.Append($"Bilibili live websocket error roomId={roomId} exception={exception}");
             ErrorReceived?.Invoke(this, exception);
         };
         reconnectCoordinator.Disconnected += (_, _) => Disconnected?.Invoke(this, EventArgs.Empty);

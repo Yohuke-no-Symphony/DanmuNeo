@@ -87,7 +87,9 @@ internal sealed class WorkbenchMenuCatalog : IDisposable
                 [new("settings", "设置…", LucideIconKind.Settings, SettingsCommand, Gesture: new(Key.OemComma,
                     OperatingSystem.IsMacOS() ? KeyModifiers.Meta : KeyModifiers.Control))]),
                 new("views", "视图", Children: WorkbenchPanelIds.All.Select(id =>
-                    new WorkbenchMenuEntry($"panel:{id}", GetPanelTitle(id), GetPanelIcon(id), panelCommands[id])).ToArray()),
+                    new WorkbenchMenuEntry($"panel:{id}",
+                        id == WorkbenchPanelIds.LOG ? layouts.PanelAdapters[id].Title : GetPanelTitle(id),
+                        GetPanelIcon(id), panelCommands[id])).ToArray()),
                 new("layouts", "布局", Children: layoutEntries),
                 new("help", "帮助", Children:
                 [new("about", "关于", LucideIconKind.Info, about), new("update", "检查更新", LucideIconKind.Download, update)])
@@ -107,6 +109,7 @@ internal sealed class WorkbenchMenuCatalog : IDisposable
             WorkbenchPanelIds.HISTORY => "历史",
             WorkbenchPanelIds.LYRICS => "歌词",
             WorkbenchPanelIds.FORWARDING => "转发",
+            WorkbenchPanelIds.LOG => "Log",
             _ => throw new ArgumentOutOfRangeException(nameof(id))
         };
     }
@@ -123,6 +126,7 @@ internal sealed class WorkbenchMenuCatalog : IDisposable
             WorkbenchPanelIds.HISTORY => LucideIconKind.History,
             WorkbenchPanelIds.LYRICS => LucideIconKind.Music,
             WorkbenchPanelIds.FORWARDING => LucideIconKind.Forward,
+            WorkbenchPanelIds.LOG => LucideIconKind.Logs,
             _ => throw new ArgumentOutOfRangeException(nameof(id))
         };
     }

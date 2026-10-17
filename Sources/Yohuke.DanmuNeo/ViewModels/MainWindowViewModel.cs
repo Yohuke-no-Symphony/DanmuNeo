@@ -1,4 +1,5 @@
 ﻿using System.Collections.ObjectModel;
+using System.Runtime.CompilerServices;
 using Avalonia.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -16,6 +17,8 @@ namespace Yohuke.DanmuNeo.ViewModels;
 public partial class MainWindowViewModel : ViewModelBase, IDisposable
 {
     private readonly AppStateService stateService;
+    private readonly bool ownsLog;
+    private readonly ConditionalWeakTable<Exception, object> loggedErrors = new();
     private readonly SemaphoreSlim stateSaveGate = new(1, 1);
     private readonly WorkspaceShareService workspaceShareService = new();
     private readonly AccountSelectionService accountSelectionService = new();
@@ -64,8 +67,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         IBilibiliModerationService? moderationService = null,
         IBilibiliUserNameService? userNameService = null,
         IBilibiliDanmuConfigService? danmuConfigService = null,
-        IAppUpdateService? appUpdateService = null)
+        IAppUpdateService? appUpdateService = null,
+        IAppLogService? log = null)
     {
+        Log = log ?? new AppLogService();
+        ownsLog = log is null;
         this.stateService = stateService;
         ownedAppUpdateService = appUpdateService is null ? new() : null;
         this.appUpdateService = appUpdateService ?? ownedAppUpdateService!;
@@ -108,6 +114,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// 应用状态。
     /// </summary>
     public AppState State { get; }
+
+    /// <summary>
+    /// 应用会话共享的操作与错误日志。
+    /// </summary>
+    public IAppLogService Log { get; }
 
     /// <summary>
     /// 全局设置。
@@ -307,7 +318,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             AppThemeService.Apply(value.Value);
             RefreshThemeModeOptions();
             OnPropertyChanged();
-            _ = SaveAsync();
+            _ = SaveSettingsAsync();
         }
     }
 
@@ -409,6 +420,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         catch (Exception exception)
         {
             StatusMessage = $"保存同传样式预设失败：{exception.Message}";
+            LogErrorOnce("同传样式", StatusMessage, exception);
         }
     }
 
@@ -811,6 +823,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         if (string.IsNullOrWhiteSpace(activeLiveRoomSearchKeyword))
         {
             LiveRoomSearchStatus = "请输入主播昵称";
+            Log.Warning("直播间搜索", LiveRoomSearchStatus);
             return;
         }
 
@@ -898,6 +911,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             LiveRoomSearchStatus = LiveRoomSearchResults.Count == 0
                 ? "没有找到匹配的主播，可以尝试其他昵称或手动添加"
                 : $"已找到 {LiveRoomSearchResults.Count} 个直播间，点击添加即可加入工作区";
+            Log.Information($"直播间搜索 · {workspace.Name}", LiveRoomSearchStatus);
         }
         catch (OperationCanceledException) when (tokenSource.IsCancellationRequested)
         {
@@ -907,6 +921,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             if (IsCurrentLiveRoomSearch(tokenSource))
             {
                 LiveRoomSearchStatus = $"搜索失败：{exception.Message}";
+                LogErrorOnce($"直播间搜索 · {workspace.Name}", LiveRoomSearchStatus, exception);
             }
         }
         finally
@@ -961,6 +976,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         if (!long.TryParse(roomId, out var parsedRoomId) || parsedRoomId <= 0)
         {
             LiveRoomSearchStatus = "请输入有效的直播间 ID";
+            Log.Warning($"直播间 · {workspace.Name}", LiveRoomSearchStatus);
             return;
         }
 
@@ -977,7 +993,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             if (room is null)
             {
                 room = workspace.AddRoom(roomId, roomName, ownerUid);
-                ConfigureRoom(room);
+                ConfigureRoom(room, workspace);
             }
 
             workspace.SelectedRoom = room;
@@ -985,6 +1001,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             RefreshTreeSelection();
             RefreshForwardSourceRooms();
             await SaveAsync();
+            Log.Information($"直播间 · {workspace.Name}", $"已选择直播间：{room.Header} ({room.RoomId})");
 
             if (session == addDialogSession)
             {
@@ -996,6 +1013,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
         catch (Exception exception)
         {
+            LogErrorOnce($"直播间 · {workspace.Name}", "添加直播间失败", exception);
+
             if (session == addDialogSession)
             {
                 LiveRoomSearchStatus = $"添加直播间失败：{exception.Message}";
@@ -1239,6 +1258,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         CancelShortcutRecording();
         binding.IsRecording = true;
         StatusMessage = $"按下新的快捷键：{binding.Name}";
+        Log.Information("快捷键", StatusMessage);
         OnPropertyChanged(nameof(IsRecordingShortcut));
     }
 
@@ -1255,6 +1275,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         binding.IsRecording = false;
         binding.SetGestureText("", false);
         StatusMessage = $"已清除快捷键：{binding.Name}";
+        Log.Information("快捷键", StatusMessage);
         OnPropertyChanged(nameof(IsRecordingShortcut));
     }
 
@@ -1271,6 +1292,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         binding.IsRecording = false;
         binding.SetGestureText(binding.DefaultGestureText, true);
         StatusMessage = $"已恢复默认快捷键：{binding.Name}";
+        Log.Information("快捷键", StatusMessage);
         OnPropertyChanged(nameof(IsRecordingShortcut));
     }
 
@@ -1295,6 +1317,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         {
             CancelShortcutRecording();
             StatusMessage = "已取消快捷键录制";
+            Log.Information("快捷键", StatusMessage);
             return true;
         }
 
@@ -1307,12 +1330,14 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         if (!ShortcutBindingService.TryCreateGestureText(key, modifiers, out var gestureText))
         {
             StatusMessage = "请按下包含主按键的快捷键";
+            Log.Warning("快捷键", StatusMessage);
             return true;
         }
 
         binding.IsRecording = false;
         binding.SetGestureText(gestureText, true);
         StatusMessage = $"已设置快捷键：{binding.Name} {gestureText}";
+        Log.Information("快捷键", StatusMessage);
         OnPropertyChanged(nameof(IsRecordingShortcut));
         return true;
     }
@@ -1343,18 +1368,21 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         if (sourceWorkspace is null)
         {
             StatusMessage = "未找到来源工作区";
+            Log.Warning("转发规则", StatusMessage);
             return;
         }
 
         if (targetRoom.Id == sourceRoom.Id)
         {
             StatusMessage = "不能将直播间转发到自身";
+            Log.Warning("转发规则", StatusMessage);
             return;
         }
 
         if (string.IsNullOrWhiteSpace(item.UserUid))
         {
             StatusMessage = "弹幕缺少用户 UID";
+            Log.Warning("转发规则", StatusMessage);
             return;
         }
 
@@ -1368,6 +1396,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         });
         RefreshForwardSourceRooms();
         StatusMessage = $"已添加转发规则：{item.UserName} -> {targetRoom.Header}";
+        Log.Information("转发规则", StatusMessage);
     }
 
     /// <summary>
@@ -1418,10 +1447,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             }
 
             StatusMessage = $"找到 {MusicLyricSearchResults.Count} 条歌词候选";
+            Log.Information("歌词搜索", StatusMessage);
         }
         catch (Exception exception)
         {
             StatusMessage = $"音乐 API 搜索失败：{exception.Message}";
+            LogErrorOnce("歌词搜索", StatusMessage, exception);
         }
         finally
         {
@@ -1508,6 +1539,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         RefreshAccountLabels();
         await SaveAsync();
         StatusMessage = result.Message;
+        Log.Information("B站登录", StatusMessage);
     }
 
     /// <summary>
@@ -1525,6 +1557,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(QQMusicCookieSummary));
         await SaveAsync();
         StatusMessage = result.Message;
+        Log.Information("QQ音乐登录", StatusMessage);
     }
 
     /// <summary>
@@ -1814,6 +1847,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         catch (Exception exception)
         {
             StatusMessage = $"歌词保存失败：{exception.Message}";
+            LogErrorOnce("歌词库", StatusMessage, exception);
         }
     }
 
@@ -1833,6 +1867,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         catch (Exception exception)
         {
             StatusMessage = $"歌词导入失败：{exception.Message}";
+            LogErrorOnce("歌词导入", StatusMessage, exception);
             return false;
         }
     }
@@ -1852,6 +1887,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         catch (Exception exception)
         {
             StatusMessage = $"歌词导入失败：{exception.Message}";
+            LogErrorOnce("歌词导入", StatusMessage, exception);
             return false;
         }
     }
@@ -1881,6 +1917,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         catch (Exception exception)
         {
             StatusMessage = $"歌词导入失败：{exception.Message}";
+            LogErrorOnce("歌词导入", StatusMessage, exception);
         }
     }
 
@@ -1967,16 +2004,26 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// </summary>
     public async Task ClearCacheAsync()
     {
-        appBackupService.ClearCache();
-
-        foreach (var room in Workspaces.SelectMany(workspace => workspace.Rooms))
+        try
         {
-            room.AvatarPath = "";
-        }
+            appBackupService.ClearCache();
 
-        RefreshCacheSize();
-        await SaveAsync();
-        StatusMessage = "缓存已清理";
+            foreach (var room in Workspaces.SelectMany(workspace => workspace.Rooms))
+            {
+                room.AvatarPath = "";
+            }
+
+            RefreshCacheSize();
+            await SaveAsync();
+            StatusMessage = "缓存已清理";
+            Log.Information("缓存", StatusMessage);
+        }
+        catch (Exception exception)
+        {
+            StatusMessage = $"缓存清理失败：{exception.Message}";
+            LogErrorOnce("缓存", StatusMessage, exception);
+            throw;
+        }
     }
 
     /// <summary>
@@ -1989,11 +2036,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             var outputDirectory = Path.Combine(ConfigDirectory, "Exports");
             LastBackupPath = await appBackupService.ExportBackupZipAsync(outputDirectory);
             StatusMessage = $"已导出备份：{LastBackupPath}";
+            Log.Information("配置备份", StatusMessage);
             OpenDirectory(outputDirectory, "备份目录打开失败");
         }
         catch (Exception exception)
         {
             StatusMessage = $"导出备份失败：{exception.Message}";
+            LogErrorOnce("配置备份", StatusMessage, exception);
         }
     }
 
@@ -2015,6 +2064,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 AppStateService.ClampWorkspaceColumnWidth(Settings.WorkspaceToolColumnWidth);
             await stateService.SaveAsync(State);
             StatusMessage = $"已保存 {DateTime.Now:HH:mm:ss}";
+            Log.Information("配置保存", StatusMessage);
+        }
+        catch (Exception exception)
+        {
+            StatusMessage = $"配置保存失败：{exception.Message}";
+            LogErrorOnce("配置保存", StatusMessage, exception);
+            throw;
         }
         finally
         {
@@ -2040,8 +2096,18 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        await workspaceShareService.ExportAsync(workspace.State, Settings, filePath);
-        StatusMessage = "工作区已导出";
+        try
+        {
+            await workspaceShareService.ExportAsync(workspace.State, Settings, filePath);
+            StatusMessage = "工作区已导出";
+            Log.Information($"工作区 · {workspace.Name}", StatusMessage);
+        }
+        catch (Exception exception)
+        {
+            StatusMessage = $"工作区导出失败：{exception.Message}";
+            LogErrorOnce($"工作区 · {workspace.Name}", StatusMessage, exception);
+            throw;
+        }
     }
 
     /// <summary>
@@ -2049,13 +2115,23 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// </summary>
     public async Task ImportWorkspaceAsync(string filePath)
     {
-        var workspaceState = await workspaceShareService.ImportAsync(State.Workspaces, filePath);
-        State.Workspaces.Add(workspaceState);
-        var workspace = CreateWorkspaceViewModel(workspaceState);
-        Workspaces.Add(workspace);
-        SelectedWorkspace = workspace;
-        await SaveAsync();
-        StatusMessage = "工作区已导入";
+        try
+        {
+            var workspaceState = await workspaceShareService.ImportAsync(State.Workspaces, filePath);
+            State.Workspaces.Add(workspaceState);
+            var workspace = CreateWorkspaceViewModel(workspaceState);
+            Workspaces.Add(workspace);
+            SelectedWorkspace = workspace;
+            await SaveAsync();
+            StatusMessage = "工作区已导入";
+            Log.Information($"工作区 · {workspace.Name}", StatusMessage);
+        }
+        catch (Exception exception)
+        {
+            StatusMessage = $"工作区导入失败：{exception.Message}";
+            LogErrorOnce("工作区导入", StatusMessage, exception);
+            throw;
+        }
     }
 
     /// <summary>
@@ -2084,14 +2160,14 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         foreach (var room in workspace.Rooms)
         {
-            ConfigureRoom(room);
+            ConfigureRoom(room, workspace);
         }
 
         workspace.RefreshRoomSelection();
         return workspace;
     }
 
-    private void ConfigureRoom(LiveRoomTabViewModel room)
+    private void ConfigureRoom(LiveRoomTabViewModel room, WorkspaceViewModel workspace)
     {
         room.Configure(
             ResolveAccount,
@@ -2110,7 +2186,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             forwardAccountOptions: ForwardAccountOptions,
             userNameService: userNameService,
             danmuConfigService: danmuConfigService,
-            emoticonCacheService: emoticonCacheService);
+            emoticonCacheService: emoticonCacheService,
+            log: Log,
+            logWorkspace: workspace.Name);
         _ = room.LoadAvatarAsync();
     }
 
@@ -2138,6 +2216,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         livePlayerService.Dispose();
         ownedAvatarCacheService?.Dispose();
         emoticonCacheService.Dispose();
+
+        if (ownsLog)
+        {
+            Log.Dispose();
+        }
+
         GC.SuppressFinalize(this);
     }
 
@@ -2436,7 +2520,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private void OnShortcutBindingChanged(ShortcutBindingViewModel binding)
     {
         RefreshShortcutConflicts();
-        _ = SaveAsync();
+        _ = SaveSettingsAsync();
     }
 
     private void RefreshShortcutConflicts()
@@ -2465,6 +2549,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         RefreshFilteredLyricLibrary();
         StatusMessage = "歌词已写入本地歌词库";
+        Log.Information("歌词库", StatusMessage, savedItem.Title);
         return savedItem;
     }
 
@@ -2481,6 +2566,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         room.LoadLyric(item);
         RefreshFilteredLyricLibrary();
         StatusMessage = "歌词已加载到当前直播间";
+        Log.Information($"歌词 · {SelectedWorkspace!.Name} · {room.Header} ({room.RoomId})", StatusMessage,
+            item.Title);
     }
 
     private void RefreshFilteredLyricLibrary()
@@ -2502,6 +2589,34 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         catch (Exception exception)
         {
             StatusMessage = $"{errorPrefix}：{exception.Message}";
+            LogErrorOnce("目录", StatusMessage, exception);
+        }
+    }
+
+    internal void LogErrorOnce(string source, string message, Exception error)
+    {
+        lock (loggedErrors)
+        {
+            if (loggedErrors.TryGetValue(error, out _))
+            {
+                return;
+            }
+
+            loggedErrors.Add(error, new());
+        }
+
+        Log.Error(source, message, error);
+    }
+
+    private async Task SaveSettingsAsync()
+    {
+        try
+        {
+            await SaveAsync();
+        }
+        catch (Exception exception)
+        {
+            LogErrorOnce("设置保存", "设置保存失败", exception);
         }
     }
 

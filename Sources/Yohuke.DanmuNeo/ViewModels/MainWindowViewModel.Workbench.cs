@@ -38,6 +38,7 @@ public partial class MainWindowViewModel
         catch (Exception exception)
         {
             StatusMessage = $"菜单设置保存失败：{exception.Message}";
+            LogErrorOnce("菜单设置", StatusMessage, exception);
         }
     }
 }

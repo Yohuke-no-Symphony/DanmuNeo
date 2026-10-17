@@ -157,6 +157,8 @@ public partial class LiveRoomTabViewModel
 
     private async Task LoadDanmuConfigurationAsync(long version, string roomId, string cookie, CancellationToken token)
     {
+        var source = CreateLogSource("弹幕配置读取", roomId);
+
         try
         {
             var config = await danmuConfigService!.GetConfigAsync(roomId, cookie,
@@ -175,6 +177,7 @@ public partial class LiveRoomTabViewModel
         {
             if (IsCurrentDanmuConfiguration(version, token))
             {
+                log?.Error(source, "读取弹幕颜色和位置失败", exception);
                 DanmuConfigurationStatus = $"读取失败：{exception.Message}；打开下拉框重试";
             }
         }
@@ -224,6 +227,8 @@ public partial class LiveRoomTabViewModel
 
     private async Task SaveDanmuConfigurationAsync(long version, string roomId, string cookie, CancellationToken token)
     {
+        var source = CreateLogSource("弹幕配置保存", roomId);
+
         try
         {
             while (pendingDanmuConfiguration is { } options && IsCurrentDanmuConfiguration(version, token))
@@ -258,6 +263,7 @@ public partial class LiveRoomTabViewModel
         {
             if (IsCurrentDanmuConfiguration(version, token))
             {
+                log?.Error(source, "保存弹幕颜色和位置失败", exception);
                 pendingDanmuConfiguration = null;
                 await RecoverDanmuConfigurationAsync(version, roomId, cookie, token, exception.Message);
             }
@@ -274,6 +280,7 @@ public partial class LiveRoomTabViewModel
     private async Task RecoverDanmuConfigurationAsync(long version, string roomId, string cookie,
         CancellationToken token, string error)
     {
+        var source = CreateLogSource("弹幕配置恢复", roomId);
         IsLoadingDanmuConfiguration = true;
 
         try
@@ -289,10 +296,11 @@ public partial class LiveRoomTabViewModel
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
         }
-        catch (Exception)
+        catch (Exception exception)
         {
             if (IsCurrentDanmuConfiguration(version, token))
             {
+                log?.Error(source, "恢复服务端弹幕配置失败", exception);
                 ClearDanmuConfiguration();
                 DanmuConfigurationStatus = $"保存失败：{error}；无法确认当前配置，打开下拉框重新读取";
             }

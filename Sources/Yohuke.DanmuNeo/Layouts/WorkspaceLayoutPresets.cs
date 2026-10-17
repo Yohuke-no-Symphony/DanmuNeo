@@ -38,15 +38,15 @@ internal static class WorkspaceLayoutPresets
             DEFAULT => Split(WorkspaceLayoutOrientation.Vertical, 0.3,
                 Tabs(0.3, WorkbenchPanelIds.SUPER_CHAT),
                 Tabs(0.7, WorkbenchPanelIds.DANMU, WorkbenchPanelIds.HISTORY,
-                    WorkbenchPanelIds.LYRICS, WorkbenchPanelIds.FORWARDING)),
+                    WorkbenchPanelIds.LYRICS, WorkbenchPanelIds.FORWARDING, WorkbenchPanelIds.LOG)),
             TRANSLATION => Split(WorkspaceLayoutOrientation.Vertical, 0.3,
                 Tabs(0.25, WorkbenchPanelIds.SUPER_CHAT),
                 Tabs(0.5, WorkbenchPanelIds.DANMU),
-                Tabs(0.25, WorkbenchPanelIds.HISTORY)),
+                Tabs(0.25, WorkbenchPanelIds.HISTORY, WorkbenchPanelIds.LOG)),
             _ => Split(WorkspaceLayoutOrientation.Vertical, 0.3,
                 Tabs(0.45, WorkbenchPanelIds.LIVE_PLAYER),
                 Tabs(0.55, WorkbenchPanelIds.DANMU, WorkbenchPanelIds.SUPER_CHAT, WorkbenchPanelIds.HISTORY,
-                    presetId == LYRICS ? WorkbenchPanelIds.FORWARDING : WorkbenchPanelIds.LYRICS))
+                    presetId == LYRICS ? WorkbenchPanelIds.FORWARDING : WorkbenchPanelIds.LYRICS, WorkbenchPanelIds.LOG))
         };
 
         return new()

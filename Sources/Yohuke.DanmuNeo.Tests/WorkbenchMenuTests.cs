@@ -164,7 +164,8 @@ public class WorkbenchMenuTests
         }
 
         var entries = definitions.SelectMany(group => group.Children!).Where(item => !item.IsSeparator).ToArray();
-        Assert.Equal(8, entries.Where(item => item.Id.StartsWith("panel:")).Select(item => item.Icon).Distinct().Count());
+        Assert.Equal(WorkbenchPanelIds.All.Count,
+            entries.Where(item => item.Id.StartsWith("panel:")).Select(item => item.Icon).Distinct().Count());
         Assert.Equal(4, entries.Where(item => item.Id.StartsWith("layout-")).Select(item => item.Icon).Distinct().Count());
         Assert.Equal(LucideIconKind.LayoutTemplate, entries.Single(item => item.Id == $"layout:{customId}").Icon);
 

@@ -8,6 +8,8 @@ public partial class DanmuForwardRuleViewModel
 {
     private const int USER_NAME_LOOKUP_DELAY_MS = 300;
     private IBilibiliUserNameService? userNameService;
+    private IAppLogService? log;
+    private Func<string>? getLogSource;
     private Func<TimeSpan?>? getUserNameTimeout;
     private TimeSpan userNameLookupDelay = TimeSpan.FromMilliseconds(USER_NAME_LOOKUP_DELAY_MS);
     private CancellationTokenSource? userNameTokenSource;
@@ -30,11 +32,15 @@ public partial class DanmuForwardRuleViewModel
     internal void ConfigureUserNameLookup(
         IBilibiliUserNameService service,
         Func<TimeSpan?> getTimeout,
-        TimeSpan? debounceDelay = null)
+        TimeSpan? debounceDelay = null,
+        IAppLogService? log = null,
+        Func<string>? getLogSource = null)
     {
         var serviceChanged = !ReferenceEquals(userNameService, service);
         userNameService = service;
         getUserNameTimeout = getTimeout;
+        this.log = log;
+        this.getLogSource = getLogSource;
         userNameLookupDelay = debounceDelay ?? userNameLookupDelay;
 
         if (serviceChanged)
@@ -95,6 +101,8 @@ public partial class DanmuForwardRuleViewModel
         long uid,
         CancellationTokenSource tokenSource)
     {
+        var source = getLogSource?.Invoke() ?? $"转发 / 规则 {Id} / 用户名查询";
+
         try
         {
             await Task.Delay(userNameLookupDelay, tokenSource.Token);
@@ -106,6 +114,11 @@ public partial class DanmuForwardRuleViewModel
         }
         catch (Exception exception)
         {
+            if (!tokenSource.IsCancellationRequested && !isDisposed)
+            {
+                log?.Error(source, $"用户名查询失败（UID {uid}）", exception);
+            }
+
             await ApplyUserNameResultAsync(tokenSource, "", $"查询失败：{exception.Message}");
         }
         finally

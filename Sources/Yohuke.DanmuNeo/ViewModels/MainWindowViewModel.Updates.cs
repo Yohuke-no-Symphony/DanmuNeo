@@ -122,6 +122,7 @@ public partial class MainWindowViewModel
 
                 AvailableUpdate = update;
                 UpdateCheckMessage = update is null ? "当前已是最新版本" : "发现新版本";
+                Log.Information("检查更新", UpdateCheckMessage, update?.Version.ToString());
                 IsUpdateDialogOpen = isManualUpdateCheck || update is not null && CheckForUpdatesOnStartup;
             });
         }
@@ -130,10 +131,16 @@ public partial class MainWindowViewModel
         }
         catch (Exception exception)
         {
-            StartupLog.Append($"Update check failed: {exception.GetType().Name}");
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                if (OwnsUpdateCheck(tokenSource) && isManualUpdateCheck)
+                if (!OwnsUpdateCheck(tokenSource))
+                {
+                    return;
+                }
+
+                LogErrorOnce("检查更新", "检查更新失败，请检查网络后重试。", exception);
+
+                if (isManualUpdateCheck)
                 {
                     UpdateCheckMessage = "检查更新失败，请检查网络后重试。";
                     IsUpdateDialogOpen = true;

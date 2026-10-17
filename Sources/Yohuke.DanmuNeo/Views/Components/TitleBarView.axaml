@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:viewModels="clr-namespace:Yohuke.DanmuNeo.ViewModels"
+             xmlns:items="clr-namespace:Yohuke.DanmuNeo.ViewModels.Items"
              x:Class="Yohuke.DanmuNeo.Views.Components.TitleBarView"
              x:Name="Root"
              Height="42"
@@ -34,14 +35,48 @@
                               IsVisible="{Binding #Root.MenuContent.IsVisible, FallbackValue=False}"
                               Margin="12,0,0,0"
                               VerticalAlignment="Center" />
-            <TextBlock Grid.Column="2"
-                       Text="{Binding StatusMessage}"
-                       Classes="muted"
-                       Margin="8,0"
-                       TextTrimming="CharacterEllipsis"
-                       ToolTip.Tip="{Binding StatusMessage}"
-                       TextAlignment="Center"
-                       VerticalAlignment="Center" />
+            <Grid x:Name="RoomHeaderRegion" Grid.Column="2" Margin="8,0"
+                  IsVisible="{Binding !!SelectedWorkspace.SelectedRoom}">
+                <Grid x:Name="RoomHeader"
+                      DataContext="{Binding SelectedWorkspace.SelectedRoom, DataType=viewModels:MainWindowViewModel}"
+                      x:DataType="items:LiveRoomTabViewModel"
+                      ColumnDefinitions="Auto,*,Auto,Auto"
+                      ColumnSpacing="10"
+                      HorizontalAlignment="Center"
+                      VerticalAlignment="Center">
+                    <Border Classes="listenStatusLight"
+                            Classes.listening="{Binding IsListening}"
+                            Classes.idle="{Binding IsNotListening}"
+                            ToolTip.Tip="{Binding ConnectionStatus}" />
+                    <TextBlock x:Name="CurrentRoomName" Grid.Column="1"
+                               Text="{Binding RoomName}"
+                               MaxWidth="240"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               TextTrimming="CharacterEllipsis"
+                               ToolTip.Tip="{Binding RoomName}"
+                               VerticalAlignment="Center" />
+                    <TextBlock x:Name="CurrentRoomId" Grid.Column="2"
+                               Text="{Binding RoomId}"
+                               Classes="muted"
+                               VerticalAlignment="Center" />
+                    <Button x:Name="ListenToggleButton" Grid.Column="3"
+                            Classes="listenToggleButton"
+                            Classes.listening="{Binding IsListening}"
+                            Classes.idle="{Binding IsNotListening}"
+                            MinHeight="32"
+                            Height="32"
+                            Padding="10,4"
+                            Command="{Binding ToggleListeningCommand}"
+                            ToolTip.Tip="{Binding ConnectionStatus}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <LucideIcon Kind="Radio" IsVisible="{Binding IsNotListening}" />
+                            <LucideIcon Kind="CircleStop" IsVisible="{Binding IsListening}" />
+                            <TextBlock Text="{Binding ListenToggleText}" />
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </Grid>
             <StackPanel x:Name="WindowButtons" Grid.Column="3"
                         Orientation="Horizontal"
                         Margin="0,0,8,0"

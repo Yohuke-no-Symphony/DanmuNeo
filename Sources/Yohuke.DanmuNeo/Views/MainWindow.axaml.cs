@@ -15,7 +15,7 @@ public partial class MainWindow : Window
     private IWindowChrome? chrome;
 
     /// <summary>
-    /// 初始化固定标题栏、菜单和房间工具条。
+    /// 初始化融合房间信息和菜单的固定标题栏。
     /// </summary>
     public MainWindow()
     {
@@ -118,6 +118,7 @@ public partial class MainWindow : Window
             if (viewModel is not null)
             {
                 viewModel.StatusMessage = $"无法完成退出保存：{exception.Message}";
+                viewModel.LogErrorOnce("退出", "无法完成退出保存", exception);
             }
         }
     }
@@ -137,6 +138,7 @@ public partial class MainWindow : Window
         catch (Exception exception)
         {
             viewModel.StatusMessage = $"无法恢复布局：{exception.Message}";
+            viewModel.LogErrorOnce("布局", "无法恢复工作台布局", exception);
             DockHost.Content = new TextBlock
             {
                 Text = viewModel.StatusMessage,

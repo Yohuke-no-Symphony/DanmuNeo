@@ -28,6 +28,11 @@ public class DanmuSendResult
     public string ErrorMessage { get; init; } = "";
 
     /// <summary>
+    /// 本地或传输失败的原始异常，供日志保留完整诊断详情。
+    /// </summary>
+    public Exception? Error { get; init; }
+
+    /// <summary>
     /// 对应的本地发送记录。
     /// </summary>
     public DanmuFeedItem Record { get; init; } = new();

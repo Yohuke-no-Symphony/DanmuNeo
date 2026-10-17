@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.Input;
 using Yohuke.DanmuNeo.Layouts;
+using Yohuke.DanmuNeo.Services;
 using Yohuke.DanmuNeo.ViewModels.Items;
 
 namespace Yohuke.DanmuNeo.ViewModels;
@@ -9,6 +10,7 @@ namespace Yohuke.DanmuNeo.ViewModels;
 internal sealed class LayoutPresetManagerViewModel : ViewModelBase, IDisposable
 {
     private readonly WorkbenchLayoutController controller;
+    private readonly IAppLogService? log;
     private readonly Func<IReadOnlyList<string>, CancellationToken, Task<bool>> confirmDeletion;
     private readonly CancellationTokenSource cancellation = new();
     private LayoutPresetRow? selected;
@@ -19,10 +21,12 @@ internal sealed class LayoutPresetManagerViewModel : ViewModelBase, IDisposable
     private bool disposed;
 
     internal LayoutPresetManagerViewModel(WorkbenchLayoutController controller,
-        Func<IReadOnlyList<string>, CancellationToken, Task<bool>> confirmDeletion)
+        Func<IReadOnlyList<string>, CancellationToken, Task<bool>> confirmDeletion,
+        IAppLogService? log = null)
     {
         this.controller = controller;
         this.confirmDeletion = confirmDeletion;
+        this.log = log;
         ApplyCommand = new(Apply, () => CanEdit && SelectedIds.Length == 1);
         RenameCommand = new(Rename, () => CanEdit && SelectedIds.Length == 1 && Selected is { IsReadOnly: false });
         DeleteCommand = new(DeleteAsync, CanDelete);
@@ -113,7 +117,7 @@ internal sealed class LayoutPresetManagerViewModel : ViewModelBase, IDisposable
     {
         if (CanEdit && SelectedIds.Length == 1 && Selected is { } row)
         {
-            Execute(() => controller.ApplyPreset(row.Id));
+            Execute(() => controller.ApplyPreset(row.Id), $"已应用布局：{row.Name}");
         }
     }
 
@@ -132,7 +136,7 @@ internal sealed class LayoutPresetManagerViewModel : ViewModelBase, IDisposable
             }
 
             Name = Selected?.Name ?? string.Empty;
-        });
+        }, "布局已重命名");
     }
 
     private void SaveAs()
@@ -146,7 +150,7 @@ internal sealed class LayoutPresetManagerViewModel : ViewModelBase, IDisposable
         {
             var id = controller.SaveAs(Name);
             SetSelection(id, [id]);
-        });
+        }, "当前布局已另存为预设");
     }
 
     private async Task DeleteAsync()
@@ -179,11 +183,16 @@ internal sealed class LayoutPresetManagerViewModel : ViewModelBase, IDisposable
                     {
                         throw new ArgumentException("所选布局已不存在，或包含不可删除的内置布局。");
                     }
-                });
+                }, $"已删除 {ids.Length} 个布局预设");
             }
         }
         catch (OperationCanceledException) when (disposed)
         {
+        }
+        catch (Exception exception)
+        {
+            Error = exception.Message;
+            log?.Error("布局管理", "删除布局确认失败", exception);
         }
         finally
         {
@@ -196,16 +205,18 @@ internal sealed class LayoutPresetManagerViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private void Execute(Action action)
+    private void Execute(Action action, string successMessage)
     {
         try
         {
             action();
             Error = null;
+            log?.Information("布局管理", successMessage);
         }
         catch (Exception exception) when (exception is ArgumentException or InvalidDataException or IOException or UnauthorizedAccessException)
         {
             Error = exception.Message;
+            log?.Error("布局管理", "布局操作失败", exception);
         }
     }
 

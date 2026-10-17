@@ -607,7 +607,7 @@ internal sealed class WorkbenchLayoutController : IAsyncDisposable
         }
     }
 
-    private void RefreshFloatingTitles()
+    internal void RefreshFloatingTitles()
     {
         foreach (var host in floatingHosts)
         {

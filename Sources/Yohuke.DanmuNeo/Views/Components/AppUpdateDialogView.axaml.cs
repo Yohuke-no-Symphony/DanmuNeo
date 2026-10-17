@@ -45,9 +45,12 @@ public partial class AppUpdateDialogView : UserControl
                 viewModel.CloseUpdateDialog();
                 return;
             }
+
+            viewModel.Log.Error("更新", "无法打开更新下载页面");
         }
-        catch (Exception)
+        catch (Exception exception)
         {
+            viewModel.LogErrorOnce("更新", "无法打开更新下载页面", exception);
         }
 
         launchErrorText.IsVisible = true;

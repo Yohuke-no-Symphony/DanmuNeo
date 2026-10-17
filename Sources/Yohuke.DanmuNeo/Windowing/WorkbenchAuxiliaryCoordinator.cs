@@ -55,12 +55,14 @@ internal sealed class WorkbenchAuxiliaryCoordinator : IDisposable
                     {
                         error.Text = "无法打开浏览器。";
                         error.IsVisible = true;
+                        application.Log.Error("关于", "无法打开项目主页");
                     }
                 }
-                catch (Exception)
+                catch (Exception exception)
                 {
                     error.Text = "无法打开浏览器。";
                     error.IsVisible = true;
+                    application.LogErrorOnce("关于", "无法打开项目主页", exception);
                 }
             };
             return CreateDialogSurface(new StackPanel
@@ -108,6 +110,7 @@ internal sealed class WorkbenchAuxiliaryCoordinator : IDisposable
                 {
                     error.Text = exception.Message;
                     error.IsVisible = true;
+                    application.Log.Warning("布局", exception.Message);
                 }
             };
             return CreateDialogSurface(new StackPanel { Spacing = 16, Children = { name, error, save } });
@@ -156,6 +159,7 @@ internal sealed class WorkbenchAuxiliaryCoordinator : IDisposable
                 catch (ArgumentException exception)
                 {
                     error.Text = exception.Message;
+                    application.Log.Warning("布局", exception.Message);
                 }
             };
             delete.Click += (_, _) =>

@@ -22,10 +22,10 @@ public class NetEaseMusicApi : BaseApi
     ];
 
     /// <summary>
-    /// 初始化网易云音乐 API。
+    /// 初始化网易云音乐 API；注入的 HTTP 客户端由调用方管理。
     /// </summary>
-    public NetEaseMusicApi(TimeSpan? timeout = null)
-        : base(timeout: timeout)
+    public NetEaseMusicApi(TimeSpan? timeout = null, HttpClient? httpClient = null)
+        : base(httpClient, timeout)
     {
     }
 

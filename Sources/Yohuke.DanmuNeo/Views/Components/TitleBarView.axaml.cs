@@ -70,6 +70,13 @@ public partial class TitleBarView : UserControl
             return false;
         }
 
+        if (ListenToggleButton.IsEffectivelyVisible &&
+            this.TranslatePoint(point, ListenToggleButton) is { } listenPoint &&
+            new Rect(ListenToggleButton.Bounds.Size).Contains(listenPoint))
+        {
+            return false;
+        }
+
         return this.TranslatePoint(point, WindowButtons) is not { } actionsPoint ||
                !new Rect(WindowButtons.Bounds.Size).Contains(actionsPoint);
     }

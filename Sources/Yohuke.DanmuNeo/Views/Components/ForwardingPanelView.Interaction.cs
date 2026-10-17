@@ -194,6 +194,7 @@ public partial class ForwardingPanelView
         }
         catch (Exception exception)
         {
+            Context.Application.LogErrorOnce($"转发规则 / 房间 {selection!.RoomId}", "转发规则排序保存失败", exception);
             if (!isPanelDisposed && Context.IsCurrent(selection))
             {
                 ShowClipboardStatus($"排序保存失败：{exception.Message}", true);

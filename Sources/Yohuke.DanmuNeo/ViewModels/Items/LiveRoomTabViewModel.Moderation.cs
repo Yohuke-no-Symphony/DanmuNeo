@@ -53,10 +53,12 @@ public partial class LiveRoomTabViewModel
         if (account is null || string.IsNullOrWhiteSpace(account.Cookie))
         {
             ModerationStatus = "缺少登录账号";
+            log?.Warning(CreateLogSource("禁言权限"), "禁言权限查询失败：缺少登录账号");
             return false;
         }
 
         var roomId = RoomId;
+        var source = CreateLogSource("禁言权限", roomId);
         var accountId = account.Id;
         var cookie = account.Cookie;
         var tokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -88,6 +90,7 @@ public partial class LiveRoomTabViewModel
         {
             if (IsCurrentModerationOperation(tokenSource, roomId, accountId, cookie))
             {
+                log?.Error(source, "禁言权限查询失败", exception);
                 ModerationStatus = $"权限查询失败：{exception.Message}";
             }
 
@@ -116,6 +119,7 @@ public partial class LiveRoomTabViewModel
         }
 
         var roomId = moderationRoomId;
+        var source = CreateLogSource("禁言", roomId);
         var accountId = moderationAccountId;
         var cookie = moderationCookie;
         var userUid = long.Parse(item.UserUid);
@@ -140,6 +144,7 @@ public partial class LiveRoomTabViewModel
                 userUid == permission.AccountUid || userUid == permission.OwnerUid)
             {
                 ModerationStatus = "权限或目标身份已变化，无法禁言该用户";
+                log?.Warning(source, $"禁言失败（UID {userUid}）：权限或目标身份已变化");
                 return;
             }
 
@@ -148,6 +153,7 @@ public partial class LiveRoomTabViewModel
 
             if (IsCurrentModerationOperation(tokenSource, roomId, accountId, cookie))
             {
+                log?.Information(source, $"已禁言用户（UID {userUid}）");
                 ModerationStatus = $"已禁言 {item.UserName}（UID {userUid}）";
             }
         }
@@ -158,6 +164,7 @@ public partial class LiveRoomTabViewModel
         {
             if (IsCurrentModerationOperation(tokenSource, roomId, accountId, cookie))
             {
+                log?.Error(source, $"禁言失败（UID {userUid}）", exception);
                 ModerationStatus = $"禁言失败：{exception.Message}";
             }
         }

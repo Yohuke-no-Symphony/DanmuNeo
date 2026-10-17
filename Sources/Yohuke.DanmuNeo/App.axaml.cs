@@ -10,8 +10,12 @@ namespace Yohuke.DanmuNeo;
 
 public partial class App : Application
 {
+    private readonly AppLogService log = new();
+    private AppLogRuntimeBridge? logBridge;
+
     public override void Initialize()
     {
+        logBridge = new(log);
         StartupLog.Append("App.Initialize begin");
         AvaloniaXamlLoader.Load(this);
 
@@ -30,7 +34,8 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             StartupLog.Append("Create MainWindow begin");
-            var viewModel = new MainWindowViewModel();
+            desktop.Exit += OnExit;
+            var viewModel = new MainWindowViewModel(new AppStateService(), log: log);
             var mainWindow = new MainWindow
             {
                 DataContext = viewModel,
@@ -47,5 +52,16 @@ public partial class App : Application
 
         base.OnFrameworkInitializationCompleted();
         StartupLog.Append("OnFrameworkInitializationCompleted end");
+    }
+
+    private void OnExit(object? sender, ControlledApplicationLifetimeExitEventArgs e)
+    {
+        if (sender is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            desktop.Exit -= OnExit;
+        }
+
+        logBridge?.Dispose();
+        log.Dispose();
     }
 }

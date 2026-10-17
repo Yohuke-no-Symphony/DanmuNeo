@@ -319,7 +319,7 @@ public class WorkspaceLayoutValidatorTests
         var file = WorkspaceLayoutPresets.CreateDefaultFile() with { UserPresets = [preset] };
         file = invalidCase switch
         {
-            "version" => file with { Version = 2 },
+            "version" => file with { Version = WorkspaceLayoutFile.CURRENT_VERSION + 1 },
             "selection" => file with { CurrentPresetId = "missing" },
             "currentNull" => file with { CurrentLayout = null! },
             "presetListNull" => file with { UserPresets = null! },

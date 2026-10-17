@@ -61,6 +61,7 @@ public partial class LyricEditDialogWindow : Window
             catch (Exception exception)
             {
                 viewModel.ErrorText = exception.Message;
+                StartupLog.Append("歌词内容校验失败", Models.Logging.AppLogLevel.WARNING, "歌词编辑", exception);
                 return;
             }
 

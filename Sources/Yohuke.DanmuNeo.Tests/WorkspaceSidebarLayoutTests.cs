@@ -123,7 +123,7 @@ public class WorkspaceSidebarLayoutTests
     }
 
     /// <summary>
-    /// 全部关闭后退出仍保存八个隐藏面板，不被浮窗清理覆盖为空配置。
+    /// 全部关闭后退出仍保存全部隐藏面板，不被浮窗清理覆盖为空配置。
     /// </summary>
     [AvaloniaFact]
     public async Task ClosingAllPanelsPersistsCompleteHiddenLayout()
@@ -142,7 +142,7 @@ public class WorkspaceSidebarLayoutTests
                 workbench.Layouts.HidePanel(id);
             }
 
-            Assert.Equal(8, workbench.Layouts.Capture().HiddenPanelIds.Count);
+            Assert.Equal(WorkbenchPanelIds.All.Count, workbench.Layouts.Capture().HiddenPanelIds.Count);
         }
         finally
         {
@@ -152,7 +152,7 @@ public class WorkspaceSidebarLayoutTests
         Assert.False(window.IsVisible);
         var saved = await new WorkspaceLayoutStore(context.StateService.ConfigDirectory).LoadAsync();
         Assert.Null(saved.CurrentLayout.Main);
-        Assert.Equal(8, saved.CurrentLayout.HiddenPanelIds.Count);
+        Assert.Equal(WorkbenchPanelIds.All.Count, saved.CurrentLayout.HiddenPanelIds.Count);
         Assert.True(WorkspaceLayoutValidator.TryValidate(saved, out var error), error);
     }
 

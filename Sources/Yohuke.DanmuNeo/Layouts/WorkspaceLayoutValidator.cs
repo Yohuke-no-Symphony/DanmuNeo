@@ -4,7 +4,7 @@ internal static class WorkspaceLayoutValidator
 {
     internal const int MAXIMUM_DEPTH = 32;
 
-    internal static bool TryValidate(WorkspaceLayoutSnapshot layout, out string error)
+    internal static bool TryValidate(WorkspaceLayoutSnapshot layout, out string error, bool legacy = false)
     {
         error = "";
 
@@ -50,9 +50,13 @@ internal static class WorkspaceLayoutValidator
             }
         }
 
-        if (!panelIds.SetEquals(WorkbenchPanelIds.All))
+        var expected = legacy
+            ? WorkbenchPanelIds.All.Where(id => id != WorkbenchPanelIds.LOG)
+            : WorkbenchPanelIds.All;
+
+        if (!panelIds.SetEquals(expected))
         {
-            error = "布局必须恰好包含全部八个工作台面板。";
+            error = "布局必须恰好包含全部工作台面板。";
             return false;
         }
 

@@ -181,6 +181,7 @@ public partial class ForwardingPanelView : WorkbenchRoomPanel
         }
         catch (Exception exception)
         {
+            Context.Application.LogErrorOnce($"转发规则 / 房间 {selection!.RoomId}", "复制转发规则失败", exception);
             if (!isPanelDisposed && Context.IsCurrent(selection))
             {
                 ShowClipboardStatus($"复制失败：{exception.Message}", true);
@@ -225,6 +226,7 @@ public partial class ForwardingPanelView : WorkbenchRoomPanel
         }
         catch (Exception exception)
         {
+            Context.Application.LogErrorOnce($"转发规则 / 房间 {selection!.RoomId}", "粘贴转发规则失败", exception);
             if (!isPanelDisposed && Context.IsCurrent(selection))
             {
                 ShowClipboardStatus($"粘贴失败：{exception.Message}", true);

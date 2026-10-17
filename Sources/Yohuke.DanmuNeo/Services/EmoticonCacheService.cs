@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using Yohuke.DanmuNeo.Apis;
+using Yohuke.DanmuNeo.Models.Logging;
 
 namespace Yohuke.DanmuNeo.Services;
 
@@ -92,9 +93,14 @@ public sealed class EmoticonCacheService : IEmoticonCacheService, IDisposable
                 downloadSlots.Release();
             }
         }
+        catch (OperationCanceledException) when (lifetime.IsCancellationRequested)
+        {
+            return "";
+        }
         catch (Exception exception) when (exception is HttpRequestException or IOException or
                                            UnauthorizedAccessException or OperationCanceledException)
         {
+            StartupLog.Append("表情图片下载失败", AppLogLevel.WARNING, "表情缓存", exception);
             return "";
         }
         finally

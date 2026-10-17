@@ -36,6 +36,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
     private CancellationTokenSource? lyricTokenSource;
     private readonly object forwardingGate = new();
     private readonly Dictionary<string, CancellationTokenSource> forwardTokenSources = [];
+    private readonly Dictionary<string, string> forwardLogSources = [];
     private readonly HashSet<string> recentSuperChatIdentities = new(StringComparer.Ordinal);
     private readonly Queue<string> recentSuperChatIdentityOrder = new();
     private readonly HashSet<string> recentGuardPurchaseIdentities = new(StringComparer.Ordinal);
@@ -56,6 +57,9 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
     private IDanmuSendService? sendService;
     private IRoomAvatarService? avatarCacheService;
     private IEmoticonCacheService? emoticonCacheService;
+    private IAppLogService? log;
+    private string? logWorkspace;
+    private string? listenerLogSource;
     private IBilibiliLiveStreamService? liveStreamService;
     private ILivePlayerService? livePlayerService;
     private ILiveDanmuSocketFactory liveDanmuSocketFactory = new BilibiliLiveDanmuSocketFactory();
@@ -521,7 +525,9 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
         IReadOnlyList<ForwardAccountOption>? forwardAccountOptions = null,
         IBilibiliUserNameService? userNameService = null,
         IBilibiliDanmuConfigService? danmuConfigService = null,
-        IEmoticonCacheService? emoticonCacheService = null)
+        IEmoticonCacheService? emoticonCacheService = null,
+        IAppLogService? log = null,
+        string? logWorkspace = null)
     {
         ObjectDisposedException.ThrowIf(isDisposed, this);
         StopLivePlayer();
@@ -538,6 +544,8 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
         this.getMarkSymbolGroup = getMarkSymbolGroup;
         this.getSymbolGroups = getSymbolGroups;
         this.getForwardSourceRooms = getForwardSourceRooms;
+        this.log = log;
+        this.logWorkspace = logWorkspace;
         forwardAccounts = forwardAccountOptions ?? forwardAccounts;
         this.userNameService = userNameService ?? this.userNameService;
         this.danmuConfigService = danmuConfigService ?? this.danmuConfigService ?? new BilibiliDanmuConfigService();
@@ -588,8 +596,23 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
 
         var roomId = RoomId;
         var ownerUid = OwnerUid;
+        var source = CreateLogSource("头像", roomId);
         var account = resolveAccount?.Invoke(this);
-        var result = await avatarCacheService.GetRoomAvatarResultAsync(roomId, ownerUid, account?.Cookie);
+        RoomAvatarResult result;
+
+        try
+        {
+            result = await avatarCacheService.GetRoomAvatarResultAsync(roomId, ownerUid, account?.Cookie);
+        }
+        catch (OperationCanceledException) when (isDisposed || RoomId != roomId || OwnerUid != ownerUid)
+        {
+            return false;
+        }
+        catch (Exception exception)
+        {
+            log?.Error(source, "主播头像获取失败", exception);
+            return false;
+        }
 
         if (isDisposed || RoomId != roomId || OwnerUid != ownerUid || string.IsNullOrWhiteSpace(result.AvatarPath))
         {
@@ -637,9 +660,10 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
         {
             avatarImage = new(AvatarPath);
         }
-        catch
+        catch (Exception exception)
         {
             avatarImage = null;
+            log?.Warning(CreateLogSource("头像"), "头像图片加载失败", exception.ToString());
         }
 
         OnPropertyChanged(nameof(AvatarImage));
@@ -750,6 +774,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
 
         if (settings is null || sendService is null)
         {
+            log?.Error(CreateLogSource("同传发送"), "发送失败：发送服务不可用");
             TrySetDraftSendFeedback(operationId, revision, "发送失败：发送服务不可用", true);
             return;
         }
@@ -764,7 +789,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
 
         try
         {
-            results = await SendMessageAsync(message, account, settings);
+            results = await SendMessageAsync(message, account, settings, source: CreateLogSource("同传发送"));
         }
         catch (Exception exception)
         {
@@ -1253,6 +1278,8 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
             return false;
         }
 
+        var source = CreateLogSource("歌词发送");
+
         try
         {
             if (!forceSend && PreventRepeatedLyricSend && line.IsSent)
@@ -1265,6 +1292,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
 
             if (settings is null || sendService is null)
             {
+                log?.Error(source, "发送失败：发送服务不可用");
                 return false;
             }
 
@@ -1284,7 +1312,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
                 cancellationToken.ThrowIfCancellationRequested();
                 var message = LyricTimelineService.CreateMessage(
                     markGroup.LyricOpenMark, markGroup.LyricCloseMark, content);
-                var results = await SendMessageAsync(message, account, settings, cancellationToken);
+                var results = await SendMessageAsync(message, account, settings, source, cancellationToken);
                 allAccepted &= results.Count > 0 && results.All(result => result.IsAccepted);
             }
 
@@ -1295,6 +1323,15 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
 
             line.IsSent = true;
             return true;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return false;
+        }
+        catch (Exception exception)
+        {
+            log?.Error(source, "歌词发送失败", exception);
+            return false;
         }
         finally
         {
@@ -1339,27 +1376,59 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
         if (account is null || string.IsNullOrWhiteSpace(account.Cookie) || string.IsNullOrWhiteSpace(RoomId))
         {
             ConnectionStatus = "缺少账号或房间";
+            log?.Error(CreateLogSource("监听"), "启动监听失败：缺少账号或房间");
             return;
         }
 
         if (!long.TryParse(RoomId, out var parsedRoomId) || parsedRoomId <= 0)
         {
             ConnectionStatus = "房间号格式错误";
+            log?.Error(CreateLogSource("监听"), "启动监听失败：房间号格式错误");
             return;
         }
 
-        var socket = liveDanmuSocketFactory.Create(parsedRoomId, account.Cookie);
+        var source = CreateLogSource("监听");
+        log?.SetDiagnosticError(source, null);
+        ILiveDanmuSocket socket;
+
+        try
+        {
+            socket = liveDanmuSocketFactory.Create(parsedRoomId, account.Cookie);
+        }
+        catch (Exception exception)
+        {
+            log?.Error(source, "启动监听失败", exception);
+            ConnectionStatus = $"启动监听失败：{exception.Message}";
+            return;
+        }
+
         var tokenSource = new CancellationTokenSource();
+        var cancellationToken = tokenSource.Token;
         ClearGiftComboState();
         listenTokenSource = tokenSource;
         activeListenSocket = socket;
+        listenerLogSource = source;
         socket.DanmuReceived += OnDanmuReceived;
         socket.GiftReceived += OnGiftReceived;
         socket.SuperChatReceived += OnSuperChatReceived;
         socket.GuardPurchaseReceived += OnGuardPurchaseReceived;
         EventHandler onDisconnected = (_, _) => PostListenerConnectionStatus(socket, "连接中断，正在重连");
-        EventHandler onRecovered = (_, _) => PostListenerConnectionStatus(socket, "监听中");
-        EventHandler<Exception> onError = (_, _) => PostListenerConnectionStatus(socket, "连接中断，正在重连");
+        EventHandler onRecovered = (_, _) =>
+        {
+            if (ReferenceEquals(socket, activeListenSocket) && !cancellationToken.IsCancellationRequested)
+            {
+                log?.SetDiagnosticError(source, null);
+                PostListenerConnectionStatus(socket, "监听中");
+            }
+        };
+        EventHandler<Exception> onError = (_, exception) =>
+        {
+            if (ReferenceEquals(socket, activeListenSocket) && !cancellationToken.IsCancellationRequested)
+            {
+                log?.SetDiagnosticError(source, exception);
+                PostListenerConnectionStatus(socket, "连接中断，正在重连");
+            }
+        };
         socket.Disconnected += onDisconnected;
         socket.Recovered += onRecovered;
         socket.ErrorReceived += onError;
@@ -1374,6 +1443,13 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
             }
             catch (OperationCanceledException) when (tokenSource.IsCancellationRequested)
             {
+            }
+            catch (Exception exception)
+            {
+                if (!cancellationToken.IsCancellationRequested)
+                {
+                    log?.SetDiagnosticError(source, exception);
+                }
             }
             finally
             {
@@ -1395,6 +1471,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
                     {
                         listenTokenSource = null;
                         activeListenSocket = null;
+                        listenerLogSource = null;
                         IsListening = false;
                         ConnectionStatus = "未连接";
                         ClearGiftComboState();
@@ -1414,6 +1491,11 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
     {
         InvalidateModerationPermission();
         activeListenSocket = null;
+        if (listenerLogSource is { } source)
+        {
+            log?.SetDiagnosticError(source, null);
+            listenerLogSource = null;
+        }
         ClearGiftComboState();
         var tokenSource = listenTokenSource;
         listenTokenSource = null;
@@ -1778,7 +1860,8 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
         {
             rule.ConfigureUserNameLookup(userNameService, () => getSettings is null
                 ? null
-                : TimeSpan.FromSeconds(getSettings().TimeoutSeconds));
+                : TimeSpan.FromSeconds(getSettings().TimeoutSeconds), log: log,
+                getLogSource: () => CreateLogSource($"转发 / 规则 {rule.Id} / 用户名查询"));
         }
     }
 
@@ -1834,7 +1917,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
 
         if (source is null)
         {
-            SetForwardRuleStatus(rule, "请选择源直播间");
+            SetForwardRuleFailure(rule, "请选择源直播间");
             return;
         }
 
@@ -1842,7 +1925,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
 
         if (!string.IsNullOrWhiteSpace(error))
         {
-            SetForwardRuleStatus(rule, $"正则错误：{error}");
+            SetForwardRuleFailure(rule, $"正则错误：{error}");
             return;
         }
 
@@ -1852,30 +1935,31 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
 
         if (sourceAccount is null || string.IsNullOrWhiteSpace(sourceAccount.Cookie))
         {
-            SetForwardRuleStatus(rule, "源直播间缺少账号");
+            SetForwardRuleFailure(rule, "源直播间缺少账号");
             return;
         }
 
         if (settings is null)
         {
-            SetForwardRuleStatus(rule, "缺少发送设置");
+            SetForwardRuleFailure(rule, "缺少发送设置");
             return;
         }
 
         if (!string.IsNullOrWhiteSpace(targetAccountError) || targetAccount is null)
         {
-            SetForwardRuleStatus(rule, targetAccountError);
+            SetForwardRuleFailure(rule, targetAccountError);
             return;
         }
 
-        if (!long.TryParse(source.RoomId, out var sourceRoomId))
+        if (!long.TryParse(source.RoomId, out var sourceRoomId) || sourceRoomId <= 0)
         {
-            SetForwardRuleStatus(rule, "源房间号格式错误");
+            SetForwardRuleFailure(rule, "源房间号格式错误");
             return;
         }
 
         var tokenSource = new CancellationTokenSource();
         var cancellationToken = tokenSource.Token;
+        var logSource = CreateLogSource($"转发 / 规则 {rule.Id} / 来源 {source.DisplayName}");
 
         lock (forwardingGate)
         {
@@ -1886,6 +1970,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
             }
 
             forwardTokenSources[rule.Id] = tokenSource;
+            forwardLogSources[rule.Id] = logSource;
         }
 
         SetForwardRuleStatus(rule, "监听中");
@@ -1893,11 +1978,32 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
         _ = Task.Run(async () =>
         {
             ILiveDanmuSocket? socket = null;
+            var connectionFailed = false;
             EventHandler<BilibiliDanmuMessage> onDanmu = (_, message) =>
-                _ = ForwardDanmuAsync(rule, message, targetAccount, settings, cancellationToken);
-            EventHandler<Exception> onError = (_, _) => SetForwardRuleStatus(rule, "连接中断，正在重连");
-            EventHandler onDisconnected = (_, _) => SetForwardRuleStatus(rule, "连接中断，正在重连");
-            EventHandler onRecovered = (_, _) => SetForwardRuleStatus(rule, "监听中");
+                _ = ForwardDanmuAsync(rule, message, targetAccount, settings, logSource, cancellationToken);
+            EventHandler<Exception> onError = (_, exception) =>
+            {
+                if (!cancellationToken.IsCancellationRequested)
+                {
+                    log?.SetDiagnosticError(logSource, exception);
+                    SetForwardRuleStatus(rule, "连接中断，正在重连", cancellationToken);
+                }
+            };
+            EventHandler onDisconnected = (_, _) =>
+            {
+                if (!cancellationToken.IsCancellationRequested)
+                {
+                    SetForwardRuleStatus(rule, "连接中断，正在重连", cancellationToken);
+                }
+            };
+            EventHandler onRecovered = (_, _) =>
+            {
+                if (!cancellationToken.IsCancellationRequested)
+                {
+                    log?.SetDiagnosticError(logSource, null);
+                    SetForwardRuleStatus(rule, "监听中", cancellationToken);
+                }
+            };
 
             try
             {
@@ -1914,7 +2020,12 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
             }
             catch (Exception exception)
             {
-                SetForwardRuleStatus(rule, $"转发连接失败：{exception.Message}");
+                if (!cancellationToken.IsCancellationRequested)
+                {
+                    connectionFailed = true;
+                    log?.SetDiagnosticError(logSource, exception);
+                    SetForwardRuleStatus(rule, $"转发连接失败：{exception.Message}", cancellationToken);
+                }
             }
             finally
             {
@@ -1926,9 +2037,9 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
                     socket.Recovered -= onRecovered;
                 }
 
-                if (!cancellationToken.IsCancellationRequested && rule.IsEnabled)
+                if (!connectionFailed && !cancellationToken.IsCancellationRequested && rule.IsEnabled)
                 {
-                    SetForwardRuleStatus(rule, "已停止");
+                    SetForwardRuleStatus(rule, "已停止", cancellationToken);
                 }
 
                 if (socket is IDisposable disposable)
@@ -1990,6 +2101,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
         BilibiliDanmuMessage message,
         BilibiliAccount targetAccount,
         AppSettings settings,
+        string logSource,
         CancellationToken cancellationToken)
     {
         if (isDisposed || cancellationToken.IsCancellationRequested)
@@ -2010,11 +2122,14 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
                 rule.State,
                 markGroup,
                 getSymbolGroups?.Invoke() ?? [markGroup]);
-            await SendMessageAsync(messageText, targetAccount, settings, cancellationToken);
+            var results = await SendMessageAsync(messageText, targetAccount, settings, logSource, cancellationToken);
 
             if (!cancellationToken.IsCancellationRequested)
             {
-                SetForwardRuleStatus(rule, $"已转发 {DateTime.Now:HH:mm:ss}");
+                var failure = results.FirstOrDefault(result => !result.IsAccepted);
+                SetForwardRuleStatus(rule, results.Count > 0 && failure is null
+                    ? $"已转发 {DateTime.Now:HH:mm:ss}"
+                    : $"转发失败：{failure?.ErrorMessage ?? "发送服务不可用"}", cancellationToken);
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -2022,7 +2137,11 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
         }
         catch (Exception exception)
         {
-            SetForwardRuleStatus(rule, $"转发失败：{exception.Message}");
+            if (!cancellationToken.IsCancellationRequested)
+            {
+                log?.Error(logSource, "转发失败", exception);
+                SetForwardRuleStatus(rule, $"转发失败：{exception.Message}", cancellationToken);
+            }
         }
     }
 
@@ -2034,14 +2153,26 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
             {
                 tokenSource.Cancel();
             }
+
+            if (forwardLogSources.Remove(rule.Id, out var source))
+            {
+                log?.SetDiagnosticError(source, null);
+            }
         }
 
         SetForwardRuleStatus(rule, rule.IsEnabled ? "已停止" : "未启用");
     }
 
-    private void SetForwardRuleStatus(DanmuForwardRuleViewModel rule, string status)
+    private void SetForwardRuleFailure(DanmuForwardRuleViewModel rule, string message)
     {
-        if (isDisposed)
+        log?.Error(CreateLogSource($"转发 / 规则 {rule.Id}"), message);
+        SetForwardRuleStatus(rule, message);
+    }
+
+    private void SetForwardRuleStatus(DanmuForwardRuleViewModel rule, string status,
+        CancellationToken cancellationToken = default)
+    {
+        if (isDisposed || cancellationToken.IsCancellationRequested)
         {
             return;
         }
@@ -2054,7 +2185,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
 
         Dispatcher.UIThread.Post(() =>
         {
-            if (!isDisposed)
+            if (!isDisposed && !cancellationToken.IsCancellationRequested)
             {
                 rule.StatusText = status;
             }
@@ -2070,23 +2201,70 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
         string message,
         BilibiliAccount? account,
         AppSettings settings,
+        string source,
         CancellationToken cancellationToken = default)
     {
         if (sendService is null)
         {
+            log?.Error(source, "发送失败：发送服务不可用");
             return [];
         }
 
         var results = new List<DanmuSendResult>();
         var roomId = RoomId;
-        var sendingAccount = await PrepareDanmuSendingAccountAsync(roomId, account, cancellationToken);
 
-        foreach (var part in sendService.SplitMessage(message, 30))
+        try
         {
-            results.Add(await sendService.SendAsync(roomId, part, sendingAccount, settings, cancellationToken));
+            var sendingAccount = await PrepareDanmuSendingAccountAsync(roomId, account, cancellationToken);
+
+            foreach (var part in sendService.SplitMessage(message, 30))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                results.Add(await sendService.SendAsync(roomId, part, sendingAccount, settings, cancellationToken));
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            var rejected = results.Where(result => !result.IsAccepted).ToList();
+
+            if (rejected.Count > 0)
+            {
+                var errors = rejected.Select(result => result.ApiCode is { } code
+                    ? $"{result.ErrorMessage}（接口状态码 {code}）"
+                    : result.ErrorMessage).Distinct();
+                var exceptions = rejected.Select(result => result.Error).OfType<Exception>().ToList();
+                var details = exceptions.Count switch
+                {
+                    0 => null,
+                    1 => exceptions[0],
+                    _ => new AggregateException(exceptions)
+                };
+                log?.Error(source,
+                    $"弹幕发送失败：{results.Count - rejected.Count}/{results.Count} 段接口已接受；{string.Join("；", errors)}",
+                    details);
+            }
+            else if (results.Count == 0)
+            {
+                log?.Error(source, "弹幕发送失败：没有可发送的分段");
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            log?.Error(source, "弹幕发送失败", exception);
+            results.Add(new() { ErrorMessage = exception.Message });
         }
 
         return results;
+    }
+
+    private string CreateLogSource(string operation, string? roomId = null)
+    {
+        var workspace = string.IsNullOrWhiteSpace(logWorkspace) ? "" : $"{logWorkspace} / ";
+        return $"{workspace}{RoomName}（房间 {roomId ?? RoomId}，{Id}） / {operation}";
     }
 
     private bool TrySetDraftSendFeedback(long operationId, long revision, string status, bool failed,
@@ -2232,6 +2410,8 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
         IEmoticonCacheService cacheService,
         CancellationToken cancellationToken)
     {
+        var source = CreateLogSource("表情图片", item.RoomId);
+
         try
         {
             var downloads = emoticons.Select(async emoticon => new DanmuEmoticon
@@ -2240,6 +2420,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
                 ImagePath = await cacheService.GetEmoticonAsync(emoticon.Url, cancellationToken).ConfigureAwait(false)
             });
             var cachedEmoticons = await Task.WhenAll(downloads).ConfigureAwait(false);
+
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 if (!cancellationToken.IsCancellationRequested && DanmuItems.Contains(item))
@@ -2254,7 +2435,18 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
         }
         catch (Exception exception)
         {
-            System.Diagnostics.Trace.TraceWarning($"表情图片加载失败：{exception.GetType().Name}");
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            if (log is null)
+            {
+                System.Diagnostics.Trace.TraceWarning($"表情图片加载失败：{exception.GetType().Name}");
+                return;
+            }
+
+            log.Error(source, "表情图片加载失败", exception);
         }
     }
 

@@ -15,15 +15,15 @@ public class QQMusicApi : BaseApi
     private string loginSig = "";
 
     /// <summary>
-    /// 初始化 QQ 音乐 API。
+    /// 初始化 QQ 音乐 API；注入的 HTTP 客户端由调用方管理。
     /// </summary>
-    public QQMusicApi(string cookie = "", TimeSpan? timeout = null)
-        : this(new(), cookie, timeout)
+    public QQMusicApi(string cookie = "", TimeSpan? timeout = null, HttpClient? httpClient = null)
+        : this(new(), cookie, timeout, httpClient)
     {
     }
 
-    private QQMusicApi(CookieContainer cookieContainer, string cookie, TimeSpan? timeout)
-        : base(CreateClient(cookieContainer), timeout)
+    private QQMusicApi(CookieContainer cookieContainer, string cookie, TimeSpan? timeout, HttpClient? httpClient)
+        : base(httpClient ?? CreateClient(cookieContainer), timeout)
     {
         this.cookieContainer = cookieContainer;
         SetCookie(cookie);

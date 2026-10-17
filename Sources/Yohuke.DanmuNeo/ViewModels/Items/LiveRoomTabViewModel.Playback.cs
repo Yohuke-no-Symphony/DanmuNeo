@@ -16,6 +16,7 @@ public partial class LiveRoomTabViewModel
 
         if (streamService is null || createPlayer && playerService is null)
         {
+            log?.Error(CreateLogSource("播放器"), "直播播放失败：播放服务不可用");
             return;
         }
 
@@ -37,6 +38,7 @@ public partial class LiveRoomTabViewModel
 
         var cancellationToken = tokenSource.Token;
         var roomId = RoomId;
+        var logSource = CreateLogSource("播放器", roomId);
 
         try
         {
@@ -94,14 +96,18 @@ public partial class LiveRoomTabViewModel
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
         }
-        catch
+        catch (Exception exception)
         {
             lock (livePlayerGate)
             {
-                if (IsCurrentLivePlayerRequest(tokenSource, requestVersion, roomId) &&
-                    string.IsNullOrWhiteSpace(livePlayerToken))
+                if (IsCurrentLivePlayerRequest(tokenSource, requestVersion, roomId))
                 {
-                    IsLivePlayerVisible = false;
+                    log?.Error(logSource, createPlayer ? "直播播放失败" : "直播清晰度读取失败", exception);
+
+                    if (string.IsNullOrWhiteSpace(livePlayerToken))
+                    {
+                        IsLivePlayerVisible = false;
+                    }
                 }
             }
         }

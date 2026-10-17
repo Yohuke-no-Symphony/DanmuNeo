@@ -1,6 +1,8 @@
 using System.Text.Json;
 using Yohuke.DanmuNeo.Models.State;
 
+using Yohuke.DanmuNeo.Models.Logging;
+
 namespace Yohuke.DanmuNeo.Services;
 
 /// <summary>
@@ -269,7 +271,8 @@ public class AppStateService
 
             RestoreBackup(path, backupFilePath);
             StartupLog.Append(
-                $"Recovered state file from backup file={Path.GetFileName(path)} backup={Path.GetFileName(backupFilePath)}");
+                $"Recovered state file from backup file={Path.GetFileName(path)} backup={Path.GetFileName(backupFilePath)}",
+                AppLogLevel.WARNING, "配置恢复");
             return value;
         }
 
@@ -294,7 +297,7 @@ public class AppStateService
         }
         catch (Exception exception)
         {
-            StartupLog.Append($"Read state file failed file={Path.GetFileName(path)} exception={exception.Message}");
+            StartupLog.Append($"读取配置失败：{Path.GetFileName(path)}", AppLogLevel.ERROR, "配置", exception);
             return false;
         }
     }
@@ -371,7 +374,7 @@ public class AppStateService
         catch (Exception exception)
         {
             StartupLog.Append(
-                $"Preserve corrupt state file failed file={Path.GetFileName(path)} exception={exception.Message}");
+                $"保留损坏配置失败：{Path.GetFileName(path)}", AppLogLevel.ERROR, "配置", exception);
         }
     }
 

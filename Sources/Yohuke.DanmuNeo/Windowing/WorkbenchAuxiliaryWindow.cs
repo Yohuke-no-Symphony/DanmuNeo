@@ -2,6 +2,9 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
+using Yohuke.DanmuNeo.Models.Logging;
+using Yohuke.DanmuNeo.Services;
+using Yohuke.DanmuNeo.ViewModels;
 
 namespace Yohuke.DanmuNeo.Windowing;
 
@@ -178,6 +181,15 @@ internal sealed class WorkbenchAuxiliaryWindow : Window
         catch (Exception exception)
         {
             Title = $"保存失败：{exception.Message}";
+            if (startupOwner.DataContext is MainWindowViewModel application)
+            {
+                application.LogErrorOnce("设置", "设置窗口关闭前保存失败", exception);
+            }
+            else
+            {
+                StartupLog.Append("辅助窗口关闭前保存失败", AppLogLevel.ERROR, "设置", exception);
+            }
+
             closing = false;
 
             if (content is not null)

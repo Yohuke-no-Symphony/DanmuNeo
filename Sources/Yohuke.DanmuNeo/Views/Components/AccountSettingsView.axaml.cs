@@ -102,11 +102,10 @@ public partial class AccountSettingsView : UserControl
         }
         catch (Exception exception)
         {
-            StartupLog.Append($"Show browser login failed platform={platform} exception={exception}");
-
             if (DataContext is MainWindowViewModel viewModel)
             {
                 viewModel.StatusMessage = $"浏览器登录不可用：{exception.Message}";
+                viewModel.LogErrorOnce("浏览器登录", "浏览器登录不可用", exception);
             }
 
             return null;

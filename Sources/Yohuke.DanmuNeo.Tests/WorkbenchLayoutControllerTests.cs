@@ -65,13 +65,13 @@ public class WorkbenchLayoutControllerTests
         context.Pump();
         var hidden = context.Controller.Capture();
         Assert.Null(hidden.Main);
-        Assert.Equal(8, hidden.HiddenPanelIds.Count);
+        Assert.Equal(WorkbenchPanelIds.All.Count, hidden.HiddenPanelIds.Count);
         Assert.True(WorkspaceLayoutValidator.TryValidate(hidden, out var hiddenError), hiddenError);
         context.Controller.ShowPanel(WorkbenchPanelIds.COMPOSER);
         context.Pump();
 
         Assert.True(context.Controller.IsVisible(WorkbenchPanelIds.COMPOSER));
-        Assert.Equal(7, context.Controller.Capture().HiddenPanelIds.Count);
+        Assert.Equal(WorkbenchPanelIds.All.Count - 1, context.Controller.Capture().HiddenPanelIds.Count);
         Assert.Same(context.Views[WorkbenchPanelIds.COMPOSER], context.Controller.PanelAdapters[WorkbenchPanelIds.COMPOSER].View);
     }
 

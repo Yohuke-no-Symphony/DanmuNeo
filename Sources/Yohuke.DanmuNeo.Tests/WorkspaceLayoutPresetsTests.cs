@@ -49,7 +49,7 @@ public class WorkspaceLayoutPresetsTests
         Assert.Equal(new[]
         {
             WorkbenchPanelIds.DANMU, WorkbenchPanelIds.HISTORY,
-            WorkbenchPanelIds.LYRICS, WorkbenchPanelIds.FORWARDING
+            WorkbenchPanelIds.LYRICS, WorkbenchPanelIds.FORWARDING, WorkbenchPanelIds.LOG
         }, right.Children[1].PanelIds);
         Assert.Equal(WorkbenchPanelIds.DANMU, right.Children[1].ActivePanelId);
         Assert.Empty(layout.HiddenPanelIds);
@@ -68,7 +68,8 @@ public class WorkspaceLayoutPresetsTests
         Assert.Equal(new[]
         {
             WorkbenchPanelIds.SUPER_CHAT, WorkbenchPanelIds.DANMU, WorkbenchPanelIds.HISTORY
-        }, right.Children.Select(child => Assert.Single(child.PanelIds)));
+        }, right.Children.Select(child => child.PanelIds[0]));
+        Assert.Equal([WorkbenchPanelIds.HISTORY, WorkbenchPanelIds.LOG], right.Children[2].PanelIds);
         Assert.Equal(new[] { WorkbenchPanelIds.LYRICS, WorkbenchPanelIds.FORWARDING }, layout.HiddenPanelIds);
     }
 
@@ -88,7 +89,7 @@ public class WorkspaceLayoutPresetsTests
         Assert.Equal(new[]
         {
             WorkbenchPanelIds.DANMU, WorkbenchPanelIds.SUPER_CHAT,
-            WorkbenchPanelIds.HISTORY, secondaryToolId
+            WorkbenchPanelIds.HISTORY, secondaryToolId, WorkbenchPanelIds.LOG
         }, right.Children[1].PanelIds);
         Assert.Equal(WorkbenchPanelIds.DANMU, right.Children[1].ActivePanelId);
         Assert.Empty(layout.HiddenPanelIds);
@@ -115,7 +116,7 @@ public class WorkspaceLayoutPresetsTests
         }, second.Select(preset => preset.Id));
         Assert.All(second, preset => Assert.True(WorkspaceLayoutValidator.TryValidate(preset.Layout, out var error), error));
         var nextFile = WorkspaceLayoutPresets.CreateDefaultFile();
-        Assert.Equal(1, nextFile.Version);
+        Assert.Equal(WorkspaceLayoutFile.CURRENT_VERSION, nextFile.Version);
         Assert.Equal(WorkspaceLayoutPresets.DEFAULT, nextFile.CurrentPresetId);
         Assert.Empty(nextFile.UserPresets);
         Assert.True(WorkspaceLayoutValidator.TryValidate(nextFile, out var validationError), validationError);

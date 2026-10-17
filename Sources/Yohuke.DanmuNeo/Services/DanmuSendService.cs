@@ -80,7 +80,7 @@ public class DanmuSendService : IDanmuSendService
         }
         catch (Exception exception)
         {
-            return CreateResult(roomId, message, exception.Message, false);
+            return CreateResult(roomId, message, exception.Message, false, error: exception);
         }
         finally
         {
@@ -121,7 +121,8 @@ public class DanmuSendService : IDanmuSendService
         string message,
         string status,
         bool isAccepted,
-        int? apiCode = null)
+        int? apiCode = null,
+        Exception? error = null)
     {
         var record = new DanmuFeedItem
         {
@@ -138,6 +139,7 @@ public class DanmuSendService : IDanmuSendService
             IsAccepted = isAccepted,
             ApiCode = apiCode,
             ErrorMessage = isAccepted ? "" : status,
+            Error = error,
             Record = record
         };
     }

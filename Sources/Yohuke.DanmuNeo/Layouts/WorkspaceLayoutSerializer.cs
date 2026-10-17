@@ -51,6 +51,8 @@ internal static class WorkspaceLayoutSerializer
             throw new InvalidDataException("布局文件为空。");
         }
 
+        file = WorkspaceLayoutMigration.Upgrade(file);
+
         if (!WorkspaceLayoutValidator.TryValidate(file, out var error))
         {
             throw new InvalidDataException(error);

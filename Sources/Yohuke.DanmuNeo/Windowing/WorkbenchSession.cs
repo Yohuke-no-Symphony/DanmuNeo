@@ -22,6 +22,8 @@ internal sealed class WorkbenchSession : IAsyncDisposable
     private readonly Dictionary<Window, WorkbenchMenuProjection> menuProjections = [];
     private readonly WorkbenchApplicationMenu? applicationMenu;
     private readonly bool supportsNativeMenus;
+    private readonly LogPanelView logPanel;
+    private int logRefreshQueued;
     private bool disposed;
 
     private WorkbenchSession(Window mainWindow, Menu windowMenu, MainWindowViewModel application,
@@ -37,6 +39,8 @@ internal sealed class WorkbenchSession : IAsyncDisposable
         windows.RegisterBusinessWindow(mainWindow);
         var views = Panels.Panels.ToDictionary(pair => pair.Key, pair => pair.Value);
         views.Add(WorkbenchPanelIds.WORKSPACE, new WorkspaceSidebarView { DataContext = application });
+        logPanel = new(application.Log);
+        views.Add(WorkbenchPanelIds.LOG, logPanel);
         Layouts = new(mainWindow, views, layout, store, windows.RegisterBusinessWindow,
             windows.UnregisterBusinessWindow, Panels.BeginLayoutMigration);
         Panels.SetPanelActivator(Layouts.ShowPanel);
@@ -45,6 +49,8 @@ internal sealed class WorkbenchSession : IAsyncDisposable
         auxiliary = new(application, windows, Layouts);
         menuCatalog = new(Layouts, auxiliary.OpenSettings, auxiliary.SaveLayoutAs, auxiliary.ManageLayouts,
             auxiliary.OpenAbout, auxiliary.CheckForUpdates, () => windows.IsInteractionBlocked);
+        application.Log.Changed += OnLogChanged;
+        UpdateLogPresentation();
         shortcuts = new(Context, Panels, Layouts.ShowPanel, auxiliary.OpenSettings, () => windows.IsInteractionBlocked);
         windows.BusinessWindowAdded += AttachWindow;
         windows.BusinessWindowRemoved += DetachWindow;
@@ -110,6 +116,7 @@ internal sealed class WorkbenchSession : IAsyncDisposable
 
         await Layouts.DisposeAsync();
         disposed = true;
+        application.Log.Changed -= OnLogChanged;
         application.PropertyChanged -= OnApplicationChanged;
         Panels.LyricLibraryRequested -= OpenLyricLibrary;
         Layouts.PanelClosedByUser -= OnPanelClosed;
@@ -123,6 +130,7 @@ internal sealed class WorkbenchSession : IAsyncDisposable
         menuCatalog.Dispose();
         applicationMenu?.Dispose();
         Panels.Dispose();
+        logPanel.Dispose();
         Context.Dispose();
         application.Dispose();
     }
@@ -171,8 +179,35 @@ internal sealed class WorkbenchSession : IAsyncDisposable
             if (!disposed)
             {
                 application.StatusMessage = $"布局保存失败：{exception.Message}";
+                application.Log.Error("布局", "布局保存失败", exception);
             }
         });
+    }
+
+    private void OnLogChanged(object? sender, EventArgs e)
+    {
+        if (Interlocked.Exchange(ref logRefreshQueued, 1) != 0)
+        {
+            return;
+        }
+
+        Dispatcher.UIThread.Post(() =>
+        {
+            Interlocked.Exchange(ref logRefreshQueued, 0);
+
+            if (!disposed)
+            {
+                UpdateLogPresentation();
+            }
+        }, DispatcherPriority.Background);
+    }
+
+    private void UpdateLogPresentation()
+    {
+        var unread = application.Log.UnreadErrorCount;
+        Layouts.PanelAdapters[WorkbenchPanelIds.LOG].Title = unread > 0 ? $"Log ({unread})" : "Log";
+        Layouts.RefreshFloatingTitles();
+        menuCatalog.Refresh();
     }
 
     private void OnApplicationChanged(object? sender, PropertyChangedEventArgs e)
