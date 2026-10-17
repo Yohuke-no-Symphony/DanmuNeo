@@ -97,6 +97,11 @@ internal sealed class WorkbenchSession : IAsyncDisposable
             await application.CloseSettingsAsync();
         }
 
+        if (application.IsWorkspaceSettingsOpen)
+        {
+            await application.CloseWorkspaceSettingsAsync();
+        }
+
         await application.SaveAsync();
         await Layouts.FlushAsync();
     }

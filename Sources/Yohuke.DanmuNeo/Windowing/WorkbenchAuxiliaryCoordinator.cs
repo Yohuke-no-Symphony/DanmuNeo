@@ -225,6 +225,7 @@ internal sealed class WorkbenchAuxiliaryCoordinator : IDisposable
     private void OnApplicationChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(MainWindowViewModel.IsSettingsOpen) or
+            nameof(MainWindowViewModel.IsWorkspaceSettingsOpen) or
             nameof(MainWindowViewModel.IsAddDialogOpen) or nameof(MainWindowViewModel.IsConfirmDeleteDialogOpen) or
             nameof(MainWindowViewModel.IsUpdateDialogOpen))
         {
@@ -253,6 +254,22 @@ internal sealed class WorkbenchAuxiliaryCoordinator : IDisposable
         else
         {
             windows.CloseAuxiliary("settings");
+        }
+
+        if (application.IsWorkspaceSettingsOpen)
+        {
+            windows.OpenAuxiliary("workspace-settings", "工作区设置", () =>
+                {
+                    var view = new WorkspaceSettingsDialogView { DataContext = application };
+                    view.CloseRequested += (_, _) => windows.CloseAuxiliary("workspace-settings");
+                    return view;
+                }, true,
+                () => application.IsWorkspaceSettingsOpen ? application.CloseWorkspaceSettingsAsync() : Task.CompletedTask,
+                width: 800, height: 740);
+        }
+        else
+        {
+            windows.CloseAuxiliary("workspace-settings");
         }
 
         if (application.IsAddDialogOpen)

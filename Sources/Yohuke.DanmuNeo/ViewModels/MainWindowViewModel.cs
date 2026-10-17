@@ -297,7 +297,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         new("marks", "标签组", "同传与歌词开闭标记"),
         new("shieldReplacements", "替换库", "屏蔽词文本替换"),
         new("shortcuts", "快捷键", "直播间操作绑定"),
-        new("workspace", "工作区设置", "名称、账号覆盖与分享"),
         new("misc", "杂项", "版本、目录与备份")
     ];
 
@@ -344,7 +343,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             OnPropertyChanged(nameof(IsMarkSettingsSelected));
             OnPropertyChanged(nameof(IsShieldReplacementSettingsSelected));
             OnPropertyChanged(nameof(IsShortcutSettingsSelected));
-            OnPropertyChanged(nameof(IsWorkspaceSettingsSelected));
             OnPropertyChanged(nameof(IsMiscSettingsSelected));
         }
     }
@@ -437,6 +435,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [ObservableProperty] private bool isMusicLyricSearching;
 
     [ObservableProperty] private bool isSettingsOpen;
+
+    [ObservableProperty] private bool isWorkspaceSettingsOpen;
 
     [ObservableProperty] private bool isAddDialogOpen;
 
@@ -531,11 +531,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// 是否正在显示快捷键设置。
     /// </summary>
     public bool IsShortcutSettingsSelected => selectedSettingsSectionKey == "shortcuts";
-
-    /// <summary>
-    /// 是否正在显示工作区设置。
-    /// </summary>
-    public bool IsWorkspaceSettingsSelected => selectedSettingsSectionKey == "workspace";
 
     /// <summary>
     /// 是否正在显示杂项设置。
@@ -1120,6 +1115,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             CloseAddDialog();
         }
 
+        var closeWorkspaceSettings = IsWorkspaceSettingsOpen && ReferenceEquals(SelectedWorkspace, workspace);
         workspace.Dispose();
 
         State.Workspaces.Remove(workspace.State);
@@ -1127,6 +1123,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         SelectedWorkspace = Workspaces.FirstOrDefault();
         RefreshWorkspaceSortOrder();
         await SaveAsync();
+
+        if (closeWorkspaceSettings)
+        {
+            IsWorkspaceSettingsOpen = false;
+        }
+
         RefreshTreeSelection();
         RefreshForwardSourceRooms();
     }
@@ -1223,13 +1225,22 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// </summary>
     public void OpenWorkspaceSettings(WorkspaceViewModel? workspace)
     {
-        if (workspace is not null)
+        if (workspace is null || !Workspaces.Contains(workspace))
         {
-            SelectedWorkspace = workspace;
+            return;
         }
 
-        SelectedSettingsSection = SettingsSectionOptions.FirstOrDefault(option => option.Key == "workspace");
-        IsSettingsOpen = true;
+        SelectWorkspace(workspace);
+        IsWorkspaceSettingsOpen = true;
+    }
+
+    /// <summary>
+    /// 保存并关闭工作区设置窗口。
+    /// </summary>
+    public async Task CloseWorkspaceSettingsAsync()
+    {
+        await SaveAsync();
+        IsWorkspaceSettingsOpen = false;
     }
 
     /// <summary>

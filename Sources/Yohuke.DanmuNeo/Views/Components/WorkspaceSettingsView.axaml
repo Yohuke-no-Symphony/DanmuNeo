@@ -5,15 +5,15 @@
              x:Class="Yohuke.DanmuNeo.Views.Components.WorkspaceSettingsView"
              x:CompileBindings="False"
              x:Name="Root">
-    <StackPanel Spacing="18"
-                IsVisible="{Binding IsWorkspaceSettingsSelected}">
+    <StackPanel Spacing="18">
         <Border Classes="panel" Padding="14">
             <StackPanel Spacing="10">
                 <TextBlock Text="工作区"
                            Classes="sectionTitle" />
                 <Grid ColumnDefinitions="*,Auto,Auto"
                       ColumnSpacing="8">
-                    <TextBox Text="{Binding SelectedWorkspace.Name}"
+                    <TextBox x:Name="WorkspaceNameInput"
+                             Text="{Binding SelectedWorkspace.Name}"
                              Watermark="工作区名称" />
                     <Button Grid.Column="1"
                             ToolTip.Tip="导出分享"

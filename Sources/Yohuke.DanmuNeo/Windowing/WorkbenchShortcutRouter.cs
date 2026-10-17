@@ -114,7 +114,7 @@ internal sealed class WorkbenchShortcutRouter : IDisposable
             return;
         }
 
-        if (isModal() || application.IsSettingsOpen || application.IsAddDialogOpen ||
+        if (isModal() || application.IsSettingsOpen || application.IsWorkspaceSettingsOpen || application.IsAddDialogOpen ||
             application.IsConfirmDeleteDialogOpen)
         {
             return;

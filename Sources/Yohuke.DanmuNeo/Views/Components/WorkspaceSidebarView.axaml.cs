@@ -188,18 +188,6 @@ public partial class WorkspaceSidebarView : UserControl
         viewModel.OpenDeleteWorkspaceDialog(workspace);
     }
 
-    private void EditRoomInfo_OnClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        if (DataContext is not MainWindowViewModel viewModel)
-        {
-            return;
-        }
-
-        var room = (sender as Control)?.DataContext as LiveRoomTabViewModel;
-        viewModel.SelectRoom(room);
-        viewModel.OpenWorkspaceSettings(viewModel.SelectedWorkspace);
-    }
-
     private void DeleteRoom_OnClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (DataContext is not MainWindowViewModel viewModel)

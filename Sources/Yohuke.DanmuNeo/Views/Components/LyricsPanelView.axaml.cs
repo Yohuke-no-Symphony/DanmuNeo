@@ -218,7 +218,7 @@ public partial class LyricsPanelView : WorkbenchRoomPanel
     {
         var application = Context.Application;
 
-        if (e.Handled || application.IsRecordingShortcut || application.IsSettingsOpen ||
+        if (e.Handled || application.IsRecordingShortcut || application.IsSettingsOpen || application.IsWorkspaceSettingsOpen ||
             application.IsAddDialogOpen || application.IsConfirmDeleteDialogOpen ||
             WorkbenchTextInput.IsComposing(e.Source))
         {

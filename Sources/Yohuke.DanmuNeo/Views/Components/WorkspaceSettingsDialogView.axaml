@@ -1,0 +1,46 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:components="clr-namespace:Yohuke.DanmuNeo.Views.Components"
+             xmlns:vm="clr-namespace:Yohuke.DanmuNeo.ViewModels"
+             x:Class="Yohuke.DanmuNeo.Views.Components.WorkspaceSettingsDialogView"
+             x:DataType="vm:MainWindowViewModel"
+             x:CompileBindings="False"
+             x:Name="Root">
+    <Border x:Name="DialogSurface"
+            Background="{DynamicResource AppCardBrush}"
+            ClipToBounds="True">
+        <Grid RowDefinitions="Auto,*">
+            <Border Classes="settingsDialogHeader">
+                <Grid ColumnDefinitions="*,Auto"
+                      ColumnSpacing="8">
+                    <StackPanel Spacing="2"
+                                VerticalAlignment="Center">
+                        <TextBlock Text="工作区设置"
+                                   FontSize="20"
+                                   FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding SelectedWorkspace.Name}"
+                                   Classes="muted"
+                                   TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                    <Button x:Name="SaveWorkspaceSettingsButton"
+                            Grid.Column="1"
+                            Classes="primaryButton"
+                            Command="{Binding #Root.CloseWorkspaceSettingsCommand}">
+                        <StackPanel Orientation="Horizontal"
+                                    Spacing="6">
+                            <LucideIcon Kind="Save" />
+                            <TextBlock Text="保存" />
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <Border Grid.Row="1"
+                    Classes="settingsDialogContent">
+                <ScrollViewer>
+                    <components:WorkspaceSettingsView Classes="scrollSafeContent" />
+                </ScrollViewer>
+            </Border>
+        </Grid>
+    </Border>
+</UserControl>

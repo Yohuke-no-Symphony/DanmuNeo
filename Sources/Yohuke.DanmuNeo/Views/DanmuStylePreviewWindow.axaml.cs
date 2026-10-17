@@ -43,7 +43,8 @@ public partial class DanmuStylePreviewWindow : Window
     private void PreviewWindow_OnPreviewKeyDown(object? sender, KeyEventArgs e)
     {
         if (e.Handled || Owner?.DataContext is not MainWindowViewModel ownerViewModel ||
-            ownerViewModel.IsRecordingShortcut || ownerViewModel.IsSettingsOpen || ownerViewModel.IsAddDialogOpen ||
+            ownerViewModel.IsRecordingShortcut || ownerViewModel.IsSettingsOpen || ownerViewModel.IsWorkspaceSettingsOpen ||
+            ownerViewModel.IsAddDialogOpen ||
             ownerViewModel.IsConfirmDeleteDialogOpen || ownerViewModel.IsUpdateDialogOpen ||
             ownerViewModel.SelectedWorkspace is null ||
             ownerViewModel.SymbolGroups.Count == 0)
