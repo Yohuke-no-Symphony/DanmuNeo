@@ -6,8 +6,12 @@ using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using Yohuke.DanmuNeo.Layouts;
 using Yohuke.DanmuNeo.Models.State;
+using Yohuke.DanmuNeo.Services;
+using Yohuke.DanmuNeo.Views;
 using Yohuke.DanmuNeo.Views.Components;
+using Yohuke.DanmuNeo.Windowing;
 
 namespace Yohuke.DanmuNeo.Tests;
 
@@ -61,7 +65,7 @@ public class LyricCopyViewTests
     }
 
     /// <summary>
-    /// 平台复制手势按发送模式复制手动选中的歌词行。
+    /// 可配置复制手势按发送模式复制手动选中的歌词行，译文缺失时使用原文。
     /// </summary>
     [AvaloniaTheory]
     [InlineData(KeyModifiers.Control, RawInputModifiers.Control, LyricSendMode.TranslationOnly,
@@ -76,11 +80,11 @@ public class LyricCopyViewTests
         "选中句的翻译", "第二句原文 / 选中句的翻译")]
     [InlineData(KeyModifiers.Meta, RawInputModifiers.Meta, LyricSendMode.Bilingual,
         "选中句的翻译", "第二句原文 / 选中句的翻译")]
-    [InlineData(KeyModifiers.Control, RawInputModifiers.Control, LyricSendMode.TranslationOnly, "", "原剪贴板")]
-    [InlineData(KeyModifiers.Meta, RawInputModifiers.Meta, LyricSendMode.TranslationOnly, "", "原剪贴板")]
+    [InlineData(KeyModifiers.Control, RawInputModifiers.Control, LyricSendMode.TranslationOnly, "", "第二句原文")]
+    [InlineData(KeyModifiers.Meta, RawInputModifiers.Meta, LyricSendMode.TranslationOnly, "", "第二句原文")]
     [InlineData(KeyModifiers.Control, RawInputModifiers.Control, LyricSendMode.Bilingual, "", "第二句原文")]
     [InlineData(KeyModifiers.Meta, RawInputModifiers.Meta, LyricSendMode.Bilingual, "", "第二句原文")]
-    [InlineData(KeyModifiers.Control, RawInputModifiers.Control, LyricSendMode.TranslationOnly, " \t", "原剪贴板")]
+    [InlineData(KeyModifiers.Control, RawInputModifiers.Control, LyricSendMode.TranslationOnly, " \t", "第二句原文")]
     [InlineData(KeyModifiers.Meta, RawInputModifiers.Meta, LyricSendMode.Bilingual, " \t", "第二句原文")]
     public async Task CopyGestureUsesSelectedLineInsteadOfPlayingLine(KeyModifiers modifiers,
         RawInputModifiers rawModifiers, LyricSendMode mode, string translation, string expected)
@@ -90,9 +94,7 @@ public class LyricCopyViewTests
         context.Room.LyricSendMode = mode;
         context.Room.Lyrics[1].TranslatedContent = translation;
         var window = CreateWindow(context, view);
-        var hotkeys = window.PlatformSettings!.HotkeyConfiguration;
-        var originalCopy = hotkeys.Copy;
-        hotkeys.Copy = [new(Key.C, modifiers)];
+        SetCopyGesture(context, Key.V, modifiers);
 
         try
         {
@@ -103,7 +105,7 @@ public class LyricCopyViewTests
             Assert.Same(context.Room.Lyrics[1], list.SelectedItem);
             Assert.NotSame(playingLine, list.SelectedItem);
             await window.Clipboard!.SetTextAsync("原剪贴板");
-            PressCopy(window, PhysicalKey.C, rawModifiers);
+            PressCopy(window, PhysicalKey.V, rawModifiers);
 
             Assert.Equal(expected, await window.Clipboard.TryGetTextAsync());
             Assert.Same(playingLine, context.Room.ActiveLyricLine);
@@ -111,29 +113,29 @@ public class LyricCopyViewTests
         }
         finally
         {
-            hotkeys.Copy = originalCopy;
             window.Close();
         }
     }
 
     /// <summary>
-    /// 使用平台定义的备用复制手势，未选中歌词时保留剪贴板。
+    /// 改绑后使用自定义手势，默认手势和空列表均保持剪贴板。
     /// </summary>
     [AvaloniaFact]
-    public async Task AlternatePlatformCopyGestureAndEmptySelectionWork()
+    public async Task CustomCopyGestureReplacesDefaultAndPreservesClipboardWithoutSelection()
     {
         using var context = new LiveRoomFeedViewTestContext();
         var view = CreateView(context);
         var window = CreateWindow(context, view);
-        var hotkeys = window.PlatformSettings!.HotkeyConfiguration;
-        var originalCopy = hotkeys.Copy;
-        hotkeys.Copy = [new(Key.Insert, KeyModifiers.Control)];
+        SetCopyGesture(context, Key.Insert, KeyModifiers.Control);
 
         try
         {
             ShowWindow(window, view);
             var list = view.FindControl<ListBox>("LyricListBox")!;
             Click(window, list.ContainerFromIndex(1)!);
+            await window.Clipboard!.SetTextAsync("原剪贴板");
+            PressCopy(window, PhysicalKey.V, OperatingSystem.IsMacOS() ? RawInputModifiers.Meta : RawInputModifiers.Control);
+            Assert.Equal("原剪贴板", await window.Clipboard.TryGetTextAsync());
             PressCopy(window, PhysicalKey.Insert, RawInputModifiers.Control);
             Assert.Equal("第二句原文 / 第二句翻译", await window.Clipboard!.TryGetTextAsync());
 
@@ -146,18 +148,17 @@ public class LyricCopyViewTests
         }
         finally
         {
-            hotkeys.Copy = originalCopy;
             window.Close();
         }
     }
 
     /// <summary>
-    /// 歌词有选中行时，输入框中的复制仍复制输入框选中的文字。
+    /// 歌词有选中行时，输入框保留自身的复制和粘贴行为。
     /// </summary>
     [AvaloniaTheory]
     [InlineData(KeyModifiers.Control, RawInputModifiers.Control)]
     [InlineData(KeyModifiers.Meta, RawInputModifiers.Meta)]
-    public async Task CopyInDraftKeepsTextBoxSelectionBehavior(KeyModifiers modifiers, RawInputModifiers rawModifiers)
+    public async Task CopyAndPasteInDraftKeepTextBoxSelectionBehavior(KeyModifiers modifiers, RawInputModifiers rawModifiers)
     {
         using var context = new LiveRoomFeedViewTestContext();
         var view = CreateView(context);
@@ -165,10 +166,14 @@ public class LyricCopyViewTests
         var hotkeys = window.PlatformSettings!.HotkeyConfiguration;
         var originalCopy = hotkeys.Copy;
         hotkeys.Copy = [new(Key.C, modifiers)];
+        var originalPaste = hotkeys.Paste;
+        hotkeys.Paste = [new(Key.V, modifiers)];
+        SetCopyGesture(context, Key.V, modifiers);
 
         try
         {
             ShowWindow(window, view);
+            var clipboard = window.Clipboard!;
             var list = view.FindControl<ListBox>("LyricListBox")!;
             Click(window, list.ContainerFromIndex(1)!);
             var input = view.FindControl<TextBox>("InputDraftTextBox")!;
@@ -178,13 +183,19 @@ public class LyricCopyViewTests
             input.SelectionEnd = 3;
             PressCopy(window, PhysicalKey.C, rawModifiers);
 
-            Assert.Equal("输入框", await window.Clipboard!.TryGetTextAsync());
+            Assert.Equal("输入框", await clipboard.TryGetTextAsync());
             Assert.Equal("输入框中的文字", input.Text);
             Assert.Same(context.Room.Lyrics[1], list.SelectedItem);
+
+            await clipboard.SetTextAsync("粘贴文字");
+            PressCopy(window, PhysicalKey.V, rawModifiers);
+            Assert.Equal("粘贴文字中的文字", input.Text);
+            Assert.Equal("粘贴文字", await clipboard.TryGetTextAsync());
         }
         finally
         {
             hotkeys.Copy = originalCopy;
+            hotkeys.Paste = originalPaste;
             window.Close();
         }
     }
@@ -198,9 +209,7 @@ public class LyricCopyViewTests
         using var context = new LiveRoomFeedViewTestContext();
         var view = CreateView(context);
         var window = CreateWindow(context, view);
-        var hotkeys = window.PlatformSettings!.HotkeyConfiguration;
-        var originalCopy = hotkeys.Copy;
-        hotkeys.Copy = [new(Key.C, KeyModifiers.Control)];
+        SetCopyGesture(context, Key.V, KeyModifiers.Control);
 
         try
         {
@@ -215,7 +224,8 @@ public class LyricCopyViewTests
                 modeSelector.SelectedValue = mode;
                 PumpLayout(window);
                 Assert.Equal(mode, context.Room.LyricSendMode);
-                PressCopy(window, PhysicalKey.C, RawInputModifiers.Control);
+                Assert.True(list.ContainerFromIndex(1)!.Focus());
+                PressCopy(window, PhysicalKey.V, RawInputModifiers.Control);
                 var expected = mode switch
                 {
                     LyricSendMode.TranslationOnly => "第二句翻译",
@@ -228,14 +238,134 @@ public class LyricCopyViewTests
             modeSelector.SelectedValue = LyricSendMode.OriginalOnly;
             context.Room.Lyrics[1].Content = " \t";
             await window.Clipboard!.SetTextAsync("原剪贴板");
-            PressCopy(window, PhysicalKey.C, RawInputModifiers.Control);
+            PressCopy(window, PhysicalKey.V, RawInputModifiers.Control);
             Assert.Equal("原剪贴板", await window.Clipboard.TryGetTextAsync());
         }
         finally
         {
-            hotkeys.Copy = originalCopy;
             window.Close();
         }
+    }
+
+    /// <summary>
+    /// 禁用、清空、冲突、设置和录制期间，选中行不响应复制绑定。
+    /// </summary>
+    [AvaloniaTheory]
+    [InlineData("disabled")]
+    [InlineData("cleared")]
+    [InlineData("conflict")]
+    [InlineData("settings")]
+    [InlineData("recording")]
+    public async Task CopyBindingHonorsDisabledConflictAndSettingsGuards(string mode)
+    {
+        using var context = new LiveRoomFeedViewTestContext();
+        var view = CreateView(context);
+        var window = CreateWindow(context, view);
+        SetCopyGesture(context, Key.V, KeyModifiers.Control);
+        var binding = context.ViewModel.Settings.ShortcutBindings
+            .Single(item => item.ActionKey == ShortcutActionKeys.LYRIC_COPY_SELECTED);
+
+        try
+        {
+            ShowWindow(window, view);
+            var list = view.FindControl<ListBox>("LyricListBox")!;
+            Click(window, list.ContainerFromIndex(1)!);
+            await window.Clipboard!.SetTextAsync("原剪贴板");
+
+            switch (mode)
+            {
+                case "disabled":
+                    binding.IsEnabled = false;
+                    break;
+                case "cleared":
+                    binding.IsEnabled = false;
+                    binding.GestureText = "";
+                    break;
+                case "conflict":
+                    context.ViewModel.Settings.ShortcutBindings
+                        .Single(item => item.ActionKey == ShortcutActionKeys.LYRIC_SEEK_NEXT).GestureText = "Ctrl+V";
+                    break;
+                case "settings":
+                    context.ViewModel.IsSettingsOpen = true;
+                    break;
+                case "recording":
+                    context.ViewModel.BeginRecordShortcut(context.ViewModel.ShortcutBindingGroups
+                        .SelectMany(group => group.Bindings).Single(item => item.ActionKey == binding.ActionKey));
+                    break;
+            }
+
+            PressCopy(window, PhysicalKey.V, RawInputModifiers.Control);
+
+            Assert.Equal("原剪贴板", await window.Clipboard.TryGetTextAsync());
+        }
+        finally
+        {
+            context.ViewModel.CancelShortcutRecording();
+            window.Close();
+        }
+    }
+
+    /// <summary>
+    /// 主窗和歌词浮窗中的默认手势只在歌词列表有焦点时复制，并在设置中显示绑定。
+    /// </summary>
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DefaultCopyGestureRequiresListFocusInMainAndFloatingWindows(bool floatingHost)
+    {
+        using var context = new LiveRoomFeedViewTestContext();
+        context.Room.LyricInput = "[00:01]第一句原文\n[00:02]第二句原文";
+        context.Room.LyricSendMode = LyricSendMode.TranslationOnly;
+        context.Room.ApplyLyric();
+        var main = new MainWindow { DataContext = context.ViewModel };
+
+        try
+        {
+            main.Show();
+            await main.Initialization;
+            var workbench = Assert.IsType<WorkbenchSession>(main.Workbench);
+            workbench.Layouts.ShowPanel(WorkbenchPanelIds.LYRICS);
+            Window host = main;
+
+            if (floatingHost)
+            {
+                workbench.Layouts.FloatPanel(WorkbenchPanelIds.LYRICS);
+                Dispatcher.UIThread.RunJobs();
+                host = Assert.Single(workbench.Layouts.FloatingWindows);
+            }
+
+            host.Activate();
+            PumpLayout(host);
+            var view = workbench.Panels.Lyrics;
+            var list = view.FindControl<ListBox>("LyricListBox")!;
+            list.SelectedIndex = 1;
+            Assert.True(list.ContainerFromIndex(1)!.Focus());
+            var modifiers = OperatingSystem.IsMacOS() ? RawInputModifiers.Meta : RawInputModifiers.Control;
+            PressCopy(host, PhysicalKey.V, modifiers);
+
+            Assert.Equal("第二句原文", await host.Clipboard!.TryGetTextAsync());
+            Assert.Same(context.Room.Lyrics[0], context.Room.ActiveLyricLine);
+            var group = Assert.Single(context.ViewModel.ShortcutBindingGroups, item => item.Name == "歌词");
+            var binding = Assert.Single(group.Bindings, item => item.ActionKey == ShortcutActionKeys.LYRIC_COPY_SELECTED);
+            Assert.Equal("复制歌词", binding.Name);
+
+            await host.Clipboard!.SetTextAsync("列表失焦后的剪贴板");
+            Assert.True(view.FindControl<Button>("LyricMoreButton")!.Focus());
+            PressCopy(host, PhysicalKey.V, modifiers);
+            Assert.Equal("列表失焦后的剪贴板", await host.Clipboard.TryGetTextAsync());
+        }
+        finally
+        {
+            await main.CloseWorkbenchAsync();
+            Dispatcher.UIThread.RunJobs();
+        }
+    }
+
+    private static void SetCopyGesture(LiveRoomFeedViewTestContext context, Key key, KeyModifiers modifiers)
+    {
+        Assert.True(ShortcutBindingService.TryCreateGestureText(key, modifiers, out var gesture));
+        context.ViewModel.Settings.ShortcutBindings
+            .Single(binding => binding.ActionKey == ShortcutActionKeys.LYRIC_COPY_SELECTED).GestureText = gesture;
     }
 
     private static LiveRoomWorkspaceView CreateView(LiveRoomFeedViewTestContext context)

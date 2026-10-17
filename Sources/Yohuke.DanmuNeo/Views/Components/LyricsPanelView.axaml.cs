@@ -216,14 +216,17 @@ public partial class LyricsPanelView : WorkbenchRoomPanel
 
     private async void LyricListBox_OnKeyDown(object? sender, KeyEventArgs e)
     {
-        if (e.Handled)
+        var application = Context.Application;
+
+        if (e.Handled || application.IsRecordingShortcut || application.IsSettingsOpen ||
+            application.IsAddDialogOpen || application.IsConfirmDeleteDialogOpen ||
+            WorkbenchTextInput.IsComposing(e.Source))
         {
             return;
         }
 
-        var hotkeys = TopLevel.GetTopLevel(this)?.PlatformSettings?.HotkeyConfiguration;
-
-        if (hotkeys?.Copy.Any(gesture => gesture.Matches(e)) == true &&
+        if (ShortcutBindingService.GetTriggeredActionKey(application.Settings.ShortcutBindings,
+                e.Key, e.KeyModifiers) == ShortcutActionKeys.LYRIC_COPY_SELECTED &&
             DataContext is LiveRoomTabViewModel room &&
             LyricListBox.SelectedItem is LyricLineState line)
         {

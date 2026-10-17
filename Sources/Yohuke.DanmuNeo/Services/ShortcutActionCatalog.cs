@@ -22,6 +22,8 @@ public static class ShortcutActionCatalog
         new(ShortcutActionKeys.INPUT_CYCLE_MARK_GROUP, "input", "输入", "轮切同传样式预设", "Tab"),
         new(ShortcutActionKeys.LYRIC_START_SENDING, "lyric", "歌词", "开始发送", "Ctrl+Shift+A"),
         new(ShortcutActionKeys.LYRIC_STOP_SENDING, "lyric", "歌词", "停止发送", "Ctrl+Shift+S"),
+        new(ShortcutActionKeys.LYRIC_COPY_SELECTED, "lyric", "歌词", "复制歌词",
+            OperatingSystem.IsMacOS() ? "Meta+V" : "Ctrl+V"),
         new(ShortcutActionKeys.LYRIC_SEEK_BACKWARD, "lyric", "歌词", "微调快退", "Ctrl+Shift+Left"),
         new(ShortcutActionKeys.LYRIC_SEEK_FORWARD, "lyric", "歌词", "微调快进", "Ctrl+Shift+Right"),
         new(ShortcutActionKeys.LYRIC_SEEK_NEXT, "lyric", "歌词", "下一句并发送", "Ctrl+Shift+Down")

@@ -7,6 +7,31 @@ namespace Yohuke.DanmuNeo.Tests;
 public class ShortcutBindingServiceTests
 {
     /// <summary>
+    /// 旧配置补齐当前平台的复制歌词绑定，并保留已有自定义绑定对象。
+    /// </summary>
+    [Fact]
+    public void NormalizeAddsPlatformCopyLyricBindingWithoutChangingCustomBinding()
+    {
+        var existing = new ShortcutBindingState
+        {
+            ActionKey = ShortcutActionKeys.LYRIC_SEEK_FORWARD, GestureText = "Ctrl+F", IsEnabled = true
+        };
+        var settings = new AppSettings { ShortcutBindingsVersion = 2, ShortcutBindings = [existing] };
+
+        ShortcutBindingService.Normalize(settings);
+
+        Assert.Same(existing, settings.ShortcutBindings.Single(item => item.ActionKey == existing.ActionKey));
+        Assert.Equal("Ctrl+F", existing.GestureText);
+        var copy = Assert.Single(settings.ShortcutBindings, item => item.ActionKey == ShortcutActionKeys.LYRIC_COPY_SELECTED);
+        Assert.True(copy.IsEnabled);
+        Assert.Equal(OperatingSystem.IsMacOS() ? "Meta+V" : "Ctrl+V", copy.GestureText);
+        Assert.Equal(ShortcutActionKeys.LYRIC_COPY_SELECTED,
+            ShortcutBindingService.GetTriggeredActionKey(settings.ShortcutBindings, Key.V,
+                OperatingSystem.IsMacOS() ? KeyModifiers.Meta : KeyModifiers.Control));
+        Assert.Empty(ShortcutBindingService.GetConflictActionKeys(settings.ShortcutBindings));
+    }
+
+    /// <summary>
     /// 旧配置补齐下一句默认绑定，并保留既有自定义绑定对象。
     /// </summary>
     [Fact]
@@ -32,13 +57,16 @@ public class ShortcutBindingServiceTests
     }
 
     /// <summary>
-    /// 下一句的禁用、清空和自定义手势经保存读取后仍然保留。
+    /// 下一句和复制歌词的禁用、清空和自定义手势经保存读取后仍然保留。
     /// </summary>
     [Theory]
-    [InlineData("", false)]
-    [InlineData("Ctrl+N", false)]
-    [InlineData("Ctrl+N", true)]
-    public void NextLyricBindingPersistsCustomAndDisabledStates(string gesture, bool enabled)
+    [InlineData(ShortcutActionKeys.LYRIC_SEEK_NEXT, "", false)]
+    [InlineData(ShortcutActionKeys.LYRIC_SEEK_NEXT, "Ctrl+N", false)]
+    [InlineData(ShortcutActionKeys.LYRIC_SEEK_NEXT, "Ctrl+N", true)]
+    [InlineData(ShortcutActionKeys.LYRIC_COPY_SELECTED, "", false)]
+    [InlineData(ShortcutActionKeys.LYRIC_COPY_SELECTED, "Ctrl+L", false)]
+    [InlineData(ShortcutActionKeys.LYRIC_COPY_SELECTED, "Ctrl+L", true)]
+    public void LyricBindingPersistsCustomAndDisabledStates(string actionKey, string gesture, bool enabled)
     {
         var directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
 
@@ -52,12 +80,12 @@ public class ShortcutBindingServiceTests
                     ShortcutBindingsVersion = 2,
                     ShortcutBindings =
                     [
-                        new() { ActionKey = ShortcutActionKeys.LYRIC_SEEK_NEXT, GestureText = gesture, IsEnabled = enabled }
+                        new() { ActionKey = actionKey, GestureText = gesture, IsEnabled = enabled }
                     ]
                 }
             });
             var binding = service.Load().Settings.ShortcutBindings
-                .Single(item => item.ActionKey == ShortcutActionKeys.LYRIC_SEEK_NEXT);
+                .Single(item => item.ActionKey == actionKey);
 
             Assert.Equal(gesture, binding.GestureText);
             Assert.Equal(enabled, binding.IsEnabled);

@@ -12,6 +12,33 @@ namespace Yohuke.DanmuNeo.Tests;
 public class LyricNavigationTests
 {
     /// <summary>
+    /// 仅翻译模式下，下一句不会略过有原文但没有译文的歌词。
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task TranslationOnlyNavigationSendsOriginalWithoutTranslation(bool seekExplicitly)
+    {
+        var sendService = new FakeDanmuSendService();
+        using var room = CreateRoom(sendService);
+        room.LyricSendMode = LyricSendMode.TranslationOnly;
+
+        if (seekExplicitly)
+        {
+            await room.SeekAndSendLyricLineAsync(room.Lyrics[1]);
+        }
+        else
+        {
+            Assert.True(room.SeekNextLyricCommand.CanExecute(null));
+            await room.SeekNextLyricAsync();
+        }
+
+        Assert.Equal(["【♪第二句】"], sendService.SentMessages);
+        Assert.True(room.Lyrics[1].IsSent);
+        Assert.Same(room.Lyrics[1], room.ActiveLyricLine);
+    }
+
+    /// <summary>
     /// 暂停时跳到下一句，发送目标句的双语内容并停留在句首。
     /// </summary>
     [Fact]

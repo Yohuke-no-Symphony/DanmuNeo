@@ -323,8 +323,13 @@ public class LiveRoomTabViewModelTests
         Assert.True(viewModel.Lyrics[0].IsSent);
     }
 
-    [Fact]
-    public async Task TranslationOnlySkipsLineWithoutTranslation()
+    /// <summary>
+    /// 仅翻译模式在当前行没有译文时发送原文，并正确记录发送状态。
+    /// </summary>
+    [Theory]
+    [InlineData("")]
+    [InlineData(" \t")]
+    public async Task TranslationOnlySendsOriginalWithoutTranslation(string translation)
     {
         var sendService = new FakeDanmuSendService();
         var viewModel = CreateConfiguredViewModel(
@@ -337,11 +342,12 @@ public class LiveRoomTabViewModelTests
         viewModel.RoomId = "100";
         viewModel.LyricInput = "[00:01.00]原文";
         viewModel.ApplyLyric();
+        viewModel.Lyrics[0].TranslatedContent = translation;
 
         await viewModel.SendCurrentLyricAsync();
 
-        Assert.Empty(sendService.SentMessages);
-        Assert.False(viewModel.Lyrics[0].IsSent);
+        Assert.Equal(["【♪原文】"], sendService.SentMessages);
+        Assert.True(viewModel.Lyrics[0].IsSent);
     }
 
     [Fact]

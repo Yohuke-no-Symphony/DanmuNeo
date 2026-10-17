@@ -56,6 +56,11 @@ public static class ShortcutActionKeys
     public const string LYRIC_STOP_SENDING = "lyric.stopSending";
 
     /// <summary>
+    /// 复制歌词列表选中的歌词。
+    /// </summary>
+    public const string LYRIC_COPY_SELECTED = "lyric.copySelected";
+
+    /// <summary>
     /// 歌词快退。
     /// </summary>
     public const string LYRIC_SEEK_BACKWARD = "lyric.seekBackward";

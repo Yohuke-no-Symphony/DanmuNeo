@@ -85,6 +85,18 @@ public class LyricTimelineServiceTests
     }
 
     /// <summary>
+    /// 仅翻译模式在译文缺失时复制原文，两种内容都为空时保持空文本。
+    /// </summary>
+    [Theory]
+    [InlineData(" 原文 ", "", "原文")]
+    [InlineData(" 原文 ", " \t", "原文")]
+    [InlineData(" \t", "", "")]
+    public void TranslationOnlyCopyFallsBackToOriginal(string content, string translated, string expected)
+    {
+        Assert.Equal(expected, LyricTimelineService.CreateContent(content, translated, LyricSendMode.TranslationOnly));
+    }
+
+    /// <summary>
     /// 发送内容按语言独立输出，并保持单语模式、空内容和相同文本的处理规则。
     /// </summary>
     [Theory]
@@ -97,10 +109,35 @@ public class LyricTimelineServiceTests
     [InlineData(LyricSendMode.OriginalOnly, " 原文 ", "译文", new[] { "原文" })]
     [InlineData(LyricSendMode.OriginalOnly, "", "译文", new string[0])]
     [InlineData(LyricSendMode.TranslationOnly, "原文", " 译文 ", new[] { "译文" })]
-    [InlineData(LyricSendMode.TranslationOnly, "原文", "", new string[0])]
+    [InlineData(LyricSendMode.TranslationOnly, " 原文 ", "", new[] { "原文" })]
+    [InlineData(LyricSendMode.TranslationOnly, " 原文 ", " \t", new[] { "原文" })]
+    [InlineData(LyricSendMode.TranslationOnly, " \t", "", new string[0])]
     public void CreateSendContentsSeparatesLanguages(
         LyricSendMode mode, string content, string translated, string[] expected)
     {
         Assert.Equal(expected, LyricTimelineService.CreateSendContents(content, translated, mode));
+    }
+
+    /// <summary>
+    /// 缺失译文回退后的原文继续应用替换规则，已有译文被替换为空时仍跳过发送。
+    /// </summary>
+    [Theory]
+    [InlineData("原文", "", new[] { "替换后的原文" })]
+    [InlineData("原文", " \t", new[] { "替换后的原文" })]
+    [InlineData("原文", "删除", new string[0])]
+    public void TranslationFallbackRespectsReplacementRules(string content, string translated, string[] expected)
+    {
+        var settings = new AppSettings
+        {
+            ApplyShieldReplacementToLyrics = true,
+            ShieldReplacementRules =
+            [
+                new() { SourceText = "原文", ReplacementText = "替换后的原文" },
+                new() { SourceText = "删除", ReplacementText = "" }
+            ]
+        };
+
+        Assert.Equal(expected,
+            LyricTimelineService.CreateSendContents(content, translated, LyricSendMode.TranslationOnly, settings));
     }
 }
