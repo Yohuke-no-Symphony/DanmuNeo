@@ -116,23 +116,36 @@ dotnet run --project Sources/Yohuke.DanmuNeo/Yohuke.DanmuNeo.csproj
 dotnet publish Sources/Yohuke.DanmuNeo/Yohuke.DanmuNeo.csproj -c Release
 ```
 
-生成 Windows x64 发布目录与 ZIP，以及 macOS ARM64 App 和 DMG：
+按当前操作系统生成发布包：Windows 仅生成 Windows x64 发布目录与 NSIS 安装器，macOS 仅生成 macOS ARM64 App 和 DMG。
 
 ```powershell
 pwsh -NoProfile -File ./release.ps1 -Clean
 ```
 
-Windows ZIP 和 macOS DMG 使用统一的 `Yohuke-Danmu-Neo-{版本}-{平台架构}` 命名格式，默认输出路径为：
+脚本需在 Windows 或 macOS 上运行，只检查并调用当前平台所需的资源与打包工具；Windows 不会执行 macOS 图标转换、App 签名或 DMG 打包。Windows 还需要 NSIS 3.11 或更高版本：脚本依次查找 `-NsisPath` 指定的编译器、PATH 中的 `makensis` 和 Program Files 下的 NSIS。可通过 `-NsisPath "C:\Program Files (x86)\NSIS\makensis.exe"` 指定路径。工具与版本检查在清理输出目录和还原依赖之前完成。
 
-- Windows ZIP：`Artifacts/Publish/Yohuke-Danmu-Neo-{版本}-win-x64.zip`
+Windows 安装器和 macOS DMG 的默认输出路径为：
+
+- Windows 安装器：`Artifacts/Publish/Yohuke-Danmu-Neo-{版本}-win-x64-setup.exe`
 - Windows EXE：`Artifacts/Publish/win-x64/Yohuke.DanmuNeo.exe`
 - macOS：`Artifacts/Publish/Yohuke-Danmu-Neo-{版本}-osx-arm64.dmg`
 
-发布使用自包含的非 single-file 模式。Windows ZIP 内含完整发布目录，包括 `Yohuke.DanmuNeo.exe`、应用与 .NET 运行时 DLL、原生库、运行配置和 `i18n/` 语言包目录。EXE 保持原始文件名，只有 ZIP 和 DMG 的名称包含版本与平台。分发时使用 ZIP，完整解压后启动 `Yohuke.DanmuNeo.exe`；运行依赖和目录结构需要一并保留。macOS 的完整发布文件封装在 App 内，再打包为 DMG。
+发布使用自包含的非 single-file 模式。Windows 安装器包含完整发布目录，包括 `Yohuke.DanmuNeo.exe`、应用与 .NET 运行时 DLL、原生库、运行配置和 `i18n/` 语言包目录，无需预装 .NET。分发时使用 `*-win-x64-setup.exe`；`win-x64/` 保留为构建输出目录。macOS 的完整发布文件封装在 App 内，再打包为 DMG。
 
-macOS 语言包位于 `Yohuke Danmu Neo.app/Contents/MacOS/i18n/`，随 App 一起进入 DMG。发布脚本会在生成 Windows ZIP、组装 macOS App 和准备 DMG 内容时核对全部语言包；缺少必需的英文包、其他随源码发布的语言包或内容不一致时会终止发布。
+Windows 安装器默认安装到当前用户，可在向导中选择所有用户；两种范围分别登记到 HKCU 和 HKLM，并创建对应范围的开始菜单快捷方式。桌面快捷方式位于完成页，默认不勾选。重装或升级会先运行同一安装范围的旧卸载器，以移除旧包自有文件；不同安装范围不能共用同一目录。卸载只删除安装器记录的文件和由其创建的快捷方式，保留额外放入安装目录的文件及 `%APPDATA%\Yohuke.DanmuNeo` 用户数据。
 
-版本默认读取项目的 `AssemblyVersion`，可通过 `-Version` 覆盖。
+静默安装支持 `/CurrentUser`、`/AllUsers` 和可选的 `/DesktopShortcut`；所有用户安装需要管理员权限。自定义目录 `/D=` 必须放在命令行最后，目录值不加引号（即使包含空格）。例如：
+
+```powershell
+Start-Process -FilePath ./Yohuke-Danmu-Neo-0.0.2-win-x64-setup.exe -Wait `
+    -ArgumentList '/S /CurrentUser /DesktopShortcut /D=C:\Apps\Danmu Neo'
+```
+
+卸载可使用系统的“已安装的应用”、开始菜单中的卸载入口，或在安装目录运行 `Uninstall.exe /S /CurrentUser`（所有用户安装使用 `/AllUsers`）。请先关闭应用再安装或卸载；文件被占用时操作会报错并保留文件。
+
+安装模板和清单生成逻辑位于 `Packaging/Windows/`。macOS 语言包位于 `Yohuke Danmu Neo.app/Contents/MacOS/i18n/`，随 App 一起进入 DMG。发布脚本会在生成 Windows 安装器、组装 macOS App 和准备 DMG 内容时核对全部语言包；缺少必需的英文包、其他随源码发布的语言包或内容不一致时会终止发布。
+
+版本默认读取项目的 `AssemblyVersion`，可通过 `-Version` 覆盖，接受两到四段数字且各段不超过 65534。Windows 安装器的文件版本补齐为四段，产品显示版本保留传入值。
 
 DMG 默认使用 ad-hoc 签名，内含应用、`Applications` 快捷方式和中文首次打开说明。如需使用 Developer ID 证书签名，可执行：
 
@@ -165,6 +178,18 @@ pwsh -NoProfile -File ./release.ps1 -Clean -MacCodeSignIdentity "Developer ID Ap
 
 ```bash
 dotnet test Sources/Yohuke.DanmuNeo.sln --no-restore
+```
+
+发布脚本的平台分流、前置检查和 NSIS 清单构建使用独立的 PowerShell 测试，需要 Pester 5.7.1 或更高版本：
+
+```powershell
+pwsh -NoProfile -Command "Invoke-Pester -Path ./Sources/Yohuke.DanmuNeo.Tests/Release.Tests.ps1,./Sources/Yohuke.DanmuNeo.Tests/WindowsInstaller.Tests.ps1 -CI"
+```
+
+原生安装生命周期测试使用独立注册表键、安装目录和快捷方式名称，在安装了 NSIS 的管理员 PowerShell 中执行；其他环境会跳过。这组测试会实际编译并运行安装器，覆盖两种安装范围、快捷方式、升级、迁移目录、文件占用和卸载保留额外文件：
+
+```powershell
+pwsh -NoProfile -Command "Invoke-Pester -Path ./Sources/Yohuke.DanmuNeo.Tests/WindowsInstaller.Integration.Tests.ps1 -CI"
 ```
 
 Dock 改造的自动化覆盖布局往返与恢复、面板唯一性和实例复用、隐藏恢复、浮窗关闭、自定义预设、播放异步归属、跨面板插入、菜单命令、设置保存和退出顺序。原生播放器的实际声画连续性、中文 IME、系统菜单、多显示器缩放及原生控件在模态期间的交互，需要在目标桌面环境中另外验收；无头测试和发布签名检查不代替这些结果。

@@ -3,6 +3,7 @@ param(
     [string]$OutputDirectory = "Artifacts/Publish",
     [string]$Version,
     [string]$MacCodeSignIdentity = "-",
+    [string]$NsisPath,
     [switch]$SkipRestore,
     [switch]$Clean
 )
@@ -19,6 +20,8 @@ $solutionPath = Join-Path $repoRoot "Sources/Yohuke.DanmuNeo.sln"
 $projectPath = Join-Path $repoRoot "Sources/Yohuke.DanmuNeo/Yohuke.DanmuNeo.csproj"
 $iconPath = Join-Path $repoRoot "Sources/Yohuke.DanmuNeo/Assets/favicon.ico"
 $macReadmePath = Join-Path $repoRoot "Packaging/macOS/README.txt"
+$windowsInstallerScriptPath = Join-Path $repoRoot "Packaging/Windows/Yohuke.DanmuNeo.WindowsInstaller.ps1"
+$windowsInstallerTemplatePath = Join-Path $repoRoot "Packaging/Windows/Yohuke.DanmuNeo.WindowsInstaller.nsi"
 $appName = "Yohuke Danmu Neo"
 $appDisplayName = "Danmu Neo"
 $executableName = "Yohuke.DanmuNeo"
@@ -77,6 +80,21 @@ function Assert-CommandExists
     }
 }
 
+function Get-PublishRuntimeIdentifier
+{
+    if ([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Windows))
+    {
+        return "win-x64"
+    }
+
+    if ([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::OSX))
+    {
+        return "osx-arm64"
+    }
+
+    throw "Unsupported release host. Run release.ps1 on Windows or macOS."
+}
+
 function Get-ProjectVersion
 {
     [xml]$project = Get-Content $projectPath
@@ -113,6 +131,16 @@ function Resolve-PublishVersion
     if ($publishVersion -notmatch '^\d+(\.\d+){1,3}$')
     {
         throw "Version must use two to four numeric components, for example 0.0.3 or 1.2.3.4."
+    }
+
+    foreach ($component in $publishVersion.Split('.'))
+    {
+        $number = 0
+
+        if (-not [int]::TryParse($component, [ref]$number) -or $number -gt 65534)
+        {
+            throw "Version components must be between 0 and 65534."
+        }
     }
 
     return $publishVersion
@@ -167,39 +195,6 @@ function Publish-Runtime
 
     Write-Host "Publishing $RuntimeIdentifier..."
     Invoke-DotNet $arguments
-}
-
-function New-WindowsZip
-{
-    param(
-        [string]$ExecutablePath,
-        [string]$OutputPath
-    )
-
-    $publishPath = Split-Path $ExecutablePath -Parent
-    $languagePath = Join-Path $publishPath "i18n"
-    Assert-PathExists $ExecutablePath "Windows executable"
-    Assert-LanguagePacks -Directory $languagePath
-
-    $temporaryPath = Join-Path (Split-Path $OutputPath -Parent) "windows-$([System.Guid]::NewGuid().ToString('N')).zip"
-    Write-Host "Creating compressed Windows ZIP..."
-
-    try
-    {
-        [System.IO.Compression.ZipFile]::CreateFromDirectory(
-            $publishPath,
-            $temporaryPath,
-            [System.IO.Compression.CompressionLevel]::Optimal,
-            $false)
-        [System.IO.File]::Move($temporaryPath, $OutputPath, $true)
-    }
-    finally
-    {
-        if ([System.IO.File]::Exists($temporaryPath))
-        {
-            [System.IO.File]::Delete($temporaryPath)
-        }
-    }
 }
 
 function Convert-IconToIcns
@@ -424,42 +419,81 @@ function New-MacDmg
     }
 }
 
-Assert-PathExists $solutionPath "Solution"
-Assert-PathExists $projectPath "Project"
-Assert-PathExists $iconPath "Icon"
-Assert-PathExists $macReadmePath "macOS first-launch guide"
-
-if ($Clean -and (Test-Path $publishRoot))
+function Invoke-Release
 {
-    Remove-Item -Recurse -Force $publishRoot
+    $runtimeIdentifier = Get-PublishRuntimeIdentifier
+    Assert-PathExists $solutionPath "Solution"
+    Assert-PathExists $projectPath "Project"
+    Assert-PathExists $iconPath "Icon"
+    Assert-CommandExists "dotnet"
+
+    if ($runtimeIdentifier -eq "win-x64")
+    {
+        Assert-PathExists $windowsInstallerScriptPath "Windows installer builder"
+        Assert-PathExists $windowsInstallerTemplatePath "Windows installer template"
+        . $windowsInstallerScriptPath
+        $nsisCompiler = Resolve-WindowsNsisCompiler -NsisPath $NsisPath
+    }
+    else
+    {
+        if (-not [string]::IsNullOrWhiteSpace($NsisPath))
+        {
+            throw "NsisPath is only supported when releasing on Windows."
+        }
+
+        Assert-PathExists $macReadmePath "macOS first-launch guide"
+
+        foreach ($command in @("sips", "iconutil", "codesign", "xattr", "chmod", "ditto", "hdiutil", "ln"))
+        {
+            Assert-CommandExists $command
+        }
+    }
+
+    $resolvedVersion = Resolve-PublishVersion
+
+    if ($Clean -and (Test-Path -LiteralPath $publishRoot))
+    {
+        Remove-Item -LiteralPath $publishRoot -Recurse -Force
+    }
+
+    New-Item -ItemType Directory -Force -Path $publishRoot | Out-Null
+
+    if (-not $SkipRestore)
+    {
+        Write-Host "Restoring solution..."
+        Invoke-DotNet @("restore", $solutionPath)
+    }
+
+    $artifactBaseName = "$($appName.Replace(' ', '-'))-$resolvedVersion"
+
+    if ($runtimeIdentifier -eq "win-x64")
+    {
+        $winPublishPath = Join-Path $publishRoot "win-x64"
+        $winExecutablePath = Join-Path $winPublishPath "$executableName.exe"
+
+        Publish-Runtime -RuntimeIdentifier $runtimeIdentifier -OutputPath $winPublishPath -PublishVersion $resolvedVersion
+        Assert-PathExists $winExecutablePath "Windows executable"
+        Assert-LanguagePacks -Directory (Join-Path $winPublishPath "i18n")
+        $winInstallerPath = New-WindowsInstaller -PayloadDirectory $winPublishPath -PublishDirectory $publishRoot `
+            -ProductVersion $resolvedVersion -NsisCompiler $nsisCompiler.Path -IconPath $iconPath
+
+        Write-Host "Published Windows app: $winExecutablePath"
+        Write-Host "Published Windows installer: $winInstallerPath"
+        return
+    }
+
+    $macRootPath = Join-Path $publishRoot "osx-arm64"
+    $macPublishPath = Join-Path $macRootPath "publish"
+    $macBundlePath = Join-Path $macRootPath "$appName.app"
+    $macDmgPath = Join-Path $publishRoot "$artifactBaseName-osx-arm64.dmg"
+
+    Publish-Runtime -RuntimeIdentifier $runtimeIdentifier -OutputPath $macPublishPath -PublishVersion $resolvedVersion
+    New-MacAppBundle -PublishPath $macPublishPath -BundlePath $macBundlePath -Version $resolvedVersion
+    Sign-MacAppBundle -BundlePath $macBundlePath -Identity $MacCodeSignIdentity
+    New-MacDmg -BundlePath $macBundlePath -ReadmePath $macReadmePath -OutputPath $macDmgPath
+
+    Write-Host "Published macOS app: $macBundlePath"
+    Write-Host "Published macOS DMG: $macDmgPath"
 }
 
-New-Item -ItemType Directory -Force -Path $publishRoot | Out-Null
-
-if (-not $SkipRestore)
-{
-    Write-Host "Restoring solution..."
-    Invoke-DotNet @("restore", $solutionPath)
-}
-
-$resolvedVersion = Resolve-PublishVersion
-$artifactBaseName = "$($appName.Replace(' ', '-'))-$resolvedVersion"
-$winPublishPath = Join-Path $publishRoot "win-x64"
-$winExecutablePath = Join-Path $winPublishPath "$executableName.exe"
-$winZipPath = Join-Path $publishRoot "$artifactBaseName-win-x64.zip"
-$macRootPath = Join-Path $publishRoot "osx-arm64"
-$macPublishPath = Join-Path $macRootPath "publish"
-$macBundlePath = Join-Path $macRootPath "$appName.app"
-$macDmgPath = Join-Path $publishRoot "$artifactBaseName-osx-arm64.dmg"
-
-Publish-Runtime -RuntimeIdentifier "win-x64" -OutputPath $winPublishPath -PublishVersion $resolvedVersion
-New-WindowsZip -ExecutablePath $winExecutablePath -OutputPath $winZipPath
-Publish-Runtime -RuntimeIdentifier "osx-arm64" -OutputPath $macPublishPath -PublishVersion $resolvedVersion
-New-MacAppBundle -PublishPath $macPublishPath -BundlePath $macBundlePath -Version $resolvedVersion
-Sign-MacAppBundle -BundlePath $macBundlePath -Identity $MacCodeSignIdentity
-New-MacDmg -BundlePath $macBundlePath -ReadmePath $macReadmePath -OutputPath $macDmgPath
-
-Write-Host "Published Windows app: $winExecutablePath"
-Write-Host "Published Windows ZIP: $winZipPath"
-Write-Host "Published macOS app: $macBundlePath"
-Write-Host "Published macOS DMG: $macDmgPath"
+Invoke-Release
