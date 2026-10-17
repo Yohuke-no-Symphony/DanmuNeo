@@ -2,6 +2,7 @@ using Yohuke.DanmuNeo.I18n;
 using System.Runtime.Versioning;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Layout;
 using Avalonia.Platform;
 using Avalonia.Threading;
 
@@ -13,6 +14,7 @@ internal sealed class MacOsWindowChrome : IWindowChrome
     private readonly Window window;
     private readonly IWindowTitleBar titleBar;
     private readonly double minimumTitleBarHeight;
+    private readonly WindowContentSizing contentSizing;
     private bool disposed;
     private bool refreshing;
     private bool refreshQueued;
@@ -31,9 +33,12 @@ internal sealed class MacOsWindowChrome : IWindowChrome
                                             ExtendClientAreaChromeHints.OSXThickTitleBar;
         window.ExtendClientAreaToDecorationsHint = true;
         window.ExtendClientAreaTitleBarHeightHint = titleBar.View.Height;
+        contentSizing = new(window, QueueRefresh, ResizeClient, () => window.ClientSize);
         window.Opened += OnOpened;
         window.PropertyChanged += OnWindowPropertyChanged;
-        window.ScalingChanged += OnOpened;
+        window.ScalingChanged += OnScalingChanged;
+        window.LayoutUpdated += OnLayoutUpdated;
+        window.Resized += OnResized;
         window.Closed += OnClosed;
         titleBar.View.PropertyChanged += OnTitleBarPropertyChanged;
         RefreshInsets();
@@ -46,6 +51,7 @@ internal sealed class MacOsWindowChrome : IWindowChrome
         WindowChrome.ValidateClientSize(size);
         window.Width = size.Width;
         window.Height = size.Height;
+        window.UpdateLayout();
     }
 
     /// <inheritdoc />
@@ -59,15 +65,39 @@ internal sealed class MacOsWindowChrome : IWindowChrome
         disposed = true;
         window.Opened -= OnOpened;
         window.PropertyChanged -= OnWindowPropertyChanged;
-        window.ScalingChanged -= OnOpened;
+        window.ScalingChanged -= OnScalingChanged;
+        window.LayoutUpdated -= OnLayoutUpdated;
+        window.Resized -= OnResized;
         window.Closed -= OnClosed;
         titleBar.View.PropertyChanged -= OnTitleBarPropertyChanged;
+        contentSizing.Dispose();
     }
 
     private void OnOpened(object? sender, EventArgs e)
     {
         RefreshInsets();
+        window.UpdateLayout();
+        contentSizing.FitToContent();
         QueueRefresh();
+    }
+
+    private void OnScalingChanged(object? sender, EventArgs e)
+    {
+        contentSizing.InvalidateMeasure();
+        QueueRefresh();
+    }
+
+    private void OnLayoutUpdated(object? sender, EventArgs e)
+    {
+        if (contentSizing.CanFitToContent)
+        {
+            QueueRefresh();
+        }
+    }
+
+    private void OnResized(object? sender, WindowResizedEventArgs e)
+    {
+        contentSizing.OnResized(e.ClientSize, e.Reason);
     }
 
     private void OnClosed(object? sender, EventArgs e)
@@ -78,16 +108,15 @@ internal sealed class MacOsWindowChrome : IWindowChrome
     private void OnWindowPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
     {
         if (e.Property == Window.WindowStateProperty || e.Property == Window.WindowDecorationMarginProperty ||
-            e.Property == Window.ClientSizeProperty)
+            e.Property == TopLevel.ClientSizeProperty)
         {
-            RefreshInsets();
             QueueRefresh();
         }
     }
 
     private void OnTitleBarPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
     {
-        if (e.Property == Control.HeightProperty && TryGetDecoratedWindow(out _))
+        if (e.Property == Layoutable.HeightProperty && TryGetDecoratedWindow(out _))
         {
             window.ExtendClientAreaTitleBarHeightHint = titleBar.View.Height;
             QueueRefresh();
@@ -112,7 +141,7 @@ internal sealed class MacOsWindowChrome : IWindowChrome
 
             var height = MacOsCaptionGeometry.GetTitleBarHeight(minimumTitleBarHeight, bounds);
             titleBar.CaptionInsets = MacOsCaptionGeometry.GetCaptionInsets(bounds, height);
-            if (titleBar.View.Height != height)
+            if (!titleBar.View.Height.Equals(height))
             {
                 titleBar.View.Height = height;
             }
@@ -127,7 +156,7 @@ internal sealed class MacOsWindowChrome : IWindowChrome
     {
         handle = 0;
         if (disposed || window.WindowState == WindowState.FullScreen ||
-            window.TryGetPlatformHandle() is not IPlatformHandle { HandleDescriptor: "NSWindow", Handle: not 0 } platform)
+            window.TryGetPlatformHandle() is not { HandleDescriptor: "NSWindow", Handle: not 0 } platform)
         {
             return false;
         }
@@ -148,6 +177,7 @@ internal sealed class MacOsWindowChrome : IWindowChrome
         {
             refreshQueued = false;
             RefreshInsets();
+            contentSizing.FitToContent();
         }, DispatcherPriority.Loaded);
     }
 }

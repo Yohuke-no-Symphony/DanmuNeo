@@ -10,20 +10,7 @@ internal static class WindowsChromeGeometry
     internal static int ToPixels(double value, uint dpi)
     {
         ArgumentOutOfRangeException.ThrowIfZero(dpi);
-        if (!double.IsFinite(value) || value < 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(value));
-        }
-
-        var scaled = value * dpi / STANDARD_DPI;
-        var nearest = Math.Round(scaled);
-        if (nearest > 0 && scaled >= Math.BitDecrement(Math.BitDecrement(nearest)) &&
-            scaled <= Math.BitIncrement(Math.BitIncrement(nearest)))
-        {
-            return checked((int)nearest);
-        }
-
-        return checked((int)Math.Ceiling(scaled));
+        return WindowSizingGeometry.ToPixels(value, dpi / STANDARD_DPI);
     }
 
     internal static PixelSize GetOuterSize(Size clientSize, uint dpi, WindowsFrameInsets frame)

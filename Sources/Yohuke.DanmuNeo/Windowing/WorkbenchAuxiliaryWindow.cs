@@ -88,6 +88,19 @@ internal sealed class WorkbenchAuxiliaryWindow : Window
         SizeChanged += OnScreenChanged;
         UpdateScreenConstraints();
         base.OnOpened(e);
+
+        if (sizing == WorkbenchAuxiliarySizing.ContentHeight && SizeToContent == SizeToContent.Manual)
+        {
+            var size = PixelSize.FromSize(FrameSize ?? ClientSize, DesktopScaling);
+            var ownerSize = PixelSize.FromSize(startupOwner.FrameSize ?? startupOwner.ClientSize,
+                startupOwner.DesktopScaling);
+            var center = startupOwner.WindowState == WindowState.Minimized
+                ? Screens.ScreenFromWindow(this)?.WorkingArea.Center ?? Position
+                : new PixelPoint(startupOwner.Position.X + ownerSize.Width / 2,
+                    startupOwner.Position.Y + ownerSize.Height / 2);
+            Position = new(center.X - size.Width / 2, center.Y - size.Height / 2);
+            UpdateScreenConstraints();
+        }
     }
 
     /// <inheritdoc/>
@@ -152,11 +165,15 @@ internal sealed class WorkbenchAuxiliaryWindow : Window
             var decorationHeight = Math.Max(0, frame.Height - ClientSize.Height);
             var maxWidth = Math.Max(1, screen.WorkingArea.Width / screen.Scaling - SCREEN_MARGIN * 2 - decorationWidth);
             var maxHeight = Math.Max(1, screen.WorkingArea.Height / screen.Scaling - SCREEN_MARGIN * 2 - decorationHeight);
+            var widthLimitChanged = Math.Abs(MaxWidth - maxWidth) > 0.5 / RenderScaling;
             MinWidth = Math.Min(Math.Min(440, preferredWidth), maxWidth);
             MinHeight = Math.Min(preferredMinHeight, maxHeight);
             MaxWidth = maxWidth;
             MaxHeight = maxHeight;
-            Width = Math.Min(sizing == WorkbenchAuxiliarySizing.ContentHeight ? preferredWidth : Width, maxWidth);
+            if (widthLimitChanged || Width > maxWidth)
+            {
+                Width = Math.Min(sizing == WorkbenchAuxiliarySizing.ContentHeight ? preferredWidth : Width, maxWidth);
+            }
 
             if (sizing == WorkbenchAuxiliarySizing.Resizable && Height > maxHeight)
             {

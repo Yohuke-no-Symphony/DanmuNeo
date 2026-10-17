@@ -20,6 +20,7 @@ internal sealed class WindowsWindowChrome : IWindowChrome
     private readonly Win32Properties.CustomWndProcHookCallback callback;
     private readonly double minimumTitleBarHeight;
     private readonly WindowsCaptionSurface captionSurface;
+    private readonly WindowContentSizing contentSizing;
     private Size? openingClientSize;
     private Size? deferredClientSize;
     private bool disposed;
@@ -57,6 +58,7 @@ internal sealed class WindowsWindowChrome : IWindowChrome
         captionSurface = new(window);
         callback = WindowProcedure;
         Win32Properties.AddWndProcHookCallback(window, callback);
+        contentSizing = new(window, () => QueueRefresh(false), ResizeClient, ReadClientSize, ReportError);
         window.Opened += OnOpened;
         window.Closed += OnClosed;
         window.Resized += OnResized;
@@ -137,6 +139,7 @@ internal sealed class WindowsWindowChrome : IWindowChrome
         window.ScalingChanged -= OnScalingChanged;
         window.PropertyChanged -= OnWindowPropertyChanged;
         titleBar.View.PropertyChanged -= OnTitleBarPropertyChanged;
+        contentSizing.Dispose();
         captionSurface.Dispose();
     }
 
@@ -295,6 +298,13 @@ internal sealed class WindowsWindowChrome : IWindowChrome
         return dpi;
     }
 
+    private Size ReadClientSize()
+    {
+        CheckWin32(WindowsNativeMethods.GetClientRect(handle, out var rect));
+        var scale = ReadDpi() / WindowsChromeGeometry.STANDARD_DPI;
+        return new((rect.Right - rect.Left) / scale, (rect.Bottom - rect.Top) / scale);
+    }
+
     private WindowsFrameInsets ReadFrameInsets()
     {
         var style = unchecked((uint)WindowsNativeMethods.GetWindowLongPtr(handle, WindowsNativeMethods.GWL_STYLE));
@@ -416,12 +426,11 @@ internal sealed class WindowsWindowChrome : IWindowChrome
             }
 
             RefreshCaptionGeometry();
-            FitClientToContent();
+            contentSizing.FitToContent();
         }
         catch (Exception error) when (error is Win32Exception or COMException or OverflowException or ArgumentException)
         {
-            LastError = error;
-            Trace.TraceError(Localization.Get("Window.Chrome.WindowsRefreshFailed"), error);
+            ReportError(error);
         }
     }
 
@@ -430,10 +439,11 @@ internal sealed class WindowsWindowChrome : IWindowChrome
         if (openingClientSize is { } size)
         {
             openingClientSize = null;
-            ResizeClient(size);
+            deferredClientSize = size;
         }
 
-        QueueRefresh(true);
+        frameRefreshRequested = true;
+        RefreshQueued();
     }
 
     private void OnClosed(object? sender, EventArgs e)
@@ -443,6 +453,7 @@ internal sealed class WindowsWindowChrome : IWindowChrome
 
     private void OnResized(object? sender, WindowResizedEventArgs e)
     {
+        contentSizing.OnResized(e.ClientSize, e.Reason);
         if (!applyingFrame)
         {
             QueueRefresh(true);
@@ -451,57 +462,16 @@ internal sealed class WindowsWindowChrome : IWindowChrome
 
     private void OnScalingChanged(object? sender, EventArgs e)
     {
+        contentSizing.InvalidateMeasure();
         QueueRefresh(true);
     }
 
     private void OnLayoutUpdated(object? sender, EventArgs e)
     {
-        if (TryGetContentClientSize(out _))
+        if (contentSizing.CanFitToContent)
         {
             QueueRefresh(false);
         }
-    }
-
-    private void FitClientToContent()
-    {
-        if (!TryGetContentClientSize(out var size))
-        {
-            return;
-        }
-
-        var sizing = window.SizeToContent;
-        ResizeClient(size);
-        window.SetCurrentValue(Window.SizeToContentProperty, sizing);
-    }
-
-    private bool TryGetContentClientSize(out Size size)
-    {
-        size = default;
-        if (disposed || LastError is not null || !window.IsVisible || window.WindowState != WindowState.Normal ||
-            window.SizeToContent == SizeToContent.Manual || window.Content is not Control content ||
-            !content.IsMeasureValid || !content.IsArrangeValid)
-        {
-            return false;
-        }
-
-        var desired = content.DesiredSize;
-        var padding = window.Padding;
-        var border = window.BorderThickness;
-        var width = window.SizeToContent.HasFlag(SizeToContent.Width)
-            ? Math.Clamp(desired.Width + padding.Left + padding.Right + border.Left + border.Right, window.MinWidth, window.MaxWidth)
-            : window.ClientSize.Width;
-        var height = window.SizeToContent.HasFlag(SizeToContent.Height)
-            ? Math.Clamp(desired.Height + padding.Top + padding.Bottom + border.Top + border.Bottom, window.MinHeight, window.MaxHeight)
-            : window.ClientSize.Height;
-        if (!double.IsFinite(width) || !double.IsFinite(height) || width <= 0 || height <= 0)
-        {
-            return false;
-        }
-
-        size = new(width, height);
-        var dpi = ReadDpi();
-        return Math.Abs(WindowsChromeGeometry.ToPixels(width, dpi) - WindowsChromeGeometry.ToPixels(window.ClientSize.Width, dpi)) > 1 ||
-               Math.Abs(WindowsChromeGeometry.ToPixels(height, dpi) - WindowsChromeGeometry.ToPixels(window.ClientSize.Height, dpi)) > 1;
     }
 
     private void OnWindowPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
@@ -532,5 +502,11 @@ internal sealed class WindowsWindowChrome : IWindowChrome
         {
             throw new Win32Exception(Marshal.GetLastPInvokeError());
         }
+    }
+
+    private void ReportError(Exception error)
+    {
+        LastError = error;
+        Trace.TraceError(Localization.Get("Window.Chrome.WindowsRefreshFailed"), error);
     }
 }
