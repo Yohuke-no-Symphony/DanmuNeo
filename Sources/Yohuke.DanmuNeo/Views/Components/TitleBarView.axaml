@@ -3,75 +3,70 @@
              xmlns:viewModels="clr-namespace:Yohuke.DanmuNeo.ViewModels"
              x:Class="Yohuke.DanmuNeo.Views.Components.TitleBarView"
              x:Name="Root"
+             Height="42"
              x:DataType="viewModels:MainWindowViewModel"
              x:CompileBindings="True">
-    <Grid Classes="titleBar"
-          PointerPressed="TitleBar_OnPointerPressed">
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto" />
-            <ColumnDefinition Width="Auto" />
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="Auto" />
-        </Grid.ColumnDefinitions>
-        <StackPanel Orientation="Horizontal"
-                    Spacing="10"
-                    Margin="14,0,0,0"
-                    VerticalAlignment="Center">
-            <TextBlock Text="夜半同传"
-                       FontWeight="SemiBold"
-                       FontSize="13" />
-            <TextBlock Text="{Binding SelectedWorkspace.Name, FallbackValue=默认工作区}"
-                       MaxWidth="180"
+    <Border Padding="{Binding #Root.CaptionInsets}"
+            Background="{DynamicResource AppTitleBarBrush}">
+        <Grid Classes="titleBar"
+              PointerPressed="TitleBar_OnPointerPressed">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Orientation="Horizontal"
+                        Spacing="10"
+                        Margin="14,0,0,0"
+                        VerticalAlignment="Center">
+                <TextBlock Text="夜半同传"
+                           FontWeight="SemiBold"
+                           FontSize="13" />
+                <TextBlock Text="{Binding SelectedWorkspace.Name, FallbackValue=默认工作区}"
+                           MaxWidth="180"
+                           TextTrimming="CharacterEllipsis"
+                           ToolTip.Tip="{Binding SelectedWorkspace.Name}"
+                           Classes="muted" />
+            </StackPanel>
+            <ContentPresenter Grid.Column="1"
+                              Content="{Binding #Root.MenuContent}"
+                              IsVisible="{Binding #Root.MenuContent.IsVisible, FallbackValue=False}"
+                              Margin="12,0,0,0"
+                              VerticalAlignment="Center" />
+            <TextBlock Grid.Column="2"
+                       Text="{Binding StatusMessage}"
+                       Classes="muted"
+                       Margin="8,0"
                        TextTrimming="CharacterEllipsis"
-                       ToolTip.Tip="{Binding SelectedWorkspace.Name}"
-                       Classes="muted" />
-        </StackPanel>
-        <ContentPresenter Grid.Column="1"
-                          Content="{Binding #Root.MenuContent}"
-                          IsVisible="{Binding #Root.MenuContent.IsVisible, FallbackValue=False}"
-                          Margin="12,0,0,0"
-                          VerticalAlignment="Center" />
-        <TextBlock Grid.Column="2"
-                   Text="{Binding StatusMessage}"
-                   Classes="muted"
-                   Margin="8,0"
-                   TextTrimming="CharacterEllipsis"
-                   ToolTip.Tip="{Binding StatusMessage}"
-                   TextAlignment="Center"
-                   VerticalAlignment="Center" />
-        <StackPanel x:Name="WindowButtons" Grid.Column="3"
-                    Orientation="Horizontal"
-                    Margin="0,0,8,0"
-                    Spacing="4"
-                    VerticalAlignment="Center">
-            <Button x:Name="DebugToolsButton"
-                    Classes="iconButton"
-                    ToolTip.Tip="弹幕与 SC 样式测试"
-                    IsVisible="False"
-                    Click="DebugTools_OnClick">
-                <LucideIcon Kind="Bug" />
-            </Button>
-            <Button x:Name="PinButton"
-                    Classes="iconButton"
-                    ToolTip.Tip="窗口置顶"
-                    Click="Pin_OnClick">
-                <Grid>
-                    <LucideIcon x:Name="PinOutlineIcon"
-                                Kind="Pin" />
-                    <PathIcon x:Name="PinSolidIcon"
-                              Data="M16,12 L18,14 L18,16 L12.8,16 L12.8,22 L11.2,22 L11.2,16 L6,16 L6,14 L8,12 L8,4 L7,4 L7,2 L17,2 L17,4 L16,4 Z"
-                              IsVisible="False" />
-                </Grid>
-            </Button>
-            <Button Classes="iconButton" Click="Minimize_OnClick">
-                <LucideIcon Kind="Minus" />
-            </Button>
-            <Button Classes="iconButton" Click="Maximize_OnClick">
-                <LucideIcon Kind="Square" />
-            </Button>
-            <Button Classes="iconButton" Click="Close_OnClick">
-                <LucideIcon Kind="X" />
-            </Button>
-        </StackPanel>
-    </Grid>
+                       ToolTip.Tip="{Binding StatusMessage}"
+                       TextAlignment="Center"
+                       VerticalAlignment="Center" />
+            <StackPanel x:Name="WindowButtons" Grid.Column="3"
+                        Orientation="Horizontal"
+                        Margin="0,0,8,0"
+                        Spacing="4"
+                        VerticalAlignment="Center">
+                <Button x:Name="DebugToolsButton"
+                        Classes="iconButton"
+                        ToolTip.Tip="弹幕与 SC 样式测试"
+                        IsVisible="False"
+                        Click="DebugTools_OnClick">
+                    <LucideIcon Kind="Bug" />
+                </Button>
+                <Button x:Name="PinButton"
+                        Classes="iconButton"
+                        ToolTip.Tip="窗口置顶"
+                        Click="Pin_OnClick">
+                    <Grid>
+                        <LucideIcon x:Name="PinOutlineIcon"
+                                    Kind="Pin" />
+                        <PathIcon x:Name="PinSolidIcon"
+                                  Data="M16,12 L18,14 L18,16 L12.8,16 L12.8,22 L11.2,22 L11.2,16 L6,16 L6,14 L8,12 L8,4 L7,4 L7,2 L17,2 L17,4 L16,4 Z"
+                                  IsVisible="False" />
+                    </Grid>
+                </Button>
+            </StackPanel>
+        </Grid>
+    </Border>
 </UserControl>

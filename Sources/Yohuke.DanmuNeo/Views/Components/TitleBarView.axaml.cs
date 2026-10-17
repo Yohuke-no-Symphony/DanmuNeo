@@ -1,7 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
-using Avalonia.VisualTree;
 
 namespace Yohuke.DanmuNeo.Views.Components;
 
@@ -15,6 +14,12 @@ public partial class TitleBarView : UserControl
     /// </summary>
     public static readonly StyledProperty<Control?> MenuContentProperty =
         AvaloniaProperty.Register<TitleBarView, Control?>(nameof(MenuContent));
+
+    /// <summary>
+    /// 为原生窗口按钮保留的平台测量区域。
+    /// </summary>
+    public static readonly StyledProperty<Thickness> CaptionInsetsProperty =
+        AvaloniaProperty.Register<TitleBarView, Thickness>(nameof(CaptionInsets));
 
 #if DEBUG
     private DanmuStylePreviewWindow? danmuStylePreviewWindow;
@@ -40,6 +45,35 @@ public partial class TitleBarView : UserControl
         set => SetValue(MenuContentProperty, value);
     }
 
+    /// <summary>
+    /// 获取或设置原生窗口按钮占用的边缘区域。
+    /// </summary>
+    public Thickness CaptionInsets
+    {
+        get => GetValue(CaptionInsetsProperty);
+        set => SetValue(CaptionInsetsProperty, value);
+    }
+
+    internal bool IsDragRegion(Point windowPoint)
+    {
+        if (TopLevel.GetTopLevel(this) is not Window window || !IsEffectivelyVisible ||
+            window.TranslatePoint(windowPoint, this) is not { } point ||
+            !new Rect(Bounds.Size).Contains(point) || point.X < CaptionInsets.Left ||
+            point.X >= Bounds.Width - CaptionInsets.Right)
+        {
+            return false;
+        }
+
+        if (MenuContent is { IsEffectivelyVisible: true } menu &&
+            this.TranslatePoint(point, menu) is { } menuPoint && new Rect(menu.Bounds.Size).Contains(menuPoint))
+        {
+            return false;
+        }
+
+        return this.TranslatePoint(point, WindowButtons) is not { } actionsPoint ||
+               !new Rect(WindowButtons.Bounds.Size).Contains(actionsPoint);
+    }
+
     private void DebugTools_OnClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
 #if DEBUG
@@ -62,25 +96,10 @@ public partial class TitleBarView : UserControl
 
     private void TitleBar_OnPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (e.Source is Control source &&
-            (source is Button or Menu or MenuItem || source.FindAncestorOfType<Button>() is not null ||
-             source.FindAncestorOfType<Menu>() is not null || source.FindAncestorOfType<MenuItem>() is not null))
-        {
-            return;
-        }
-
         if (TopLevel.GetTopLevel(this) is Window window &&
-            e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+            e.GetCurrentPoint(this).Properties.IsLeftButtonPressed && IsDragRegion(e.GetPosition(window)))
         {
             window.BeginMoveDrag(e);
-        }
-    }
-
-    private void Minimize_OnClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        if (TopLevel.GetTopLevel(this) is Window window)
-        {
-            window.WindowState = WindowState.Minimized;
         }
     }
 
@@ -96,22 +115,5 @@ public partial class TitleBarView : UserControl
         PinOutlineIcon.IsVisible = !window.Topmost;
         PinSolidIcon.IsVisible = window.Topmost;
         ToolTip.SetTip(PinButton, window.Topmost ? "取消窗口置顶" : "窗口置顶");
-    }
-
-    private void Maximize_OnClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        if (TopLevel.GetTopLevel(this) is Window window)
-        {
-            window.WindowState =
-                window.WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-        }
-    }
-
-    private void Close_OnClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        if (TopLevel.GetTopLevel(this) is Window window)
-        {
-            window.Close();
-        }
     }
 }

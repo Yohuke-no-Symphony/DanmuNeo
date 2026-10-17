@@ -12,6 +12,7 @@ public partial class MainWindow : Window
 {
     private bool closing;
     private bool allowClose;
+    private IWindowChrome? chrome;
 
     /// <summary>
     /// 初始化固定标题栏、菜单和房间工具条。
@@ -19,19 +20,41 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        DataContextChanged += (_, _) =>
-        {
-            if (DataContext is MainWindowViewModel viewModel)
-            {
-                Width = AppStateService.ClampWindowWidth(viewModel.Settings.WindowWidth);
-                Height = AppStateService.ClampWindowHeight(viewModel.Settings.WindowHeight);
-            }
-        };
-        Opened += (_, _) => Initialization = InitializeWorkbenchAsync();
+        DataContextChanged += OnDataContextChanged;
+        Opened += OnOpened;
+        Closed += (_, _) => chrome?.Dispose();
     }
 
     internal Task Initialization { get; private set; } = Task.CompletedTask;
     internal WorkbenchSession? Workbench { get; private set; }
+
+    private void OnDataContextChanged(object? sender, EventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel viewModel)
+        {
+            return;
+        }
+
+        var size = new Avalonia.Size(AppStateService.ClampWindowWidth(viewModel.Settings.WindowWidth),
+            AppStateService.ClampWindowHeight(viewModel.Settings.WindowHeight));
+
+        if (chrome is null)
+        {
+            Width = size.Width;
+            Height = size.Height;
+            chrome = WindowChrome.Attach(this, MainTitleBar);
+        }
+        else
+        {
+            chrome.ResizeClient(size);
+        }
+    }
+
+    private void OnOpened(object? sender, EventArgs e)
+    {
+        chrome ??= WindowChrome.Attach(this, MainTitleBar);
+        Initialization = InitializeWorkbenchAsync();
+    }
 
     /// <inheritdoc/>
     protected override void OnClosing(WindowClosingEventArgs e)

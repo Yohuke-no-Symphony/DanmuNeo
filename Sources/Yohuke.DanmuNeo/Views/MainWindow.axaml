@@ -8,12 +8,12 @@
         x:CompileBindings="True"
         Width="1280" Height="820" MinWidth="980" MinHeight="640"
         ExtendClientAreaToDecorationsHint="True"
-        ExtendClientAreaChromeHints="NoChrome"
+        ExtendClientAreaChromeHints="PreferSystemChrome"
         ExtendClientAreaTitleBarHeightHint="42"
         Icon="/Assets/favicon.ico"
         Title="{Binding WindowTitle}">
-    <Grid Classes="rootSurface" RowDefinitions="42,Auto,*">
-        <components:TitleBarView>
+    <Grid Classes="rootSurface" RowDefinitions="Auto,Auto,*">
+        <components:TitleBarView x:Name="MainTitleBar">
             <components:TitleBarView.MenuContent>
                 <Menu x:Name="WindowMenu" Classes="workbenchMenu" />
             </components:TitleBarView.MenuContent>
