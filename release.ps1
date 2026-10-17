@@ -40,9 +40,30 @@ function Assert-PathExists
         [string]$Description
     )
 
-    if (-not (Test-Path $Path))
+    if (-not (Test-Path -LiteralPath $Path))
     {
         throw "$Description not found: $Path"
+    }
+}
+
+function Assert-LanguagePacks
+{
+    param([string]$Directory)
+
+    Assert-PathExists (Join-Path $Directory "en-US.json") "English language pack"
+    $sourceDirectory = Join-Path $repoRoot "Sources/Yohuke.DanmuNeo/I18n/Languages"
+
+    foreach ($sourceFile in Get-ChildItem -LiteralPath $sourceDirectory -Filter "*.json" -File)
+    {
+        $publishedPath = Join-Path $Directory $sourceFile.Name
+        Assert-PathExists $publishedPath "Published language pack"
+        $sourceHash = (Get-FileHash -LiteralPath $sourceFile.FullName -Algorithm SHA256).Hash
+        $publishedHash = (Get-FileHash -LiteralPath $publishedPath -Algorithm SHA256).Hash
+
+        if ($sourceHash -ne $publishedHash)
+        {
+            throw "Published language pack does not match its source: $publishedPath"
+        }
     }
 }
 
@@ -117,6 +138,11 @@ function Publish-Runtime
         [string]$PublishVersion
     )
 
+    if (Test-Path -LiteralPath $OutputPath)
+    {
+        Remove-Item -LiteralPath $OutputPath -Recurse -Force
+    }
+
     New-Item -ItemType Directory -Force -Path $OutputPath | Out-Null
 
     $arguments = @(
@@ -126,9 +152,7 @@ function Publish-Runtime
         "--runtime", $RuntimeIdentifier,
         "--self-contained", "true",
         "--output", $OutputPath,
-        "/p:PublishSingleFile=true",
-        "/p:IncludeNativeLibrariesForSelfExtract=true",
-        "/p:EnableCompressionInSingleFile=true",
+        "/p:PublishSingleFile=false",
         "/p:Version=$PublishVersion",
         "/p:AssemblyVersion=$PublishVersion",
         "/p:FileVersion=$PublishVersion",
@@ -143,6 +167,39 @@ function Publish-Runtime
 
     Write-Host "Publishing $RuntimeIdentifier..."
     Invoke-DotNet $arguments
+}
+
+function New-WindowsZip
+{
+    param(
+        [string]$ExecutablePath,
+        [string]$OutputPath
+    )
+
+    $publishPath = Split-Path $ExecutablePath -Parent
+    $languagePath = Join-Path $publishPath "i18n"
+    Assert-PathExists $ExecutablePath "Windows executable"
+    Assert-LanguagePacks -Directory $languagePath
+
+    $temporaryPath = Join-Path (Split-Path $OutputPath -Parent) "windows-$([System.Guid]::NewGuid().ToString('N')).zip"
+    Write-Host "Creating compressed Windows ZIP..."
+
+    try
+    {
+        [System.IO.Compression.ZipFile]::CreateFromDirectory(
+            $publishPath,
+            $temporaryPath,
+            [System.IO.Compression.CompressionLevel]::Optimal,
+            $false)
+        [System.IO.File]::Move($temporaryPath, $OutputPath, $true)
+    }
+    finally
+    {
+        if ([System.IO.File]::Exists($temporaryPath))
+        {
+            [System.IO.File]::Delete($temporaryPath)
+        }
+    }
 }
 
 function Convert-IconToIcns
@@ -226,6 +283,7 @@ function New-MacAppBundle
     New-Item -ItemType Directory -Force -Path $resourcesPath | Out-Null
 
     Copy-Item -Path (Join-Path $PublishPath "*") -Destination $macosPath -Recurse -Force
+    Assert-LanguagePacks -Directory (Join-Path $macosPath "i18n")
     Convert-IconToIcns -SourceIconPath $iconPath -OutputIconPath $icnsPath
 
     $plist = @"
@@ -338,6 +396,7 @@ function New-MacDmg
             throw "ditto failed with exit code $LASTEXITCODE."
         }
 
+        Assert-LanguagePacks -Directory (Join-Path $stagedBundlePath "Contents/MacOS/i18n")
         Copy-Item -Path $ReadmePath -Destination $stagingPath -Force
         & ln -s "/Applications" $applicationsLinkPath
 
@@ -386,19 +445,21 @@ if (-not $SkipRestore)
 $resolvedVersion = Resolve-PublishVersion
 $artifactBaseName = "$($appName.Replace(' ', '-'))-$resolvedVersion"
 $winPublishPath = Join-Path $publishRoot "win-x64"
-$winExecutablePath = Join-Path $winPublishPath "$artifactBaseName-win-x64.exe"
+$winExecutablePath = Join-Path $winPublishPath "$executableName.exe"
+$winZipPath = Join-Path $publishRoot "$artifactBaseName-win-x64.zip"
 $macRootPath = Join-Path $publishRoot "osx-arm64"
 $macPublishPath = Join-Path $macRootPath "publish"
 $macBundlePath = Join-Path $macRootPath "$appName.app"
 $macDmgPath = Join-Path $publishRoot "$artifactBaseName-osx-arm64.dmg"
 
 Publish-Runtime -RuntimeIdentifier "win-x64" -OutputPath $winPublishPath -PublishVersion $resolvedVersion
-Move-Item -LiteralPath (Join-Path $winPublishPath "$executableName.exe") -Destination $winExecutablePath -Force
+New-WindowsZip -ExecutablePath $winExecutablePath -OutputPath $winZipPath
 Publish-Runtime -RuntimeIdentifier "osx-arm64" -OutputPath $macPublishPath -PublishVersion $resolvedVersion
 New-MacAppBundle -PublishPath $macPublishPath -BundlePath $macBundlePath -Version $resolvedVersion
 Sign-MacAppBundle -BundlePath $macBundlePath -Identity $MacCodeSignIdentity
 New-MacDmg -BundlePath $macBundlePath -ReadmePath $macReadmePath -OutputPath $macDmgPath
 
 Write-Host "Published Windows app: $winExecutablePath"
+Write-Host "Published Windows ZIP: $winZipPath"
 Write-Host "Published macOS app: $macBundlePath"
 Write-Host "Published macOS DMG: $macDmgPath"

@@ -116,16 +116,21 @@ dotnet run --project Sources/Yohuke.DanmuNeo/Yohuke.DanmuNeo.csproj
 dotnet publish Sources/Yohuke.DanmuNeo/Yohuke.DanmuNeo.csproj -c Release
 ```
 
-生成 Windows x64 EXE、macOS ARM64 App 和 DMG：
+生成 Windows x64 发布目录与 ZIP，以及 macOS ARM64 App 和 DMG：
 
 ```powershell
 pwsh -NoProfile -File ./release.ps1 -Clean
 ```
 
-两端发布文件使用统一的 `Yohuke-Danmu-Neo-{版本}-{平台架构}` 命名格式，默认输出路径为：
+Windows ZIP 和 macOS DMG 使用统一的 `Yohuke-Danmu-Neo-{版本}-{平台架构}` 命名格式，默认输出路径为：
 
-- Windows：`Artifacts/Publish/win-x64/Yohuke-Danmu-Neo-{版本}-win-x64.exe`
+- Windows ZIP：`Artifacts/Publish/Yohuke-Danmu-Neo-{版本}-win-x64.zip`
+- Windows EXE：`Artifacts/Publish/win-x64/Yohuke.DanmuNeo.exe`
 - macOS：`Artifacts/Publish/Yohuke-Danmu-Neo-{版本}-osx-arm64.dmg`
+
+发布使用自包含的非 single-file 模式。Windows ZIP 内含完整发布目录，包括 `Yohuke.DanmuNeo.exe`、应用与 .NET 运行时 DLL、原生库、运行配置和 `i18n/` 语言包目录。EXE 保持原始文件名，只有 ZIP 和 DMG 的名称包含版本与平台。分发时使用 ZIP，完整解压后启动 `Yohuke.DanmuNeo.exe`；运行依赖和目录结构需要一并保留。macOS 的完整发布文件封装在 App 内，再打包为 DMG。
+
+macOS 语言包位于 `Yohuke Danmu Neo.app/Contents/MacOS/i18n/`，随 App 一起进入 DMG。发布脚本会在生成 Windows ZIP、组装 macOS App 和准备 DMG 内容时核对全部语言包；缺少必需的英文包、其他随源码发布的语言包或内容不一致时会终止发布。
 
 版本默认读取项目的 `AssemblyVersion`，可通过 `-Version` 覆盖。
 
