@@ -6,6 +6,11 @@ namespace Yohuke.DanmuNeo.Models.State;
 public class DanmuForwardRuleState
 {
     /// <summary>
+    /// 新建转发规则时默认填充的同传格式匹配正则。
+    /// </summary>
+    public const string DEFAULT_CONTENT_PATTERN = "^【.*?】$";
+
+    /// <summary>
     /// 规则 ID。
     /// </summary>
     public string Id { get; set; } = Guid.NewGuid().ToString("N");

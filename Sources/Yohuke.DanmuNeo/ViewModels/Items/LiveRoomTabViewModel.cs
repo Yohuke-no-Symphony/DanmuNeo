@@ -1458,7 +1458,8 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
 
         var ruleState = new DanmuForwardRuleState
         {
-            MarkSymbolGroupId = getMarkSymbolGroup?.Invoke().Id ?? ""
+            MarkSymbolGroupId = getMarkSymbolGroup?.Invoke().Id ?? "",
+            ContentPattern = DanmuForwardRuleState.DEFAULT_CONTENT_PATTERN
         };
         var source = ForwardSourceRooms.FirstOrDefault();
 

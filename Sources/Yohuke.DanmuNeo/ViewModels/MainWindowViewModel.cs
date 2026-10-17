@@ -1363,7 +1363,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             IsEnabled = false,
             SourceWorkspaceId = sourceWorkspace.Id,
             SourceRoomStateId = sourceRoom.Id,
-            SenderUid = item.UserUid.Trim()
+            SenderUid = item.UserUid.Trim(),
+            ContentPattern = DanmuForwardRuleState.DEFAULT_CONTENT_PATTERN
         });
         RefreshForwardSourceRooms();
         StatusMessage = $"已添加转发规则：{item.UserName} -> {targetRoom.Header}";

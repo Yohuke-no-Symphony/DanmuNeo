@@ -223,25 +223,34 @@ internal sealed class WorkbenchLayoutController : IAsyncDisposable
 
     internal bool Delete(string presetId)
     {
-        EnsureUsable();
-        var index = userPresets.FindIndex(preset => preset.Id == presetId);
+        return Delete(new[] { presetId });
+    }
 
-        if (index < 0)
+    internal bool Delete(IReadOnlyCollection<string> presetIds)
+    {
+        EnsureUsable();
+        ArgumentNullException.ThrowIfNull(presetIds);
+        var ids = presetIds.ToHashSet(StringComparer.Ordinal);
+
+        if (ids.Count == 0)
+        {
+            return true;
+        }
+
+        if (!ids.IsSubsetOf(userPresets.Select(preset => preset.Id)))
         {
             return false;
         }
 
-        userPresets.RemoveAt(index);
+        var snapshot = Capture();
+        userPresets.RemoveAll(preset => ids.Contains(preset.Id));
 
-        if (CurrentPresetId == presetId)
+        if (ids.Contains(CurrentPresetId))
         {
-            RestoreDefault();
-        }
-        else
-        {
-            PersistAndNotify();
+            CurrentPresetId = WorkspaceLayoutPresets.DEFAULT;
         }
 
+        PersistAndNotify(snapshot);
         return true;
     }
 

@@ -77,7 +77,7 @@
                                     <Grid Grid.Row="2"
                                           ColumnDefinitions="*">
                                         <TextBox
-                                            Watermark="同传格式正则，例如 ^【.*】$"
+                                            Watermark="同传格式正则，例如 ^【.*?】$"
                                             Text="{Binding ContentPattern}" />
                                     </Grid>
                                     <Grid Grid.Row="3"

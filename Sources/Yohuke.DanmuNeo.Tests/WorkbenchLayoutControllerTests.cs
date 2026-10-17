@@ -156,7 +156,8 @@ public class WorkbenchLayoutControllerTests
         Assert.True(context.Controller.Delete(id));
         Assert.Equal(WorkspaceLayoutPresets.DEFAULT, context.Controller.CurrentPresetId);
         Assert.Equal(4, context.Controller.Presets.Count);
-        Assert.True(context.Controller.IsVisible(WorkbenchPanelIds.HISTORY));
+        Assert.False(context.Controller.IsVisible(WorkbenchPanelIds.HISTORY));
+        Assert.True(context.Controller.IsModified);
     }
 
     /// <summary>
