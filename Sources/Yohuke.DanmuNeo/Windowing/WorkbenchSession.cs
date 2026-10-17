@@ -205,7 +205,7 @@ internal sealed class WorkbenchSession : IAsyncDisposable
     private void UpdateLogPresentation()
     {
         var unread = application.Log.UnreadErrorCount;
-        Layouts.PanelAdapters[WorkbenchPanelIds.LOG].Title = unread > 0 ? $"Log ({unread})" : "Log";
+        Layouts.PanelAdapters[WorkbenchPanelIds.LOG].Title = unread > 0 ? $"日志 ({unread})" : "日志";
         Layouts.RefreshFloatingTitles();
         menuCatalog.Refresh();
     }

@@ -119,23 +119,23 @@ public class LogLayoutIntegrationTests
             session.Layouts.HidePanel(WorkbenchPanelIds.LOG);
             fixture.ViewModel.Log.Error("离线测试", "待查看的错误");
             Pump(main);
-            Assert.Equal("Log (1)", adapter.Title);
+            Assert.Equal("日志 (1)", adapter.Title);
             var entry = session.MenuCatalog.Entries.Single(group => group.Id == "views").Children!
                 .Single(item => item.Id == $"panel:{WorkbenchPanelIds.LOG}");
-            Assert.Equal("Log (1)", entry.Header);
+            Assert.Equal("日志 (1)", entry.Header);
             var active = session.Layouts.Capture().FocusedPanelId;
             Assert.NotEqual(WorkbenchPanelIds.LOG, active);
             entry.Command!.Execute(null);
             Pump(main);
             Assert.Equal(0, fixture.ViewModel.Log.UnreadErrorCount);
-            Assert.Equal("Log", adapter.Title);
+            Assert.Equal("日志", adapter.Title);
             session.Layouts.FloatPanel(WorkbenchPanelIds.LOG);
             Pump(main);
             var floating = Assert.Single(session.Layouts.FloatingWindows);
             floating.WindowState = WindowState.Minimized;
             fixture.ViewModel.Log.Error("离线测试", "浮窗未读错误");
             Pump(main);
-            Assert.Contains("Log (1)", floating.Title);
+            Assert.Contains("日志 (1)", floating.Title);
             floating.Close();
             Pump(main);
             session.Layouts.ShowPanel(WorkbenchPanelIds.LOG);

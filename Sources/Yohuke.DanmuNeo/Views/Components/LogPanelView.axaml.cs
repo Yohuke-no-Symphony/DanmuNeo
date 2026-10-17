@@ -144,7 +144,7 @@ public sealed partial class LogPanelView : UserControl, IDisposable
         }
         catch (Exception error)
         {
-            log?.Error("Log", "复制日志失败。", error);
+            log?.Error("日志", "复制日志失败。", error);
         }
     }
 }

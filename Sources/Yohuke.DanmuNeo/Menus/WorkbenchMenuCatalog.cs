@@ -109,7 +109,7 @@ internal sealed class WorkbenchMenuCatalog : IDisposable
             WorkbenchPanelIds.HISTORY => "历史",
             WorkbenchPanelIds.LYRICS => "歌词",
             WorkbenchPanelIds.FORWARDING => "转发",
-            WorkbenchPanelIds.LOG => "Log",
+            WorkbenchPanelIds.LOG => "日志",
             _ => throw new ArgumentOutOfRangeException(nameof(id))
         };
     }

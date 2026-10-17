@@ -20,7 +20,7 @@ internal sealed class WorkbenchDockPanel : Tool, IDeferredContentPresentation
             WorkbenchPanelIds.HISTORY => "历史",
             WorkbenchPanelIds.LYRICS => "歌词",
             WorkbenchPanelIds.FORWARDING => "转发",
-            WorkbenchPanelIds.LOG => "Log",
+            WorkbenchPanelIds.LOG => "日志",
             _ => throw new ArgumentException("未知的工作台面板。", nameof(panelId))
         };
         CanPin = false;
