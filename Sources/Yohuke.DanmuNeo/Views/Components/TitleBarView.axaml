@@ -18,19 +18,12 @@
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
-                <StackPanel Orientation="Horizontal"
-                            Spacing="10"
-                            Margin="14,0,0,0"
-                            VerticalAlignment="Center">
-                    <TextBlock Text="夜半同传"
-                               FontWeight="SemiBold"
-                               FontSize="13" />
-                    <TextBlock Text="{Binding SelectedWorkspace.Name, FallbackValue=默认工作区}"
-                               MaxWidth="180"
-                               TextTrimming="CharacterEllipsis"
-                               ToolTip.Tip="{Binding SelectedWorkspace.Name}"
-                               Classes="muted" />
-                </StackPanel>
+                <TextBlock x:Name="ApplicationTitleText"
+                           Text="夜半同传"
+                           Margin="14,0,0,0"
+                           VerticalAlignment="Center"
+                           FontWeight="SemiBold"
+                           FontSize="13" />
                 <ContentPresenter Grid.Column="1"
                                   Content="{Binding #Root.MenuContent}"
                                   IsVisible="{Binding #Root.MenuContent.IsVisible, FallbackValue=False}"

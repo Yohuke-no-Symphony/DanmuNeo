@@ -150,7 +150,7 @@ public class WorkbenchTitleBarTests
     }
 
     /// <summary>
-    /// 长标题、菜单及置顶操作避开原生按钮保留区，指针命中和标题高度变化保持一致。
+    /// 工作区名称不显示在标题中，应用名、菜单及置顶操作避开原生按钮保留区。
     /// </summary>
     [AvaloniaTheory]
     [InlineData(980, 92, 0)]
@@ -180,8 +180,10 @@ public class WorkbenchTitleBarTests
             var titleBounds = GetBounds(title, main);
             var menuBounds = GetBounds(menu, main);
             var buttonsBounds = GetBounds(buttons, main);
-            var workspaceName = title.GetVisualDescendants().OfType<TextBlock>().Single(text => text.Text == name);
-            var nameBounds = GetBounds(workspaceName, main);
+            var applicationTitle = title.FindControl<TextBlock>("ApplicationTitleText")!;
+            var nameBounds = GetBounds(applicationTitle, main);
+            Assert.DoesNotContain(title.GetVisualDescendants().OfType<TextBlock>(),
+                text => text.Text == name || text.Text == "默认工作区");
             Assert.Equal(SystemDecorations.Full, main.SystemDecorations);
             Assert.Equal(42, titleBounds.Height);
             Assert.InRange(menuBounds.Top, titleBounds.Top, titleBounds.Bottom);
@@ -190,7 +192,6 @@ public class WorkbenchTitleBarTests
             Assert.True(nameBounds.Right < menuBounds.Left);
             Assert.True(menuBounds.Right < buttonsBounds.Left);
             Assert.True(buttonsBounds.Right <= titleBounds.Right - rightInset);
-            Assert.InRange(nameBounds.Width, 1, 180);
             Assert.All(buttons.Children.OfType<Button>(), button =>
             {
                 Assert.Contains(button.Name, new[] { "DebugToolsButton", "PinButton" });
@@ -251,7 +252,7 @@ public class WorkbenchTitleBarTests
                 Assert.Equal(56, title.Bounds.Height);
                 Assert.Equal(toolbarTop + 7, listen.TranslatePoint(default, main)!.Value.Y);
                 Assert.Equal(windowMode || !OperatingSystem.IsMacOS(), menu.IsVisible);
-                Assert.True(title.IsDragRegion(GetBounds(workspaceName, main).Center));
+                Assert.True(title.IsDragRegion(GetBounds(applicationTitle, main).Center));
                 Assert.False(title.IsDragRegion(GetBounds(pin, main).Center));
             }
         }
