@@ -24,11 +24,73 @@ public class ShortcutBindingServiceTests
         Assert.Equal("Ctrl+F", existing.GestureText);
         var copy = Assert.Single(settings.ShortcutBindings, item => item.ActionKey == ShortcutActionKeys.LYRIC_COPY_SELECTED);
         Assert.True(copy.IsEnabled);
-        Assert.Equal(OperatingSystem.IsMacOS() ? "Meta+V" : "Ctrl+V", copy.GestureText);
+        Assert.Equal(OperatingSystem.IsMacOS() ? "Meta+C" : "Ctrl+C", copy.GestureText);
         Assert.Equal(ShortcutActionKeys.LYRIC_COPY_SELECTED,
-            ShortcutBindingService.GetTriggeredActionKey(settings.ShortcutBindings, Key.V,
+            ShortcutBindingService.GetTriggeredActionKey(settings.ShortcutBindings, Key.C,
                 OperatingSystem.IsMacOS() ? KeyModifiers.Meta : KeyModifiers.Control));
         Assert.Empty(ShortcutBindingService.GetConflictActionKeys(settings.ShortcutBindings));
+    }
+
+    /// <summary>
+    /// 上一版的复制默认键迁移到当前平台的复制键，并保留绑定对象和启用状态。
+    /// </summary>
+    [Theory]
+    [InlineData("Ctrl+V", true)]
+    [InlineData("Meta+V", true)]
+    [InlineData("Ctrl+V", false)]
+    [InlineData("Meta+V", false)]
+    public void NormalizeMigratesPreviousCopyDefaultInPlace(string gesture, bool enabled)
+    {
+        var binding = new ShortcutBindingState
+        {
+            ActionKey = ShortcutActionKeys.LYRIC_COPY_SELECTED, GestureText = gesture, IsEnabled = enabled
+        };
+        var settings = new AppSettings { ShortcutBindingsVersion = 2, ShortcutBindings = [binding] };
+
+        ShortcutBindingService.Normalize(settings);
+        ShortcutBindingService.Normalize(settings);
+
+        Assert.Same(binding, settings.ShortcutBindings.Single(item => item.ActionKey == binding.ActionKey));
+        Assert.Equal(OperatingSystem.IsMacOS() ? "Meta+C" : "Ctrl+C", binding.GestureText);
+        Assert.Equal(enabled, binding.IsEnabled);
+        Assert.Equal(3, settings.ShortcutBindingsVersion);
+    }
+
+    /// <summary>
+    /// 新版本中主动绑定回旧手势时，配置归一化不再修改该自定义键。
+    /// </summary>
+    [Theory]
+    [InlineData("Ctrl+V")]
+    [InlineData("Meta+V")]
+    public void NormalizeKeepsCustomCopyGestureAfterMigration(string gesture)
+    {
+        var binding = new ShortcutBindingState
+        {
+            ActionKey = ShortcutActionKeys.LYRIC_COPY_SELECTED, GestureText = gesture, IsEnabled = true
+        };
+        var settings = new AppSettings { ShortcutBindingsVersion = 3, ShortcutBindings = [binding] };
+
+        ShortcutBindingService.Normalize(settings);
+
+        Assert.Equal(gesture, binding.GestureText);
+    }
+
+    /// <summary>
+    /// 复制默认键升级不会重新迁移版本二配置中主动设置的 Alt 手势。
+    /// </summary>
+    [Fact]
+    public void CopyDefaultMigrationKeepsVersionTwoCustomOptionGesture()
+    {
+        var binding = new ShortcutBindingState
+        {
+            ActionKey = ShortcutActionKeys.INPUT_FOCUS_DRAFT, GestureText = "Alt+I", IsEnabled = true
+        };
+        var settings = new AppSettings { ShortcutBindingsVersion = 2, ShortcutBindings = [binding] };
+
+        ShortcutBindingService.Normalize(settings);
+
+        Assert.Same(binding, settings.ShortcutBindings.Single(item => item.ActionKey == binding.ActionKey));
+        Assert.Equal("Alt+I", binding.GestureText);
     }
 
     /// <summary>

@@ -23,7 +23,7 @@ public static class ShortcutActionCatalog
         new(ShortcutActionKeys.LYRIC_START_SENDING, "lyric", "App.Shortcut.Group.lyric", "App.Shortcut.Action.LyricStartSending", "Ctrl+Shift+A"),
         new(ShortcutActionKeys.LYRIC_STOP_SENDING, "lyric", "App.Shortcut.Group.lyric", "App.Shortcut.Action.LyricStopSending", "Ctrl+Shift+S"),
         new(ShortcutActionKeys.LYRIC_COPY_SELECTED, "lyric", "App.Shortcut.Group.lyric", "App.Shortcut.Action.LyricCopySelected",
-            OperatingSystem.IsMacOS() ? "Meta+V" : "Ctrl+V"),
+            OperatingSystem.IsMacOS() ? "Meta+C" : "Ctrl+C"),
         new(ShortcutActionKeys.LYRIC_SEEK_BACKWARD, "lyric", "App.Shortcut.Group.lyric", "App.Shortcut.Action.LyricSeekBackward", "Ctrl+Shift+Left"),
         new(ShortcutActionKeys.LYRIC_SEEK_FORWARD, "lyric", "App.Shortcut.Group.lyric", "App.Shortcut.Action.LyricSeekForward", "Ctrl+Shift+Right"),
         new(ShortcutActionKeys.LYRIC_SEEK_NEXT, "lyric", "App.Shortcut.Group.lyric", "App.Shortcut.Action.LyricSeekNext", "Ctrl+Shift+Down")

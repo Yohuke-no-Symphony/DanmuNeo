@@ -364,7 +364,7 @@
     </Style>
 
     <Style Selector="Button.treeRoomButton.selected">
-        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Background" Value="{DynamicResource AppSidebarSelectedBrush}" />
         <Setter Property="BorderThickness" Value="0" />
     </Style>
 

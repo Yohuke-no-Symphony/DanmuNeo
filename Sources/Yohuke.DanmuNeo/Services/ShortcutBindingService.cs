@@ -9,7 +9,9 @@ namespace Yohuke.DanmuNeo.Services;
 /// </summary>
 public static class ShortcutBindingService
 {
-    private const int CURRENT_SHORTCUT_BINDINGS_VERSION = 2;
+    private const int CTRL_DEFAULT_GESTURES_VERSION = 2;
+    private const int LYRIC_COPY_DEFAULT_GESTURE_VERSION = 3;
+    private const int CURRENT_SHORTCUT_BINDINGS_VERSION = LYRIC_COPY_DEFAULT_GESTURE_VERSION;
 
     private static readonly HashSet<string> MODIFIER_KEY_NAMES =
     [
@@ -154,9 +156,19 @@ public static class ShortcutBindingService
         ShortcutBindingState binding,
         int shortcutBindingsVersion)
     {
-        if (shortcutBindingsVersion >= CURRENT_SHORTCUT_BINDINGS_VERSION ||
+        if (!TryNormalizeGestureText(binding.GestureText, out var gestureText))
+        {
+            return false;
+        }
+
+        if (definition.ActionKey == ShortcutActionKeys.LYRIC_COPY_SELECTED &&
+            shortcutBindingsVersion < LYRIC_COPY_DEFAULT_GESTURE_VERSION)
+        {
+            return gestureText is "Ctrl+V" or "Meta+V";
+        }
+
+        if (shortcutBindingsVersion >= CTRL_DEFAULT_GESTURES_VERSION ||
             !LEGACY_OPTION_DEFAULT_GESTURES.TryGetValue(definition.ActionKey, out var legacyGestureText) ||
-            !TryNormalizeGestureText(binding.GestureText, out var gestureText) ||
             !TryNormalizeGestureText(legacyGestureText, out var normalizedLegacyGestureText))
         {
             return false;

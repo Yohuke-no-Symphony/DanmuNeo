@@ -134,7 +134,7 @@ public class LyricCopyViewTests
             var list = view.FindControl<ListBox>("LyricListBox")!;
             Click(window, list.ContainerFromIndex(1)!);
             await window.Clipboard!.SetTextAsync("原剪贴板");
-            PressCopy(window, PhysicalKey.V, OperatingSystem.IsMacOS() ? RawInputModifiers.Meta : RawInputModifiers.Control);
+            PressCopy(window, PhysicalKey.C, OperatingSystem.IsMacOS() ? RawInputModifiers.Meta : RawInputModifiers.Control);
             Assert.Equal("原剪贴板", await window.Clipboard.TryGetTextAsync());
             PressCopy(window, PhysicalKey.Insert, RawInputModifiers.Control);
             Assert.Equal("第二句原文 / 第二句翻译", await window.Clipboard!.TryGetTextAsync());
@@ -168,7 +168,7 @@ public class LyricCopyViewTests
         hotkeys.Copy = [new(Key.C, modifiers)];
         var originalPaste = hotkeys.Paste;
         hotkeys.Paste = [new(Key.V, modifiers)];
-        SetCopyGesture(context, Key.V, modifiers);
+        SetCopyGesture(context, Key.C, modifiers);
 
         try
         {
@@ -341,7 +341,7 @@ public class LyricCopyViewTests
             list.SelectedIndex = 1;
             Assert.True(list.ContainerFromIndex(1)!.Focus());
             var modifiers = OperatingSystem.IsMacOS() ? RawInputModifiers.Meta : RawInputModifiers.Control;
-            PressCopy(host, PhysicalKey.V, modifiers);
+            PressCopy(host, PhysicalKey.C, modifiers);
 
             Assert.Equal("第二句原文", await host.Clipboard!.TryGetTextAsync());
             Assert.Same(context.Room.Lyrics[0], context.Room.ActiveLyricLine);
@@ -351,7 +351,7 @@ public class LyricCopyViewTests
 
             await host.Clipboard!.SetTextAsync("列表失焦后的剪贴板");
             Assert.True(view.FindControl<Button>("LyricMoreButton")!.Focus());
-            PressCopy(host, PhysicalKey.V, modifiers);
+            PressCopy(host, PhysicalKey.C, modifiers);
             Assert.Equal("列表失焦后的剪贴板", await host.Clipboard.TryGetTextAsync());
         }
         finally

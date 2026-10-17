@@ -108,6 +108,7 @@
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate DataType="items:LiveRoomTabViewModel">
                                         <Button Classes="treeRoomButton"
+                                                Classes.selected="{Binding IsSelected}"
                                                 Command="{Binding #Root.SelectRoomCommand}"
                                                 CommandParameter="{Binding}">
                                             <Button.ContextMenu>
