@@ -4,6 +4,7 @@ using Avalonia.Platform;
 using Yohuke.DanmuNeo.Models.BrowserLogin;
 using Yohuke.DanmuNeo.Models.Logging;
 using Yohuke.DanmuNeo.Services;
+using Yohuke.DanmuNeo.Windowing;
 
 namespace Yohuke.DanmuNeo.Views;
 
@@ -40,6 +41,7 @@ public partial class BrowserCookieLoginWindow : Window
         this.platform = platform;
         this.createWebView = createWebView;
         InitializeComponent();
+        WindowChrome.AttachFrame(this);
         Opened += BrowserCookieLoginWindow_OnOpened;
         Closed += BrowserCookieLoginWindow_OnClosed;
         ConfigureShell();

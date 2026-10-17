@@ -3,6 +3,8 @@ using Avalonia.Controls;
 using Dock.Avalonia.Controls;
 using Dock.Model.Controls;
 using Dock.Model.Core;
+using Yohuke.DanmuNeo.Views.Components;
+using Yohuke.DanmuNeo.Windowing;
 
 namespace Yohuke.DanmuNeo.Layouts;
 
@@ -28,11 +30,13 @@ internal sealed class WorkbenchFloatingHostWindow : HostWindow, IHostWindow
         DockHost = new() { Factory = factory, InitializeFactory = false, InitializeLayout = false };
         WorkbenchDockTemplateCatalog.Install(DockHost, factory.ControlRecycling);
         Content = DockHost;
+        TitleBar = WindowChrome.AttachFrame(this, new FloatingWindowPinButton());
         PositionChanged += (_, _) => changed();
         SizeChanged += (_, _) => changed();
     }
 
     internal DockControl DockHost { get; }
+    internal WindowTitleBar TitleBar { get; }
     internal bool IsInternalClose { get; set; }
     protected override Type StyleKeyOverride => typeof(Window);
 

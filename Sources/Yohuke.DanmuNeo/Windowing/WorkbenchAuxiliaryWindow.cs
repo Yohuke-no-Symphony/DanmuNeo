@@ -53,6 +53,7 @@ internal sealed class WorkbenchAuxiliaryWindow : Window
             Content = content;
         }
 
+        WindowChrome.AttachFrame(this);
         UpdateScreenConstraints();
     }
 

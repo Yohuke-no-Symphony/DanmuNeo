@@ -9,6 +9,7 @@ using Dock.Avalonia.Controls;
 using Yohuke.DanmuNeo.Layouts;
 using Yohuke.DanmuNeo.Models.State;
 using Yohuke.DanmuNeo.Views;
+using Yohuke.DanmuNeo.Views.Components;
 using Yohuke.DanmuNeo.Windowing;
 
 namespace Yohuke.DanmuNeo.Tests;
@@ -52,6 +53,9 @@ public class WorkbenchThemeTests
                     host.UpdateLayout();
                     Assert.Equal(variant, host.ActualThemeVariant);
                     Assert.Equal(background, Assert.IsAssignableFrom<ISolidColorBrush>(host.Background).Color);
+                    var titleBar = Assert.Single(host.GetVisualDescendants().OfType<WindowTitleBar>());
+                    var titleSurface = titleBar.FindControl<Border>("TitleBarSurface")!;
+                    Assert.Equal(background, Assert.IsAssignableFrom<ISolidColorBrush>(titleSurface.Background).Color);
                 }
 
                 var frames = main.GetVisualDescendants().Concat(floating.GetVisualDescendants())

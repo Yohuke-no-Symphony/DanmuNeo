@@ -126,7 +126,8 @@ internal sealed class WorkbenchLayoutConstraints : IDisposable
 
                 if (TopLevel.GetTopLevel(host) is WorkbenchFloatingHostWindow window)
                 {
-                    window.MinHeight = Math.Max(WorkbenchFloatingHostWindow.DEFAULT_MIN_HEIGHT, minimum);
+                    window.MinHeight = Math.Max(WorkbenchFloatingHostWindow.DEFAULT_MIN_HEIGHT,
+                        minimum + window.TitleBar.Height);
                 }
             }
         }

@@ -276,7 +276,8 @@ public class WorkspaceSettingsWindowTests
     {
         if (closeFromPage)
         {
-            var save = ((Control)settings.Content!).FindControl<Button>("SaveWorkspaceSettingsButton")!;
+            var save = settings.GetVisualDescendants().OfType<Button>()
+                .Single(button => button.Name == "SaveWorkspaceSettingsButton");
             save.Command!.Execute(null);
         }
         else

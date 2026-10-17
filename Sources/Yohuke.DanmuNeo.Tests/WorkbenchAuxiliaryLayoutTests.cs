@@ -37,7 +37,7 @@ public class WorkbenchAuxiliaryLayoutTests
             PumpLayout(addWorkspace);
             Assert.Equal(SizeToContent.Height, addWorkspace.SizeToContent);
             Assert.False(addWorkspace.CanResize);
-            Assert.InRange(addWorkspace.ClientSize.Height, 120, 349);
+            Assert.InRange(addWorkspace.ClientSize.Height - GetTitleBarHeight(addWorkspace), 120, 349);
             AssertSurfaceFillsClientArea(addWorkspace);
             SaveFrame(addWorkspace, "surface-add-workspace.png");
             context.ViewModel.CloseAddDialog();
@@ -179,7 +179,7 @@ public class WorkbenchAuxiliaryLayoutTests
             var checkingHeight = update.ClientSize.Height;
             Assert.Equal(SizeToContent.Height, update.SizeToContent);
             Assert.False(update.CanResize);
-            Assert.InRange(checkingHeight, 80, 299);
+            Assert.InRange(checkingHeight - GetTitleBarHeight(update), 80, 299);
             AssertSurfaceFillsClientArea(update);
             Assert.Equal("正在检查更新…", message.Text);
             AssertFullyVisible(view.FindControl<Button>("DismissUpdateButton")!, update);
@@ -251,7 +251,8 @@ public class WorkbenchAuxiliaryLayoutTests
             context.ViewModel.UpdateCheckMessage =
                 "检查更新失败：" + string.Concat(Enumerable.Repeat("服务器返回的错误详情，请检查网络连接后重试。", 300));
             PumpLayout(update);
-            var scroll = Assert.IsType<ScrollViewer>(update.Content);
+            var scroll = update.GetVisualDescendants().OfType<ScrollViewer>()
+                .Single(control => ReferenceEquals(control.Content, view));
             var screen = update.Screens.ScreenFromWindow(update)!;
             Assert.True(update.ClientSize.Height <= screen.WorkingArea.Height / screen.Scaling);
             Assert.True(update.ClientSize.Height <= update.MaxHeight + 0.5);
@@ -265,7 +266,7 @@ public class WorkbenchAuxiliaryLayoutTests
 
             context.ViewModel.UpdateCheckMessage = "发现新版本";
             PumpLayout(update);
-            Assert.True(update.ClientSize.Height < 300);
+            Assert.True(update.ClientSize.Height - GetTitleBarHeight(update) < 300);
             Assert.Equal(0, scroll.Offset.Y);
             Assert.True(scroll.Extent.Height <= scroll.Viewport.Height + 0.5);
             update.Close();
@@ -323,7 +324,8 @@ public class WorkbenchAuxiliaryLayoutTests
             Assert.False(settings.IsEnabled);
             Assert.True(confirm.IsEnabled);
             Assert.Equal(SizeToContent.Height, confirm.SizeToContent);
-            var scroll = Assert.IsType<ScrollViewer>(confirm.Content);
+            var scroll = confirm.GetVisualDescendants().OfType<ScrollViewer>()
+                .Single(control => control.Content is ConfirmDeleteDialogView);
             var view = confirm.GetVisualDescendants().OfType<ConfirmDeleteDialogView>().Single();
             var textBlocks = view.GetVisualDescendants().OfType<TextBlock>().ToArray();
             var diagnostics =
@@ -352,7 +354,7 @@ public class WorkbenchAuxiliaryLayoutTests
             context.ViewModel.UseWindowMenuOnMac = true;
             var closed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             settings.Closed += (_, _) => closed.TrySetResult();
-            Assert.IsType<SettingsDialogView>(settings.Content).CloseSettingsCommand.Execute(null);
+            Assert.Single(settings.GetVisualDescendants().OfType<SettingsDialogView>()).CloseSettingsCommand.Execute(null);
             await closed.Task.WaitAsync(TimeSpan.FromSeconds(5));
             Assert.True(context.StateService.Load().Settings.UseWindowMenuOnMac);
             Assert.False(workbench.Windows.IsModal);
@@ -382,7 +384,7 @@ public class WorkbenchAuxiliaryLayoutTests
             var about = Assert.IsAssignableFrom<Window>(workbench.Windows.FindAuxiliary("about"));
             PumpLayout(about);
             Assert.Equal(SizeToContent.Height, about.SizeToContent);
-            Assert.InRange(about.ClientSize.Height, 120, 329);
+            Assert.InRange(about.ClientSize.Height - GetTitleBarHeight(about), 120, 329);
             AssertSurfaceFillsClientArea(about);
             AssertFullyVisible(about.GetVisualDescendants().OfType<Button>().Single(), about);
             SaveFrame(about, "surface-about.png");
@@ -392,7 +394,7 @@ public class WorkbenchAuxiliaryLayoutTests
             var naming = Assert.IsAssignableFrom<Window>(workbench.Windows.FindAuxiliary("save-layout"));
             PumpLayout(naming);
             var initialHeight = naming.ClientSize.Height;
-            Assert.InRange(initialHeight, 80, 279);
+            Assert.InRange(initialHeight - GetTitleBarHeight(naming), 80, 279);
             Assert.Equal(SizeToContent.Height, naming.SizeToContent);
             AssertSurfaceFillsClientArea(naming);
             SaveFrame(naming, "surface-save-layout.png");
@@ -501,9 +503,10 @@ public class WorkbenchAuxiliaryLayoutTests
         Assert.Equal(new CornerRadius(0), surface.CornerRadius);
         Assert.True(double.IsPositiveInfinity(surface.MaxWidth), diagnostics);
         Assert.InRange(bounds.Left, -0.5, 0.5);
-        Assert.InRange(bounds.Top, -0.5, 0.5);
+        var titleBarHeight = GetTitleBarHeight(window);
+        Assert.InRange(bounds.Top, titleBarHeight - 0.5, titleBarHeight + 0.5);
         Assert.True(Math.Abs(bounds.Width - window.ClientSize.Width) <= 0.5, diagnostics);
-        Assert.True(Math.Abs(bounds.Height - window.ClientSize.Height) <= 0.5, diagnostics);
+        Assert.True(Math.Abs(bounds.Bottom - window.ClientSize.Height) <= 0.5, diagnostics);
     }
 
     private static void AssertDialogHeaderAndContentInset(Window window, bool lyricLibrary)
@@ -518,7 +521,8 @@ public class WorkbenchAuxiliaryLayoutTests
             header = content.Children.OfType<Grid>().First();
             var bounds = new Rect(content.TranslatePoint(default, window)!.Value, content.Bounds.Size);
             Assert.InRange(bounds.Left, 11.5, 12.5);
-            Assert.InRange(bounds.Top, 11.5, 12.5);
+            var titleBarHeight = GetTitleBarHeight(window);
+            Assert.InRange(bounds.Top, titleBarHeight + 11.5, titleBarHeight + 12.5);
             Assert.InRange(window.ClientSize.Width - bounds.Right, 11.5, 12.5);
             Assert.InRange(window.ClientSize.Height - bounds.Bottom, 11.5, 12.5);
             var import = header.GetVisualDescendants().OfType<LyricLocalImportButton>().Single();
@@ -529,7 +533,7 @@ public class WorkbenchAuxiliaryLayoutTests
         {
             header = content.Children.OfType<Border>()
                 .Single(border => border.Classes.Contains("settingsDialogHeader"));
-            var view = Assert.IsType<SettingsDialogView>(window.Content);
+            var view = Assert.Single(window.GetVisualDescendants().OfType<SettingsDialogView>());
             var save = Assert.Single(header.GetVisualDescendants().OfType<Button>(),
                 button => ReferenceEquals(button.Command, view.CloseSettingsCommand));
             Assert.Contains(save.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "保存");
@@ -538,6 +542,11 @@ public class WorkbenchAuxiliaryLayoutTests
 
         Assert.DoesNotContain(header.GetVisualDescendants().OfType<LucideIcon>(),
             icon => icon.Kind == LucideIconKind.X);
+    }
+
+    private static double GetTitleBarHeight(Window window)
+    {
+        return Assert.Single(window.GetVisualDescendants().OfType<WindowTitleBar>()).Bounds.Height;
     }
 
     private static void PumpLayout(Window window)

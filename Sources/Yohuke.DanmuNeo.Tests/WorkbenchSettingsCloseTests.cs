@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using Yohuke.DanmuNeo.Views;
 using Yohuke.DanmuNeo.Views.Components;
 using Yohuke.DanmuNeo.Windowing;
@@ -31,7 +32,7 @@ public class WorkbenchSettingsCloseTests
             var workbench = Assert.IsType<WorkbenchSession>(main.Workbench);
             workbench.MenuCatalog.SettingsCommand.Execute(null);
             var settings = Assert.IsAssignableFrom<Window>(workbench.Windows.FindAuxiliary("settings"));
-            var view = Assert.IsType<SettingsDialogView>(settings.Content);
+            var view = Assert.Single(settings.GetVisualDescendants().OfType<SettingsDialogView>());
             var recording = context.ViewModel.ShortcutBindingGroups.SelectMany(group => group.Bindings).First();
             context.ViewModel.BeginRecordShortcut(recording);
             File.Delete(settingsPath);

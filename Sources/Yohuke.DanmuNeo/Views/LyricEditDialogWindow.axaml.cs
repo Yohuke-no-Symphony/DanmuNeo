@@ -6,6 +6,7 @@ using Avalonia.VisualTree;
 using Yohuke.DanmuNeo.Models.State;
 using Yohuke.DanmuNeo.Services;
 using Yohuke.DanmuNeo.ViewModels.Items;
+using Yohuke.DanmuNeo.Windowing;
 
 namespace Yohuke.DanmuNeo.Views;
 
@@ -31,6 +32,7 @@ public partial class LyricEditDialogWindow : Window
     {
         this.item = item;
         InitializeComponent();
+        WindowChrome.AttachFrame(this);
         DataContext = new LyricEditDialogViewModel(item);
         AddHandler(KeyDownEvent, LyricEditDialogWindow_OnPreviewKeyDown, RoutingStrategies.Tunnel);
         Opened += LyricEditDialogWindow_OnOpened;

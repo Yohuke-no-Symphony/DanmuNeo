@@ -2,7 +2,6 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
-using Yohuke.DanmuNeo.Views.Components;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
@@ -15,7 +14,7 @@ namespace Yohuke.DanmuNeo.Windowing;
 internal sealed class WindowsWindowChrome : IWindowChrome
 {
     private readonly Window window;
-    private readonly TitleBarView titleBar;
+    private readonly IWindowTitleBar titleBar;
     private readonly nint handle;
     private readonly Win32Properties.CustomWndProcHookCallback callback;
     private readonly double minimumTitleBarHeight;
@@ -27,7 +26,7 @@ internal sealed class WindowsWindowChrome : IWindowChrome
     private bool frameRefreshRequested;
     private bool applyingFrame;
 
-    internal WindowsWindowChrome(Window window, TitleBarView titleBar)
+    internal WindowsWindowChrome(Window window, IWindowTitleBar titleBar)
     {
         ArgumentNullException.ThrowIfNull(window);
         ArgumentNullException.ThrowIfNull(titleBar);
@@ -40,7 +39,7 @@ internal sealed class WindowsWindowChrome : IWindowChrome
         this.window = window;
         this.titleBar = titleBar;
         handle = platformHandle.Handle;
-        minimumTitleBarHeight = titleBar.Height;
+        minimumTitleBarHeight = titleBar.View.Height;
         if (!double.IsFinite(minimumTitleBarHeight) || minimumTitleBarHeight <= 0)
         {
             throw new ArgumentException("标题栏必须提供正数高度。", nameof(titleBar));
@@ -63,7 +62,7 @@ internal sealed class WindowsWindowChrome : IWindowChrome
         window.LayoutUpdated += OnLayoutUpdated;
         window.ScalingChanged += OnScalingChanged;
         window.PropertyChanged += OnWindowPropertyChanged;
-        titleBar.PropertyChanged += OnTitleBarPropertyChanged;
+        titleBar.View.PropertyChanged += OnTitleBarPropertyChanged;
         try
         {
             ApplyFrame();
@@ -136,7 +135,7 @@ internal sealed class WindowsWindowChrome : IWindowChrome
         window.LayoutUpdated -= OnLayoutUpdated;
         window.ScalingChanged -= OnScalingChanged;
         window.PropertyChanged -= OnWindowPropertyChanged;
-        titleBar.PropertyChanged -= OnTitleBarPropertyChanged;
+        titleBar.View.PropertyChanged -= OnTitleBarPropertyChanged;
         captionSurface.Dispose();
     }
 
@@ -328,7 +327,7 @@ internal sealed class WindowsWindowChrome : IWindowChrome
             {
                 TopHeight = window.WindowState == WindowState.FullScreen
                     ? 0
-                    : WindowsChromeGeometry.ToPixels(titleBar.Height, ReadDpi())
+                    : WindowsChromeGeometry.ToPixels(titleBar.View.Height, ReadDpi())
             };
             Marshal.ThrowExceptionForHR(WindowsNativeMethods.DwmExtendFrameIntoClientArea(handle, in margins));
             Marshal.ThrowExceptionForHR(WindowsNativeMethods.DwmGetWindowAttribute(handle,
@@ -371,7 +370,7 @@ internal sealed class WindowsWindowChrome : IWindowChrome
         titleBar.CaptionInsets = WindowsChromeGeometry.GetCaptionInsets(outer, origin, client.Right - client.Left,
             bounds, dpi);
         var captionBottom = (long)outer.Top + bounds.Bottom - origin.Y;
-        titleBar.Height = Math.Max(minimumTitleBarHeight, captionBottom * WindowsChromeGeometry.STANDARD_DPI / dpi);
+        titleBar.View.Height = Math.Max(minimumTitleBarHeight, captionBottom * WindowsChromeGeometry.STANDARD_DPI / dpi);
         captionSurface.Update(WindowsChromeGeometry.GetCaptionAperture(outer, origin, window.ClientSize, bounds, dpi));
     }
 

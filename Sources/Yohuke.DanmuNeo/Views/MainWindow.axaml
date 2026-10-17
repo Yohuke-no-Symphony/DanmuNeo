@@ -8,7 +8,7 @@
         Width="1280" Height="820" MinWidth="980" MinHeight="640"
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaChromeHints="PreferSystemChrome"
-        ExtendClientAreaTitleBarHeightHint="42"
+        ExtendClientAreaTitleBarHeightHint="{x:Static components:WindowTitleBar.DEFAULT_HEIGHT}"
         Icon="/Assets/favicon.ico"
         Title="{Binding WindowTitle}">
     <Grid Classes="rootSurface" RowDefinitions="Auto,*">

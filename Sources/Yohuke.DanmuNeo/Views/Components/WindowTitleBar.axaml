@@ -1,0 +1,35 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:components="clr-namespace:Yohuke.DanmuNeo.Views.Components"
+             x:Class="Yohuke.DanmuNeo.Views.Components.WindowTitleBar"
+             x:DataType="components:WindowTitleBar"
+             x:Name="Root"
+             Height="{x:Static components:WindowTitleBar.DEFAULT_HEIGHT}"
+             x:CompileBindings="True">
+    <Border x:Name="TitleBarSurface"
+            Padding="{Binding CaptionInsets, ElementName=Root}"
+            Background="{DynamicResource AppTitleBarBrush}">
+        <Grid Classes="titleBar"
+              ColumnDefinitions="*,Auto"
+              ClipToBounds="True"
+              PointerPressed="TitleBar_OnPointerPressed">
+            <TextBlock x:Name="TitleText"
+                       Text="{Binding Title, ElementName=Root}"
+                       IsVisible="{Binding !HeaderContent, ElementName=Root}"
+                       Margin="14,0,8,0"
+                       FontSize="13"
+                       FontWeight="SemiBold"
+                       TextTrimming="CharacterEllipsis"
+                       VerticalAlignment="Center" />
+            <ContentPresenter Content="{Binding HeaderContent, ElementName=Root}"
+                              IsVisible="{Binding !!HeaderContent, ElementName=Root}"
+                              HorizontalContentAlignment="Stretch"
+                              VerticalContentAlignment="Stretch" />
+            <ContentPresenter Grid.Column="1"
+                              Content="{Binding RightContent, ElementName=Root}"
+                              IsVisible="{Binding !!RightContent, ElementName=Root}"
+                              Margin="0,0,8,0"
+                              VerticalAlignment="Center" />
+        </Grid>
+    </Border>
+</UserControl>

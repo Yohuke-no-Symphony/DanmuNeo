@@ -1,13 +1,13 @@
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Input;
+using Yohuke.DanmuNeo.Windowing;
 
 namespace Yohuke.DanmuNeo.Views.Components;
 
 /// <summary>
 /// 融合式标题栏。
 /// </summary>
-public partial class TitleBarView : UserControl
+public partial class TitleBarView : UserControl, IWindowTitleBar
 {
     /// <summary>
     /// 标题行中的窗口菜单内容。
@@ -54,31 +54,16 @@ public partial class TitleBarView : UserControl
         set => SetValue(CaptionInsetsProperty, value);
     }
 
+    Control IWindowTitleBar.View => this;
+
+    bool IWindowTitleBar.IsDragRegion(Point windowPoint)
+    {
+        return IsDragRegion(windowPoint);
+    }
+
     internal bool IsDragRegion(Point windowPoint)
     {
-        if (TopLevel.GetTopLevel(this) is not Window window || !IsEffectivelyVisible ||
-            window.TranslatePoint(windowPoint, this) is not { } point ||
-            !new Rect(Bounds.Size).Contains(point) || point.X < CaptionInsets.Left ||
-            point.X >= Bounds.Width - CaptionInsets.Right)
-        {
-            return false;
-        }
-
-        if (MenuContent is { IsEffectivelyVisible: true } menu &&
-            this.TranslatePoint(point, menu) is { } menuPoint && new Rect(menu.Bounds.Size).Contains(menuPoint))
-        {
-            return false;
-        }
-
-        if (ListenToggleButton.IsEffectivelyVisible &&
-            this.TranslatePoint(point, ListenToggleButton) is { } listenPoint &&
-            new Rect(ListenToggleButton.Bounds.Size).Contains(listenPoint))
-        {
-            return false;
-        }
-
-        return this.TranslatePoint(point, WindowButtons) is not { } actionsPoint ||
-               !new Rect(WindowButtons.Bounds.Size).Contains(actionsPoint);
+        return SharedTitleBar.IsDragRegion(windowPoint);
     }
 
     private void DebugTools_OnClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
@@ -99,33 +84,6 @@ public partial class TitleBarView : UserControl
         danmuStylePreviewWindow.Closed += (_, _) => danmuStylePreviewWindow = null;
         danmuStylePreviewWindow.Show(owner);
 #endif
-    }
-
-    private void TitleBar_OnPointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        if (TopLevel.GetTopLevel(this) is not Window window ||
-            !e.GetCurrentPoint(this).Properties.IsLeftButtonPressed || !IsDragRegion(e.GetPosition(window)))
-        {
-            return;
-        }
-
-        if (e.ClickCount % 2 == 0)
-        {
-            if (window.CanResize && window.CanMaximize)
-            {
-                window.WindowState = window.WindowState switch
-                {
-                    WindowState.Normal => WindowState.Maximized,
-                    WindowState.Maximized => WindowState.Normal,
-                    _ => window.WindowState
-                };
-            }
-
-            e.Handled = true;
-            return;
-        }
-
-        window.BeginMoveDrag(e);
     }
 
     private void Pin_OnClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)

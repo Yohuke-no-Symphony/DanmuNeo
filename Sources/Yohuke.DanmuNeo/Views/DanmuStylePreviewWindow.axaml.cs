@@ -7,6 +7,7 @@ using Yohuke.DanmuNeo.Services;
 using Yohuke.DanmuNeo.ViewModels;
 using Yohuke.DanmuNeo.ViewModels.Items;
 using Yohuke.DanmuNeo.Views.Components;
+using Yohuke.DanmuNeo.Windowing;
 
 namespace Yohuke.DanmuNeo.Views;
 
@@ -24,6 +25,7 @@ public partial class DanmuStylePreviewWindow : Window
     public DanmuStylePreviewWindow()
     {
         InitializeComponent();
+        WindowChrome.AttachFrame(this);
         DataContext = viewModel;
         scrollController = new(
             this.FindControl<ScrollViewer>("DanmuScrollViewer")!,
