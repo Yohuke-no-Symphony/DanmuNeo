@@ -1,3 +1,4 @@
+using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Services;
 
 namespace Yohuke.DanmuNeo.ViewModels.Items;
@@ -16,7 +17,7 @@ public partial class LiveRoomTabViewModel
 
         if (streamService is null || createPlayer && playerService is null)
         {
-            log?.Error(CreateLogSource("播放器"), "直播播放失败：播放服务不可用");
+            log?.Error(CreateLogSource(Localization.Get("Room.Log.Player")), Localization.Get("Room.Log.PlayerUnavailable"));
             return;
         }
 
@@ -38,7 +39,7 @@ public partial class LiveRoomTabViewModel
 
         var cancellationToken = tokenSource.Token;
         var roomId = RoomId;
-        var logSource = CreateLogSource("播放器", roomId);
+        var logSource = CreateLogSource(Localization.Get("Room.Log.Player"), roomId);
 
         try
         {
@@ -102,7 +103,7 @@ public partial class LiveRoomTabViewModel
             {
                 if (IsCurrentLivePlayerRequest(tokenSource, requestVersion, roomId))
                 {
-                    log?.Error(logSource, createPlayer ? "直播播放失败" : "直播清晰度读取失败", exception);
+                    log?.Error(logSource, createPlayer ? Localization.Get("Room.Log.PlayerFailed") : Localization.Get("Room.Log.QualityFailed"), exception);
 
                     if (string.IsNullOrWhiteSpace(livePlayerToken))
                     {

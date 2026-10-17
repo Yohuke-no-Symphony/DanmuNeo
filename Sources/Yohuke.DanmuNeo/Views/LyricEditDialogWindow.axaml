@@ -7,41 +7,43 @@
         MinWidth="720"
         MinHeight="460"
         WindowStartupLocation="CenterOwner"
-        Title="修改歌词">
+        Title="{Loc Key=UI.LyricEditDialogWindow.Title}">
     <Border x:Name="DialogSurface"
             Background="{DynamicResource AppCardBrush}"
             Padding="22">
         <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,Auto"
               RowSpacing="12">
             <StackPanel Spacing="4">
-                <TextBlock Text="修改歌词"
+                <TextBlock Text="{Loc Key=UI.LyricEditDialogWindow.Title}"
                            FontSize="22"
                            FontWeight="SemiBold"/>
-                <TextBlock Text="保存后会更新本地歌词库。"
+                <TextBlock Text="{Loc Key=UI.LyricEditDialogWindow.SaveHint}"
                            Classes="muted"/>
             </StackPanel>
 
             <Grid Grid.Row="1"
                   ColumnDefinitions="*,*,*"
                   ColumnSpacing="8">
-                <TextBox Watermark="歌曲名"
+                <TextBox x:Name="LyricTitleInput"
+                         Watermark="{Loc Key=UI.LyricEditDialogWindow.SongTitle}"
                          Text="{Binding Title}"/>
                 <TextBox Grid.Column="1"
-                         Watermark="歌手"
+                         Watermark="{Loc Key=UI.LyricEditDialogWindow.Artist}"
                          Text="{Binding Artist}"/>
                 <TextBox Grid.Column="2"
-                         Watermark="专辑"
+                         Watermark="{Loc Key=UI.LyricEditDialogWindow.Album}"
                          Text="{Binding Album}"/>
             </Grid>
 
             <TextBox Grid.Row="2"
-                     Watermark="标签"
+                     Watermark="{Loc Key=UI.LyricEditDialogWindow.Tags}"
                      Text="{Binding Tags}"/>
 
             <Border Grid.Row="3"
                     Classes="lyricEditError"
                     IsVisible="{Binding HasError}">
-                <TextBlock Text="{Binding ErrorText}"
+                <TextBlock x:Name="LyricValidationErrorText"
+                           Text="{Binding ErrorText}"
                            TextWrapping="Wrap"/>
             </Border>
 
@@ -49,7 +51,7 @@
                   ColumnDefinitions="*,*"
                   ColumnSpacing="10">
                 <TextBox x:Name="OriginalLyricTextBox"
-                         Watermark="原文歌词"
+                         Watermark="{Loc Key=UI.LyricEditDialogWindow.OriginalLyrics}"
                          Text="{Binding LyricText, Mode=OneTime}"
                          AcceptsReturn="True"
                          TextWrapping="NoWrap"
@@ -58,7 +60,7 @@
                          ScrollViewer.VerticalScrollBarVisibility="Auto"/>
                 <TextBox Grid.Column="1"
                          x:Name="TranslatedLyricTextBox"
-                         Watermark="翻译歌词"
+                         Watermark="{Loc Key=UI.LyricEditDialogWindow.TranslatedLyrics}"
                          Text="{Binding TranslatedLyricText, Mode=OneTime}"
                          AcceptsReturn="True"
                          TextWrapping="NoWrap"
@@ -71,11 +73,12 @@
                   ColumnDefinitions="*,Auto,Auto"
                   ColumnSpacing="8">
                 <Button Grid.Column="1"
-                        Content="取消"
+                        Content="{Loc Key=UI.LyricEditDialogWindow.Cancel}"
                         Click="Cancel_OnClick"/>
-                <Button Grid.Column="2"
+                <Button x:Name="SaveLyricButton"
+                        Grid.Column="2"
                         Classes="primaryButton"
-                        Content="保存"
+                        Content="{Loc Key=UI.LyricEditDialogWindow.Save}"
                         Click="Save_OnClick"/>
             </Grid>
         </Grid>

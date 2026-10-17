@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Dock.Controls.DeferredContentControl;
 using Dock.Model.Mvvm.Controls;
+using Yohuke.DanmuNeo.I18n;
 
 namespace Yohuke.DanmuNeo.Layouts;
 
@@ -10,19 +11,7 @@ internal sealed class WorkbenchDockPanel : Tool, IDeferredContentPresentation
     {
         Id = panelId;
         View = view;
-        Title = panelId switch
-        {
-            WorkbenchPanelIds.WORKSPACE => "工作区",
-            WorkbenchPanelIds.LIVE_PLAYER => "追帧",
-            WorkbenchPanelIds.COMPOSER => "输入框",
-            WorkbenchPanelIds.SUPER_CHAT => "SC",
-            WorkbenchPanelIds.DANMU => "弹幕",
-            WorkbenchPanelIds.HISTORY => "历史",
-            WorkbenchPanelIds.LYRICS => "歌词",
-            WorkbenchPanelIds.FORWARDING => "转发",
-            WorkbenchPanelIds.LOG => "日志",
-            _ => throw new ArgumentException("未知的工作台面板。", nameof(panelId))
-        };
+        Title = GetLocalizedTitle(panelId);
         CanPin = false;
         CanClose = true;
         CanFloat = true;
@@ -31,4 +20,21 @@ internal sealed class WorkbenchDockPanel : Tool, IDeferredContentPresentation
 
     public Control View { get; }
     public bool DeferContentPresentation => false;
+
+    internal static string GetLocalizedTitle(string panelId)
+    {
+        return Localization.Get(panelId switch
+        {
+            WorkbenchPanelIds.WORKSPACE => "Workbench.Panel.Workspace",
+            WorkbenchPanelIds.LIVE_PLAYER => "Workbench.Panel.LivePlayer",
+            WorkbenchPanelIds.COMPOSER => "Workbench.Panel.Composer",
+            WorkbenchPanelIds.SUPER_CHAT => "Workbench.Panel.SuperChat",
+            WorkbenchPanelIds.DANMU => "Workbench.Panel.Danmu",
+            WorkbenchPanelIds.HISTORY => "Workbench.Panel.History",
+            WorkbenchPanelIds.LYRICS => "Workbench.Panel.Lyrics",
+            WorkbenchPanelIds.FORWARDING => "Workbench.Panel.Forwarding",
+            WorkbenchPanelIds.LOG => "Workbench.Panel.Log",
+            _ => throw new ArgumentOutOfRangeException(nameof(panelId))
+        });
+    }
 }

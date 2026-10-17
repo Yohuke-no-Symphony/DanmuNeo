@@ -1,3 +1,4 @@
+using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Apis;
 
 namespace Yohuke.DanmuNeo.Services;
@@ -31,15 +32,19 @@ public class BilibiliUserNameService : IBilibiliUserNameService
         {
             var message = !string.IsNullOrWhiteSpace(response.Message)
                 ? response.Message
-                : !string.IsNullOrWhiteSpace(response.Msg) ? response.Msg : "用户名查询失败";
-            throw new InvalidOperationException(message);
+                : response.Msg;
+            throw string.IsNullOrWhiteSpace(message)
+                ? LocalizedExceptionText.Create("Services.BilibiliUserName.QueryFailed",
+                    text => new InvalidOperationException(text))
+                : new InvalidOperationException(message);
         }
 
         var card = response.Data?.Card;
 
         if (card is null || card.Uid != uid || string.IsNullOrWhiteSpace(card.Name))
         {
-            throw new InvalidOperationException("未获取到用户名");
+            throw LocalizedExceptionText.Create("Services.BilibiliUserName.NameMissing",
+                message => new InvalidOperationException(message));
         }
 
         return card.Name.Trim();

@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Models.State;
 using Yohuke.DanmuNeo.Models.Workspace;
 
@@ -11,6 +12,7 @@ namespace Yohuke.DanmuNeo.ViewModels.Items;
 public partial class DanmuForwardRuleViewModel : ViewModelBase, IDisposable
 {
     private readonly Action<DanmuForwardRuleViewModel> onChanged;
+    private LocalizedMessage statusMessage;
     private IReadOnlyList<ForwardSourceRoomOption> sourceRoomOptions = [];
     private IReadOnlyList<ForwardAccountOption> accountOptions = [];
     private IEnumerable<MarkSymbolGroup> symbolGroups = [];
@@ -22,7 +24,9 @@ public partial class DanmuForwardRuleViewModel : ViewModelBase, IDisposable
     {
         State = state;
         this.onChanged = onChanged;
-        statusText = state.IsEnabled ? "等待启动" : "未启用";
+        statusMessage = new(state.IsEnabled ? "Forward.Waiting" : "Forward.Disabled");
+        statusText = statusMessage.Render();
+        Localization.LanguageChanged += OnLanguageChanged;
     }
 
     /// <summary>
@@ -191,6 +195,18 @@ public partial class DanmuForwardRuleViewModel : ViewModelBase, IDisposable
     }
 
     [ObservableProperty] private string statusText;
+
+    internal void SetLocalizedStatus(string key, params object[] arguments)
+    {
+        statusMessage = new(key, arguments);
+        StatusText = statusMessage.Render();
+    }
+
+    private void OnLanguageChanged(object? sender, EventArgs e)
+    {
+        StatusText = statusMessage.Render();
+        OnPropertyChanged(nameof(SenderUserNameDisplayText));
+    }
 
     internal void ConfigureOptions(
         IReadOnlyList<ForwardSourceRoomOption> sources,

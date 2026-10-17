@@ -15,7 +15,7 @@
                       ColumnSpacing="8">
                     <StackPanel Spacing="2"
                                 VerticalAlignment="Center">
-                        <TextBlock Text="工作区设置"
+                        <TextBlock Text="{Loc Key=UI.WorkspaceSettingsDialogView.Title}"
                                    FontSize="20"
                                    FontWeight="SemiBold" />
                         <TextBlock Text="{Binding SelectedWorkspace.Name}"
@@ -29,7 +29,7 @@
                         <StackPanel Orientation="Horizontal"
                                     Spacing="6">
                             <LucideIcon Kind="Save" />
-                            <TextBlock Text="保存" />
+                            <TextBlock Text="{Loc Key=UI.WorkspaceSettingsDialogView.Save}" />
                         </StackPanel>
                     </Button>
                 </Grid>

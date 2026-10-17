@@ -1,3 +1,5 @@
+using Yohuke.DanmuNeo.I18n;
+
 namespace Yohuke.DanmuNeo.Layouts;
 
 internal static class WorkspaceLayoutValidator
@@ -6,11 +8,36 @@ internal static class WorkspaceLayoutValidator
 
     internal static bool TryValidate(WorkspaceLayoutSnapshot layout, out string error, bool legacy = false)
     {
+        return TryValidate(layout, out error, out _, legacy);
+    }
+
+    internal static bool TryValidate(WorkspaceLayoutSnapshot layout, out string error, out string errorKey,
+        bool legacy = false)
+    {
+        var valid = TryValidateSnapshot(layout, out errorKey, legacy);
+        error = errorKey.Length == 0 ? string.Empty : Localization.Get(errorKey);
+        return valid;
+    }
+
+    internal static bool TryValidate(WorkspaceLayoutFile file, out string error)
+    {
+        return TryValidate(file, out error, out _);
+    }
+
+    internal static bool TryValidate(WorkspaceLayoutFile file, out string error, out string errorKey)
+    {
+        var valid = TryValidateFile(file, out errorKey);
+        error = errorKey.Length == 0 ? string.Empty : Localization.Get(errorKey);
+        return valid;
+    }
+
+    private static bool TryValidateSnapshot(WorkspaceLayoutSnapshot layout, out string error, bool legacy)
+    {
         error = "";
 
         if (layout is null || layout.FloatingWindows is null || layout.HiddenPanelIds is null)
         {
-            error = "布局缺少必要的面板或窗口集合。";
+            error = "Layout.Validation.CollectionsRequired";
             return false;
         }
 
@@ -26,7 +53,7 @@ internal static class WorkspaceLayoutValidator
         {
             if (floating is null || floating.Bounds is null || !IsValidBounds(floating.Bounds))
             {
-                error = "浮动窗口的位置、大小或缩放无效。";
+                error = "Layout.Validation.InvalidBounds";
                 return false;
             }
 
@@ -38,7 +65,7 @@ internal static class WorkspaceLayoutValidator
 
         if (layout.FocusedPanelId is { } focused && !panelIds.Contains(focused))
         {
-            error = "聚焦面板不在当前可见布局中。";
+            error = "Layout.Validation.InvalidFocus";
             return false;
         }
 
@@ -56,30 +83,30 @@ internal static class WorkspaceLayoutValidator
 
         if (!panelIds.SetEquals(expected))
         {
-            error = "布局必须恰好包含全部工作台面板。";
+            error = "Layout.Validation.IncompletePanels";
             return false;
         }
 
         return true;
     }
 
-    internal static bool TryValidate(WorkspaceLayoutFile file, out string error)
+    private static bool TryValidateFile(WorkspaceLayoutFile file, out string error)
     {
         error = "";
 
         if (file is null || file.Version != WorkspaceLayoutFile.CURRENT_VERSION)
         {
-            error = "布局文件版本不受支持。";
+            error = "Layout.Validation.UnsupportedVersion";
             return false;
         }
 
         if (file.UserPresets is null)
         {
-            error = "布局文件缺少自定义布局集合。";
+            error = "Layout.Validation.UserPresetsRequired";
             return false;
         }
 
-        if (!TryValidate(file.CurrentLayout, out error))
+        if (!TryValidateSnapshot(file.CurrentLayout, out error, false))
         {
             return false;
         }
@@ -97,17 +124,17 @@ internal static class WorkspaceLayoutValidator
         {
             if (preset is null || !IsValidText(preset.Id) || !presetIds.Add(preset.Id))
             {
-                error = "自定义布局的标识为空、重复或与内置布局冲突。";
+                error = "Layout.Validation.InvalidPresetId";
                 return false;
             }
 
             if (!IsValidText(preset.Name) || !presetNames.Add(preset.Name.Trim()))
             {
-                error = "自定义布局名称为空、含控制字符或与其他名称重复。";
+                error = "Layout.Validation.InvalidPresetName";
                 return false;
             }
 
-            if (!TryValidate(preset.Layout, out error))
+            if (!TryValidateSnapshot(preset.Layout, out error, false))
             {
                 return false;
             }
@@ -115,7 +142,7 @@ internal static class WorkspaceLayoutValidator
 
         if (file.CurrentPresetId is null || !presetIds.Contains(file.CurrentPresetId))
         {
-            error = "当前选中的布局不存在。";
+            error = "Layout.Validation.CurrentPresetMissing";
             return false;
         }
 
@@ -133,20 +160,20 @@ internal static class WorkspaceLayoutValidator
 
         if (node is null || node.Children is null || node.PanelIds is null)
         {
-            error = "布局节点缺少必要内容。";
+            error = "Layout.Validation.NodeContentRequired";
             return false;
         }
 
         if (depth > MAXIMUM_DEPTH || !nodes.Add(node))
         {
-            error = "布局节点过深或存在重复、循环引用。";
+            error = "Layout.Validation.InvalidNodeGraph";
             return false;
         }
 
         if (!double.IsFinite(node.Proportion) || node.Proportion <= 0 ||
             !Enum.IsDefined(node.Orientation))
         {
-            error = "布局节点的比例或方向无效。";
+            error = "Layout.Validation.InvalidNodeGeometry";
             return false;
         }
 
@@ -156,7 +183,7 @@ internal static class WorkspaceLayoutValidator
                 if (node.Children.Count != 0 || node.PanelIds.Count == 0 ||
                     node.ActivePanelId is { } active && !node.PanelIds.Contains(active, StringComparer.Ordinal))
                 {
-                    error = "标签组必须包含面板，活动标签必须属于该组。";
+                    error = "Layout.Validation.InvalidTabGroup";
                     return false;
                 }
 
@@ -172,7 +199,7 @@ internal static class WorkspaceLayoutValidator
             case WorkspaceLayoutNodeKind.Split:
                 if (node.Children.Count < 2 || node.PanelIds.Count != 0 || node.ActivePanelId is not null)
                 {
-                    error = "分割节点必须包含至少两个子区域，不能直接包含标签。";
+                    error = "Layout.Validation.InvalidSplit";
                     return false;
                 }
 
@@ -186,7 +213,7 @@ internal static class WorkspaceLayoutValidator
 
                 return true;
             default:
-                error = "布局包含未知节点类型。";
+                error = "Layout.Validation.UnknownNode";
                 return false;
         }
     }
@@ -195,7 +222,7 @@ internal static class WorkspaceLayoutValidator
     {
         if (panelId is null || !WorkbenchPanelIds.All.Contains(panelId, StringComparer.Ordinal) || !panelIds.Add(panelId))
         {
-            error = "布局包含未知或重复面板。";
+            error = "Layout.Validation.InvalidPanel";
             return false;
         }
 

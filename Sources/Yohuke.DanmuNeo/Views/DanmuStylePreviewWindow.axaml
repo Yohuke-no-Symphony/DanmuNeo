@@ -9,7 +9,7 @@
         MinWidth="820"
         MinHeight="580"
         WindowStartupLocation="CenterOwner"
-        Title="弹幕、SC 与上舰样式测试">
+        Title="{Loc Key=UI.DanmuStylePreviewWindow.Title}">
     <Grid Classes="rootSurface"
           RowDefinitions="Auto,*">
         <Border Classes="panel"
@@ -18,17 +18,17 @@
             <Grid RowDefinitions="Auto,Auto"
                   RowSpacing="10">
                 <StackPanel Spacing="2">
-                    <TextBlock Text="弹幕、SC 与上舰样式测试"
+                    <TextBlock Text="{Loc Key=UI.DanmuStylePreviewWindow.Title}"
                                FontSize="18"
                                FontWeight="SemiBold" />
-                    <TextBlock Text="仅 DEBUG 入口可用；拖动窗口、列分隔条和上下分隔条检查响应式布局。"
+                    <TextBlock Text="{Loc Key=UI.DanmuStylePreviewWindow.DebugHint}"
                                Classes="muted"
                                TextWrapping="Wrap" />
                     <StackPanel x:Name="CurrentMarkGroupPanel"
                                 IsVisible="False"
                                 Orientation="Horizontal"
                                 Spacing="6">
-                        <TextBlock Text="当前工作区同传预设："
+                        <TextBlock Text="{Loc Key=UI.DanmuStylePreviewWindow.WorkspacePreset}"
                                    Classes="muted" />
                         <TextBlock x:Name="CurrentMarkGroupText"
                                    Text="{Binding SelectedWorkspaceMarkGroup.Name}"
@@ -38,32 +38,32 @@
                 </StackPanel>
                 <WrapPanel Grid.Row="1"
                            Orientation="Horizontal">
-                    <CheckBox Content="紧凑模式"
+                    <CheckBox Content="{Loc Key=UI.DanmuStylePreviewWindow.CompactMode}"
                               IsChecked="{Binding IsCompactDanmuDisplay}"
                               Margin="0,0,16,0"
                               VerticalAlignment="Center" />
                     <CheckBox x:Name="CompactDanmuWrapCheckBox"
-                              Content="弹幕自动换行"
+                              Content="{Loc Key=UI.DanmuStylePreviewWindow.WrapDanmu}"
                               IsChecked="{Binding IsCompactDanmuWrap}"
                               IsEnabled="{Binding IsCompactDanmuDisplay}"
                               Margin="0,0,16,0"
                               VerticalAlignment="Center" />
                     <CheckBox x:Name="CompactSuperChatWrapCheckBox"
-                              Content="SC 自动换行"
+                              Content="{Loc Key=UI.DanmuStylePreviewWindow.WrapSuperChat}"
                               IsChecked="{Binding IsCompactSuperChatWrap}"
                               IsEnabled="{Binding IsCompactDanmuDisplay}"
                               Margin="0,0,16,0"
                               VerticalAlignment="Center" />
-                    <TextBlock Text="主题"
+                    <TextBlock Text="{Loc Key=UI.DanmuStylePreviewWindow.Theme}"
                                Classes="muted"
                                Margin="0,0,8,0"
                                VerticalAlignment="Center" />
                     <ComboBox x:Name="ThemeModeComboBox"
                               Width="120"
                               SelectionChanged="ThemeMode_OnSelectionChanged">
-                        <ComboBoxItem Content="跟随系统" />
-                        <ComboBoxItem Content="浅色" />
-                        <ComboBoxItem Content="深色" />
+                        <ComboBoxItem Content="{Loc Key=UI.DanmuStylePreviewWindow.SystemTheme}" />
+                        <ComboBoxItem Content="{Loc Key=UI.DanmuStylePreviewWindow.LightTheme}" />
+                        <ComboBoxItem Content="{Loc Key=UI.DanmuStylePreviewWindow.DarkTheme}" />
                     </ComboBox>
                 </WrapPanel>
             </Grid>
@@ -91,10 +91,10 @@
 
                     <Grid ColumnDefinitions="*,Auto"
                           Margin="0,0,0,10">
-                        <TextBlock Text="生产样式预览"
+                        <TextBlock Text="{Loc Key=UI.DanmuStylePreviewWindow.ProductionPreview}"
                                    Classes="sectionTitle" />
                         <TextBlock Grid.Column="1"
-                                   Text="SC 35% / 弹幕 65%"
+                                   Text="{Loc Key=UI.DanmuStylePreviewWindow.FeedRatio}"
                                    Classes="muted" />
                     </Grid>
 
@@ -233,48 +233,48 @@
                     <StackPanel Classes="scrollSafeContent"
                                 Spacing="12">
                         <StackPanel Spacing="3">
-                            <TextBlock Text="测试数据"
+                            <TextBlock Text="{Loc Key=UI.DanmuStylePreviewWindow.TestData}"
                                        Classes="sectionTitle" />
-                            <TextBlock Text="新增内容会插入列表顶部，不会连接直播间或发送消息。"
+                            <TextBlock Text="{Loc Key=UI.DanmuStylePreviewWindow.TestDataHint}"
                                        Classes="muted"
                                        TextWrapping="Wrap" />
                         </StackPanel>
 
                         <StackPanel Spacing="5">
-                            <TextBlock Text="用户名"
+                            <TextBlock Text="{Loc Key=UI.DanmuStylePreviewWindow.UserName}"
                                        Classes="muted" />
                             <TextBox Text="{Binding UserName}"
-                                     Watermark="测试用户" />
+                                     Watermark="{Loc Key=UI.DanmuStylePreviewWindow.UserNameWatermark}" />
                         </StackPanel>
 
                         <StackPanel Spacing="5">
-                            <TextBlock Text="内容"
+                            <TextBlock Text="{Loc Key=UI.DanmuStylePreviewWindow.Content}"
                                        Classes="muted" />
                             <TextBox Text="{Binding Content}"
-                                     Watermark="测试消息"
+                                     Watermark="{Loc Key=UI.DanmuStylePreviewWindow.ContentWatermark}"
                                      AcceptsReturn="True"
                                      TextWrapping="Wrap"
                                      MinHeight="92" />
                         </StackPanel>
 
                         <StackPanel Spacing="5">
-                            <TextBlock Text="弹幕状态（可空）"
+                            <TextBlock Text="{Loc Key=UI.DanmuStylePreviewWindow.OptionalDanmuStatus}"
                                        Classes="muted" />
                             <TextBox Text="{Binding DanmuStatus}"
-                                     Watermark="例如：已转发" />
+                                     Watermark="{Loc Key=UI.DanmuStylePreviewWindow.StatusWatermark}" />
                         </StackPanel>
 
                         <Grid ColumnDefinitions="*,120"
                               ColumnSpacing="8">
                             <StackPanel Spacing="5">
-                                <TextBlock Text="粉丝牌名称（可空）"
+                                <TextBlock Text="{Loc Key=UI.DanmuStylePreviewWindow.OptionalMedalName}"
                                            Classes="muted" />
                                 <TextBox Text="{Binding MedalName}"
-                                         Watermark="留空可预览无牌用户" />
+                                         Watermark="{Loc Key=UI.DanmuStylePreviewWindow.MedalWatermark}" />
                             </StackPanel>
                             <StackPanel Grid.Column="1"
                                         Spacing="5">
-                                <TextBlock Text="粉丝牌等级"
+                                <TextBlock Text="{Loc Key=UI.DanmuStylePreviewWindow.MedalLevel}"
                                            Classes="muted" />
                                 <NumericUpDown Value="{Binding MedalLevel}"
                                                Minimum="0"
@@ -285,7 +285,7 @@
                         </Grid>
 
                         <StackPanel Spacing="5">
-                            <TextBlock Text="粉丝牌大航海身份"
+                            <TextBlock Text="{Loc Key=UI.DanmuStylePreviewWindow.MedalGuardLevel}"
                                        Classes="muted" />
                             <ComboBox ItemsSource="{Binding MedalGuardPresets}"
                                       SelectedItem="{Binding SelectedMedalGuardPreset}">
@@ -300,20 +300,20 @@
                         <Grid ColumnDefinitions="*,*"
                               ColumnSpacing="8">
                             <Button Classes="primaryButton"
-                                    Content="添加普通弹幕"
+                                    Content="{Loc Key=UI.DanmuStylePreviewWindow.AddDanmu}"
                                     Click="AddDanmu_OnClick" />
                             <Button Grid.Column="1"
-                                    Content="批量添加 80 条"
+                                    Content="{Loc Key=UI.DanmuStylePreviewWindow.AddBatch}"
                                     Click="AddDanmuBatch_OnClick" />
                         </Grid>
-                        <TextBlock Text="批量添加后下翻弹幕，再添加新消息检查阅读位置；回到顶部后恢复自动跟随。"
+                        <TextBlock Text="{Loc Key=UI.DanmuStylePreviewWindow.ScrollHint}"
                                    Classes="muted"
                                    TextWrapping="Wrap" />
 
                         <Border Classes="historyRecordCard"
                                 Margin="0,4,0,0">
                             <StackPanel Spacing="10">
-                                <TextBlock Text="SC 设置"
+                                <TextBlock Text="{Loc Key=UI.DanmuStylePreviewWindow.SuperChatSettings}"
                                            FontWeight="SemiBold" />
                                 <ComboBox ItemsSource="{Binding SuperChatPresets}"
                                           SelectedItem="{Binding SelectedSuperChatPreset}">
@@ -336,20 +336,20 @@
                                     </ComboBox.ItemTemplate>
                                 </ComboBox>
                                 <StackPanel Spacing="5">
-                                    <TextBlock Text="边框颜色"
+                                    <TextBlock Text="{Loc Key=UI.DanmuStylePreviewWindow.BorderColor}"
                                                Classes="muted" />
                                     <TextBox Text="{Binding SuperChatColorText}"
                                              Watermark="#3171D2" />
                                 </StackPanel>
                                 <Button Classes="primaryButton"
-                                        Content="添加醒目留言"
+                                        Content="{Loc Key=UI.DanmuStylePreviewWindow.AddSuperChat}"
                                         Click="AddSuperChat_OnClick" />
                             </StackPanel>
                         </Border>
 
                         <Border Classes="historyRecordCard">
                             <StackPanel Spacing="10">
-                                <TextBlock Text="上舰设置"
+                                <TextBlock Text="{Loc Key=UI.DanmuStylePreviewWindow.GuardSettings}"
                                            FontWeight="SemiBold" />
                                 <ComboBox ItemsSource="{Binding GuardPresets}"
                                           SelectedItem="{Binding SelectedGuardPreset}">
@@ -360,21 +360,21 @@
                                     </ComboBox.ItemTemplate>
                                 </ComboBox>
                                 <Button Classes="primaryButton"
-                                        Content="添加上舰记录"
+                                        Content="{Loc Key=UI.DanmuStylePreviewWindow.AddGuardPurchase}"
                                         Click="AddGuardPurchase_OnClick" />
                             </StackPanel>
                         </Border>
 
                         <Grid ColumnDefinitions="*,*"
                               ColumnSpacing="8">
-                            <Button Content="恢复默认样本"
+                            <Button Content="{Loc Key=UI.DanmuStylePreviewWindow.ResetSamples}"
                                     Click="ResetSamples_OnClick" />
                             <Button Grid.Column="1"
-                                    Content="清空列表"
+                                    Content="{Loc Key=UI.DanmuStylePreviewWindow.ClearList}"
                                     Click="ClearSamples_OnClick" />
                         </Grid>
 
-                        <TextBlock Text="换算口径：SC price 为人民币价值，当前 B 站充值比例为 1 元 = 10 电池。"
+                        <TextBlock Text="{Loc Key=UI.DanmuStylePreviewWindow.PriceHint}"
                                    Classes="muted"
                                    TextWrapping="Wrap" />
                     </StackPanel>

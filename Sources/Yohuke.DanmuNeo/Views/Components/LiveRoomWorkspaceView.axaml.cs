@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Layouts;
 using Yohuke.DanmuNeo.Models.Workspace;
 using Yohuke.DanmuNeo.ViewModels.Items;
@@ -18,6 +19,7 @@ public partial class LiveRoomWorkspaceView : UserControl, IDisposable
     private Window? attachedWindow;
     private TabControl? tools;
     private bool isDisposed;
+    private readonly List<IDisposable> localizedTabs = new();
 
     /// <summary>
     /// 创建等待显式上下文注入的宿主。
@@ -73,10 +75,10 @@ public partial class LiveRoomWorkspaceView : UserControl, IDisposable
             Classes = { "workspaceToolTabs" },
             Items =
             {
-                new TabItem { Header = "弹幕", Content = feed },
-                new TabItem { Header = "历史", Content = WorkbenchPanels.History },
-                new TabItem { Header = "歌词", Content = WorkbenchPanels.Lyrics },
-                new TabItem { Header = "转发", Content = WorkbenchPanels.Forwarding }
+                CreateToolTab("UI.LiveRoomWorkspaceView.DanmuTab", feed),
+                CreateToolTab("UI.LiveRoomWorkspaceView.HistoryTab", WorkbenchPanels.History),
+                CreateToolTab("UI.LiveRoomWorkspaceView.LyricsTab", WorkbenchPanels.Lyrics),
+                CreateToolTab("UI.LiveRoomWorkspaceView.ForwardingTab", WorkbenchPanels.Forwarding)
             }
         };
         var toolBorder = new Border { Classes = { "panel" }, Padding = new(14), Child = tools };
@@ -163,6 +165,12 @@ public partial class LiveRoomWorkspaceView : UserControl, IDisposable
         }
 
         shortcuts?.Dispose();
+        foreach (var binding in localizedTabs)
+        {
+            binding.Dispose();
+        }
+
+        localizedTabs.Clear();
         WorkbenchPanels?.Dispose();
         context?.Dispose();
     }
@@ -198,5 +206,12 @@ public partial class LiveRoomWorkspaceView : UserControl, IDisposable
         {
             names.Register(alias, panel.FindControl<Control>(alias)!);
         }
+    }
+
+    private TabItem CreateToolTab(string key, Control content)
+    {
+        var tab = new TabItem { Content = content };
+        localizedTabs.Add(tab.Bind(TabItem.HeaderProperty, Localization.Observe(key)));
+        return tab;
     }
 }

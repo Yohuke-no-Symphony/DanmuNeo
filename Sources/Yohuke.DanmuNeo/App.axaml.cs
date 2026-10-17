@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Services;
 using Yohuke.DanmuNeo.ViewModels;
 using Yohuke.DanmuNeo.Views;
@@ -17,6 +18,7 @@ public partial class App : Application
     {
         logBridge = new(log);
         StartupLog.Append("App.Initialize begin");
+        Localization.Initialize(Path.Combine(AppContext.BaseDirectory, "i18n"));
         AvaloniaXamlLoader.Load(this);
 
         if (OperatingSystem.IsMacOS() && NativeMenu.GetMenu(this) is null)
@@ -35,7 +37,10 @@ public partial class App : Application
         {
             StartupLog.Append("Create MainWindow begin");
             desktop.Exit += OnExit;
-            var viewModel = new MainWindowViewModel(new AppStateService(), log: log);
+            var stateService = new AppStateService();
+            var state = stateService.Load();
+            AppLanguageService.ApplyPreference(state.Settings.Language);
+            var viewModel = new MainWindowViewModel(stateService, log: log, loadedState: state);
             var mainWindow = new MainWindow
             {
                 DataContext = viewModel,

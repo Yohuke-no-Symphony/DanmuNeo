@@ -1,5 +1,7 @@
+using System.Collections.ObjectModel;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Input;
+using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Models.Logging;
 using Yohuke.DanmuNeo.Services;
 
@@ -11,20 +13,24 @@ namespace Yohuke.DanmuNeo.ViewModels;
 public sealed class LogPanelViewModel : ViewModelBase, IDisposable
 {
     private readonly IAppLogService log;
+    private readonly ObservableCollection<string> levels = [string.Empty, "INFO", "WARNING", "ERROR"];
     private int filterIndex;
     private string filterText = string.Empty;
     private AppLogEntry? selectedEntry;
     private Func<bool>? readingState;
     private int refreshPending;
     private volatile bool disposed;
+    private bool refreshingLevels;
 
     /// <summary>连接应用会话日志，不接管日志服务的生命周期。</summary>
     public LogPanelViewModel(IAppLogService log)
     {
         ArgumentNullException.ThrowIfNull(log);
         this.log = log;
+        levels[0] = Localization.Get("Workbench.Log.AllLevels");
         ClearCommand = new(log.Clear);
         log.Changed += OnLogChanged;
+        Localization.LanguageChanged += OnLanguageChanged;
         Refresh();
     }
 
@@ -33,7 +39,7 @@ public sealed class LogPanelViewModel : ViewModelBase, IDisposable
     /// <summary>符合当前级别和全文搜索条件的记录。</summary>
     public IReadOnlyList<AppLogEntry> Entries { get; private set; } = [];
     /// <summary>日志级别筛选选项。</summary>
-    public IReadOnlyList<string> Levels { get; } = ["全部级别", "INFO", "WARNING", "ERROR"];
+    public IReadOnlyList<string> Levels => levels;
     /// <summary>当前筛选结果是否为空。</summary>
     public bool IsEmpty => Entries.Count == 0;
     /// <summary>是否可以复制选中记录。</summary>
@@ -47,7 +53,7 @@ public sealed class LogPanelViewModel : ViewModelBase, IDisposable
         get => filterIndex;
         set
         {
-            if (value is >= 0 and <= 3 && SetProperty(ref filterIndex, value))
+            if (!refreshingLevels && value is >= 0 and <= 3 && SetProperty(ref filterIndex, value))
             {
                 Refresh();
             }
@@ -111,8 +117,24 @@ public sealed class LogPanelViewModel : ViewModelBase, IDisposable
         }
 
         disposed = true;
+        Localization.LanguageChanged -= OnLanguageChanged;
         readingState = null;
         log.Changed -= OnLogChanged;
+    }
+
+    private void OnLanguageChanged(object? sender, EventArgs e)
+    {
+        refreshingLevels = true;
+
+        try
+        {
+            levels[0] = Localization.Get("Workbench.Log.AllLevels");
+            OnPropertyChanged(nameof(FilterIndex));
+        }
+        finally
+        {
+            refreshingLevels = false;
+        }
     }
 
     private void OnLogChanged(object? sender, EventArgs e)

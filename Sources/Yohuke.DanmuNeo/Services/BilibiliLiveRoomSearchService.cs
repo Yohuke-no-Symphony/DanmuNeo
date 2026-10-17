@@ -1,3 +1,4 @@
+using Yohuke.DanmuNeo.I18n;
 using System.Globalization;
 using System.Net;
 using System.Text.RegularExpressions;
@@ -37,14 +38,19 @@ public partial class BilibiliLiveRoomSearchService : IBilibiliLiveRoomSearchServ
 
         if (response.Code != 0)
         {
-            throw new InvalidOperationException(response.Message ?? response.Msg ?? "主播搜索失败");
+            var message = response.Message ?? response.Msg;
+            throw message is null
+                ? LocalizedExceptionText.Create("Services.BilibiliRoomSearch.SearchFailed",
+                    text => new InvalidOperationException(text))
+                : new InvalidOperationException(message);
         }
 
         var data = response.Data;
 
         if (data?.Result is null)
         {
-            throw new InvalidOperationException("B 站未返回搜索结果，请稍后重试或手动添加直播间");
+            throw LocalizedExceptionText.Create("Services.BilibiliRoomSearch.ResultsMissing",
+                message => new InvalidOperationException(message));
         }
 
         var results = data.Result

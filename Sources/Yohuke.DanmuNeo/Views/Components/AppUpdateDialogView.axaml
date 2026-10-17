@@ -15,23 +15,23 @@
                            FontWeight="SemiBold"
                            TextWrapping="Wrap"
                            TextAlignment="Center"/>
-                <TextBlock Text="{Binding AvailableUpdate.TagName, StringFormat='最新版本：{0}'}"
+                <TextBlock x:Name="LatestVersionText"
                            IsVisible="{Binding !!AvailableUpdate}"
                            FontSize="16"
                            TextWrapping="Wrap"
                            TextAlignment="Center"/>
-                <TextBlock Text="{Binding AppVersion, StringFormat='当前版本：{0}'}"
+                <TextBlock x:Name="CurrentVersionText"
                            Classes="muted"
                            TextWrapping="Wrap"
                            TextAlignment="Center"/>
-                <TextBlock Text="前往 GitHub 发布页面查看更新说明并下载。"
+                <TextBlock Text="{Loc Key=UI.AppUpdateDialogView.ReleaseHint}"
                            IsVisible="{Binding !!AvailableUpdate}"
                            Classes="muted"
                            TextWrapping="Wrap"
                            TextAlignment="Center"/>
             </StackPanel>
             <TextBlock x:Name="LaunchErrorText"
-                       Text="无法打开浏览器，请稍后重试。"
+                       Text="{Loc Key=UI.AppUpdateDialogView.BrowserLaunchFailed}"
                        Classes="muted"
                        IsVisible="False"
                        TextWrapping="Wrap"/>
@@ -39,12 +39,12 @@
                   ColumnSpacing="8">
                 <Button x:Name="DismissUpdateButton"
                         Grid.Column="1"
-                        Content="关闭"
+                        Content="{Loc Key=UI.AppUpdateDialogView.Close}"
                         Command="{Binding CloseUpdateDialogCommand}"/>
                 <Button x:Name="OpenReleaseButton"
                         Grid.Column="2"
                         Classes="primaryButton"
-                        Content="前往 GitHub"
+                        Content="{Loc Key=UI.AppUpdateDialogView.OpenGitHub}"
                         IsVisible="{Binding !!AvailableUpdate}"
                         Command="{Binding #Root.OpenReleaseCommand}"/>
             </Grid>

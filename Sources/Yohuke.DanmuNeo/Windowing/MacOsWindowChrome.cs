@@ -1,3 +1,4 @@
+using Yohuke.DanmuNeo.I18n;
 using System.Runtime.Versioning;
 using Avalonia;
 using Avalonia.Controls;
@@ -23,7 +24,7 @@ internal sealed class MacOsWindowChrome : IWindowChrome
         minimumTitleBarHeight = titleBar.View.Height;
         if (!double.IsFinite(minimumTitleBarHeight) || minimumTitleBarHeight <= 0)
         {
-            throw new ArgumentException("标题栏必须提供正数高度。", nameof(titleBar));
+            throw new ArgumentException(Localization.Get("Window.Chrome.InvalidTitleBarHeight"), nameof(titleBar));
         }
 
         window.ExtendClientAreaChromeHints = ExtendClientAreaChromeHints.SystemChrome |

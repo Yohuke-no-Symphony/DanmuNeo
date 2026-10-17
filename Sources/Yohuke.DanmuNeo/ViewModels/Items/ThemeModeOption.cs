@@ -1,5 +1,6 @@
 using Yohuke.DanmuNeo.Models.State;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Yohuke.DanmuNeo.I18n;
 
 namespace Yohuke.DanmuNeo.ViewModels.Items;
 
@@ -11,10 +12,9 @@ public partial class ThemeModeOption : ObservableObject
     /// <summary>
     /// 初始化配色方案选项。
     /// </summary>
-    public ThemeModeOption(AppThemeMode value, string name)
+    public ThemeModeOption(AppThemeMode value)
     {
         Value = value;
-        Name = name;
     }
 
     /// <summary>
@@ -25,7 +25,13 @@ public partial class ThemeModeOption : ObservableObject
     /// <summary>
     /// 显示名称。
     /// </summary>
-    public string Name { get; }
+    public string Name => Localization.Get(Value switch
+    {
+        AppThemeMode.System => "Settings.Theme.System",
+        AppThemeMode.Light => "Settings.Theme.Light",
+        AppThemeMode.Dark => "Settings.Theme.Dark",
+        _ => throw new ArgumentOutOfRangeException(nameof(Value))
+    });
 
     /// <summary>
     /// 是否为系统配色预览。
@@ -47,4 +53,9 @@ public partial class ThemeModeOption : ObservableObject
     /// </summary>
     [ObservableProperty]
     private bool isSelected;
+
+    internal void RefreshLocalization()
+    {
+        OnPropertyChanged(nameof(Name));
+    }
 }

@@ -18,9 +18,9 @@
                 <Grid ColumnDefinitions="*,Auto"
                       ColumnSpacing="8">
                     <StackPanel>
-                        <TextBlock Text="本地歌词库"
+                        <TextBlock Text="{Loc Key=UI.LyricLibrarySettingsView.Title}"
                                    Classes="sectionTitle"/>
-                        <TextBlock Text="本地导入和音乐 API 拉取过的歌词都会沉淀到这里。"
+                        <TextBlock Text="{Loc Key=UI.LyricLibrarySettingsView.LibraryHint}"
                                    Classes="muted"
                                    TextWrapping="Wrap"/>
                     </StackPanel>
@@ -29,7 +29,7 @@
                         <StackPanel Orientation="Horizontal"
                                     Spacing="6">
                             <LucideIcon Kind="Save"/>
-                            <TextBlock Text="保存当前歌词"/>
+                            <TextBlock Text="{Loc Key=UI.LyricLibrarySettingsView.SaveCurrent}"/>
                         </StackPanel>
                     </Button>
                 </Grid>

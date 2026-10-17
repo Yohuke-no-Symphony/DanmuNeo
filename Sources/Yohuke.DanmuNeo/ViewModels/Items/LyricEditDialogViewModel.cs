@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Models.State;
 
 namespace Yohuke.DanmuNeo.ViewModels.Items;
@@ -6,15 +7,17 @@ namespace Yohuke.DanmuNeo.ViewModels.Items;
 /// <summary>
 /// 歌词编辑弹窗视图模型。
 /// </summary>
-public class LyricEditDialogViewModel : ObservableObject
+public class LyricEditDialogViewModel : ObservableObject, IDisposable
 {
     private string errorText = "";
+    private LocalizedMessage? localizedError;
 
     /// <summary>
     /// 初始化歌词编辑弹窗视图模型。
     /// </summary>
     public LyricEditDialogViewModel(LyricLibraryItem item)
     {
+        Localization.LanguageChanged += OnLanguageChanged;
         Title = item.Title;
         Artist = item.Artist;
         Album = item.Album;
@@ -61,6 +64,8 @@ public class LyricEditDialogViewModel : ObservableObject
         get => errorText;
         set
         {
+            localizedError = null;
+
             if (SetProperty(ref errorText, value))
             {
                 OnPropertyChanged(nameof(HasError));
@@ -72,6 +77,32 @@ public class LyricEditDialogViewModel : ObservableObject
     /// 是否存在错误。
     /// </summary>
     public bool HasError => !string.IsNullOrWhiteSpace(ErrorText);
+
+    /// <summary>
+    /// 记录可随界面语言变化刷新的错误。
+    /// </summary>
+    public void SetLocalizedError(string key, params object[] arguments)
+    {
+        var message = new LocalizedMessage(key, arguments);
+        ErrorText = message.Render();
+        localizedError = message;
+    }
+
+    /// <inheritdoc/>
+    public void Dispose()
+    {
+        Localization.LanguageChanged -= OnLanguageChanged;
+        GC.SuppressFinalize(this);
+    }
+
+    private void OnLanguageChanged(object? sender, EventArgs e)
+    {
+        if (localizedError is { } message)
+        {
+            ErrorText = message.Render();
+            localizedError = message;
+        }
+    }
 
     /// <summary>
     /// 写回歌词库条目。

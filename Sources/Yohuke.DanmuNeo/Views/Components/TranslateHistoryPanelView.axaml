@@ -15,13 +15,13 @@
             <StackPanel Orientation="Horizontal"
                         HorizontalAlignment="Right"
                         Spacing="8">
-                <Button ToolTip.Tip="导出 Excel"
+                <Button ToolTip.Tip="{Loc Key=UI.TranslateHistoryPanelView.ExportExcel}"
                         Classes="iconButton"
                         IsEnabled="{Binding HasTranslateHistory}"
                         Click="ExportTranslateHistory_OnClick">
                     <LucideIcon Kind="Download" />
                 </Button>
-                <Button ToolTip.Tip="清空历史"
+                <Button ToolTip.Tip="{Loc Key=UI.TranslateHistoryPanelView.ClearHistory}"
                         Classes="iconButton"
                         IsEnabled="{Binding HasTranslateHistory}"
                         Command="{Binding ClearTranslateHistoryCommand}">

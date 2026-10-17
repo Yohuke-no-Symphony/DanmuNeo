@@ -16,9 +16,9 @@
     </UserControl.Styles>
     <Grid RowDefinitions="Auto,*"
           RowSpacing="10">
-        <TextBox Watermark="搜索歌名、歌手、标签或来源"
+        <TextBox Watermark="{Loc Key=UI.LyricLibraryListView.SearchWatermark}"
                  MinWidth="0"
-                 AutomationProperties.Name="本地歌词搜索关键词"
+                 AutomationProperties.Name="{Loc Key=UI.LyricLibraryListView.SearchKeywords}"
                  Text="{Binding LyricLibrarySearchText}"/>
         <ScrollViewer Grid.Row="1"
                       Classes="lyricLibraryResults"
@@ -42,8 +42,8 @@
                                                TextTrimming="CharacterEllipsis"/>
                                 </StackPanel>
                                 <Button Grid.Column="1"
-                                        ToolTip.Tip="使用歌词"
-                                        AutomationProperties.Name="使用歌词"
+                                        ToolTip.Tip="{Loc Key=UI.LyricLibraryListView.UseLyrics}"
+                                        AutomationProperties.Name="{Loc Key=UI.LyricLibraryListView.UseLyrics}"
                                         Classes="iconButton"
                                         VerticalAlignment="Center"
                                         Command="{Binding #Root.PickLyricLibraryItemCommand}"
@@ -51,8 +51,8 @@
                                     <LucideIcon Kind="BookOpen"/>
                                 </Button>
                                 <Button Grid.Column="2"
-                                        ToolTip.Tip="更多操作"
-                                        AutomationProperties.Name="更多歌词操作"
+                                        ToolTip.Tip="{Loc Key=UI.LyricLibraryListView.MoreActions}"
+                                        AutomationProperties.Name="{Loc Key=UI.LyricLibraryListView.MoreLyricActions}"
                                         Classes="iconButton"
                                         VerticalAlignment="Center"
                                         Click="MoreLyric_OnClick">

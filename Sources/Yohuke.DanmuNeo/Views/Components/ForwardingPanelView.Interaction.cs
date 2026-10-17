@@ -1,3 +1,4 @@
+using Yohuke.DanmuNeo.I18n;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -194,10 +195,10 @@ public partial class ForwardingPanelView
         }
         catch (Exception exception)
         {
-            Context.Application.LogErrorOnce($"转发规则 / 房间 {selection!.RoomId}", "转发规则排序保存失败", exception);
+            Context.Application.LogErrorOnce(Localization.Format("UI.ForwardingPanelView.LogSource", selection!.RoomId), Localization.Get("UI.ForwardingPanelView.OrderLogFailed"), exception);
             if (!isPanelDisposed && Context.IsCurrent(selection))
             {
-                ShowClipboardStatus($"排序保存失败：{exception.Message}", true);
+                ShowClipboardStatus("UI.ForwardingPanelView.OrderSaveFailed", true, new Func<string>(() => LocalizedExceptionText.Get(exception)));
             }
         }
     }

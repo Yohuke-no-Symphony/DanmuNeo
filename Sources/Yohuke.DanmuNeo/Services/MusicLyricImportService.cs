@@ -1,3 +1,4 @@
+using Yohuke.DanmuNeo.I18n;
 using Newtonsoft.Json.Linq;
 using Yohuke.DanmuNeo.Apis;
 using Yohuke.DanmuNeo.Models.State;
@@ -68,8 +69,9 @@ public class MusicLyricImportService
         using var api = new NetEaseMusicApi(httpClient: httpClient);
         var response = await api.SearchSongsAsync(keyword, cancellationToken: cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
-        EnsureSuccess(response.Code, NET_EASE_SUCCESS_CODE, "网易云音乐搜索", response.ExtraData);
-        var songs = response.Result?.Songs ?? throw new InvalidDataException("网易云音乐未返回搜索结果。");
+        EnsureSuccess(response.Code, NET_EASE_SUCCESS_CODE, "Services.MusicLyrics.NetEaseSearch", response.ExtraData);
+        var songs = response.Result?.Songs ?? throw LocalizedExceptionText.Create("Services.MusicLyrics.NetEaseResultsMissing",
+            message => new InvalidDataException(message));
 
         return songs.Select(song => new MusicLyricSearchResult
         {
@@ -89,8 +91,9 @@ public class MusicLyricImportService
         using var api = new QQMusicApi(qqMusicCookie, httpClient: httpClient);
         var response = await api.SearchSongsV1Async(keyword, cancellationToken: cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
-        EnsureSuccess(response.Code, QQ_MUSIC_SUCCESS_CODE, "QQ 音乐搜索", response.ExtraData);
-        var songs = response.Data?.Song?.List ?? throw new InvalidDataException("QQ 音乐未返回搜索结果。");
+        EnsureSuccess(response.Code, QQ_MUSIC_SUCCESS_CODE, "Services.MusicLyrics.QqMusicSearch", response.ExtraData);
+        var songs = response.Data?.Song?.List ?? throw LocalizedExceptionText.Create("Services.MusicLyrics.QqMusicResultsMissing",
+            message => new InvalidDataException(message));
 
         return songs.Select(song => new MusicLyricSearchResult
         {
@@ -111,7 +114,7 @@ public class MusicLyricImportService
         var songId = long.TryParse(result.SourceSongId, out var parsedSongId) ? parsedSongId : 0;
         var lyric = await api.GetLyricAsync(songId, cancellationToken: cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
-        EnsureSuccess(lyric.Code, NET_EASE_SUCCESS_CODE, "网易云音乐歌词获取", lyric.ExtraData);
+        EnsureSuccess(lyric.Code, NET_EASE_SUCCESS_CODE, "Services.MusicLyrics.NetEaseFetch", lyric.ExtraData);
 
         return CreateLibraryItem(
             result,
@@ -127,7 +130,7 @@ public class MusicLyricImportService
         using var api = new QQMusicApi(qqMusicCookie, httpClient: httpClient);
         var lyric = await api.GetLyricAsync(result.SongMid, cancellationToken: cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
-        EnsureSuccess(lyric.Code, QQ_MUSIC_SUCCESS_CODE, "QQ 音乐歌词获取", lyric.ExtraData);
+        EnsureSuccess(lyric.Code, QQ_MUSIC_SUCCESS_CODE, "Services.MusicLyrics.QqMusicFetch", lyric.ExtraData);
 
         return CreateLibraryItem(
             result,
@@ -142,7 +145,14 @@ public class MusicLyricImportService
     {
         if (string.IsNullOrWhiteSpace(lyricText) && string.IsNullOrWhiteSpace(translatedLyricText))
         {
-            throw new InvalidDataException($"{result.SourceLabel}未返回可用的歌词内容。");
+            var source = result.Source;
+            throw LocalizedExceptionText.Create("Services.MusicLyrics.LyricsMissing",
+                message => new InvalidDataException(message), new Func<string>(() => source switch
+                {
+                    "wy" => Localization.Get("App.Music.Source.wy"),
+                    "qq" => Localization.Get("App.Music.Source.qq"),
+                    _ => source
+                }));
         }
 
         return new()
@@ -152,14 +162,24 @@ public class MusicLyricImportService
             Album = result.Album,
             Source = result.Source,
             SourceSongId = result.SourceSongId,
-            Tags = string.Join(" ", result.Title, result.Artist, result.Album, result.SourceLabel),
+            Tags = string.Join(" ", result.Title, result.Artist, result.Album, GetPersistentSourceTag(result.Source)),
             HasTranslation = !string.IsNullOrWhiteSpace(translatedLyricText),
             LyricText = lyricText,
             TranslatedLyricText = translatedLyricText
         };
     }
 
-    private static void EnsureSuccess(int code, int successCode, string operation,
+    private static string GetPersistentSourceTag(string source)
+    {
+        return source switch
+        {
+            "wy" => "网易云",
+            "qq" => "QQ 音乐",
+            _ => source
+        };
+    }
+
+    private static void EnsureSuccess(int code, int successCode, string operationKey,
         IDictionary<string, JToken>? extraData)
     {
         if (code == successCode)
@@ -181,7 +201,11 @@ public class MusicLyricImportService
             }
         }
 
-        var reason = string.IsNullOrWhiteSpace(message) ? string.Empty : $"：{message}";
-        throw new InvalidOperationException($"{operation}失败（状态码 {code}）{reason}");
+        var operation = new Func<string>(() => Localization.Get(operationKey));
+        throw string.IsNullOrWhiteSpace(message)
+            ? LocalizedExceptionText.Create("Services.MusicLyrics.OperationFailed",
+                text => new InvalidOperationException(text), operation, code)
+            : LocalizedExceptionText.Create("Services.MusicLyrics.OperationFailedWithReason",
+                text => new InvalidOperationException(text), operation, code, message);
     }
 }

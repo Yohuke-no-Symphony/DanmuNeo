@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Models.State;
 
 namespace Yohuke.DanmuNeo.ViewModels.Items;
@@ -15,6 +16,7 @@ public class ForwardAccountOption : ObservableObject, IDisposable
     public ForwardAccountOption(BilibiliAccount? account = null)
     {
         Account = account;
+        Localization.LanguageChanged += OnLanguageChanged;
 
         if (account is not null)
         {
@@ -32,17 +34,23 @@ public class ForwardAccountOption : ObservableObject, IDisposable
     /// <summary>
     /// 显示名称。
     /// </summary>
-    public string DisplayName => Account?.Name ?? "使用目标直播间账号";
+    public string DisplayName => Account?.Name ?? Localization.Get("Forward.UseRoomAccount");
 
     /// <inheritdoc/>
     public void Dispose()
     {
+        Localization.LanguageChanged -= OnLanguageChanged;
         if (Account is not null)
         {
             Account.PropertyChanged -= OnAccountPropertyChanged;
         }
 
         GC.SuppressFinalize(this);
+    }
+
+    private void OnLanguageChanged(object? sender, EventArgs e)
+    {
+        OnPropertyChanged(nameof(DisplayName));
     }
 
     private void OnAccountPropertyChanged(object? sender, PropertyChangedEventArgs e)

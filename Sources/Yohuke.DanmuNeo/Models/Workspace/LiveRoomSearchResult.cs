@@ -1,9 +1,12 @@
+using CommunityToolkit.Mvvm.ComponentModel;
+using Yohuke.DanmuNeo.I18n;
+
 namespace Yohuke.DanmuNeo.Models.Workspace;
 
 /// <summary>
 /// 可添加到工作区的主播搜索结果。
 /// </summary>
-public class LiveRoomSearchResult
+public class LiveRoomSearchResult : ObservableObject
 {
     /// <summary>
     /// 直播间 ID。
@@ -33,5 +36,11 @@ public class LiveRoomSearchResult
     /// <summary>
     /// 列表中的房间与直播状态说明。
     /// </summary>
-    public string DetailLine => $"房间 {RoomId} · {(IsLive ? "直播中" : "未开播")}";
+    public string DetailLine => Localization.Format("Room.Search.Detail", RoomId,
+        Localization.Get(IsLive ? "Room.Search.Live" : "Room.Search.Offline"));
+
+    internal void RefreshLocalization()
+    {
+        OnPropertyChanged(nameof(DetailLine));
+    }
 }

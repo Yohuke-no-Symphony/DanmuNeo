@@ -1,16 +1,20 @@
 using System.Collections.ObjectModel;
 using Avalonia.Media;
+using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Models.Workspace;
 using Yohuke.DanmuNeo.Services;
 
 namespace Yohuke.DanmuNeo.ViewModels.Items;
 
-internal sealed class DanmuStylePreviewViewModel : ViewModelBase
+internal sealed class DanmuStylePreviewViewModel : ViewModelBase, IDisposable
 {
     private const int DANMU_BATCH_SIZE = 80;
 
-    private string userName = "样式测试用户";
-    private string content = "这是一条用于检查字号、间距和自动换行的测试消息。";
+    private string userName = Localization.Get("Preview.DefaultUserName");
+    private readonly List<Action> sampleLocalizers = [];
+    private bool isUserNameEdited;
+    private bool isContentEdited;
+    private string content = Localization.Get("Preview.DefaultContent");
     private string danmuStatus = "";
     private string medalName = "肉肉";
     private int medalLevel = 25;
@@ -29,36 +33,34 @@ internal sealed class DanmuStylePreviewViewModel : ViewModelBase
     {
         SuperChatPresets =
         [
-            CreatePreset(30, 300, "蓝色", "#3171D2"),
-            CreatePreset(50, 500, "青蓝", "#427D9E"),
-            CreatePreset(100, 1000, "金色", "#E2B52B"),
-            CreatePreset(500, 5000, "橙色", "#E09443"),
-            CreatePreset(1000, 10000, "红色", "#E54D4D"),
-            CreatePreset(2000, 20000, "深红", "#AB1A32")
+            CreatePreset(30, 300, "Preview.Color.Blue", "#3171D2"),
+            CreatePreset(50, 500, "Preview.Color.Cyan", "#427D9E"),
+            CreatePreset(100, 1000, "Preview.Color.Gold", "#E2B52B"),
+            CreatePreset(500, 5000, "Preview.Color.Orange", "#E09443"),
+            CreatePreset(1000, 10000, "Preview.Color.Red", "#E54D4D"),
+            CreatePreset(2000, 20000, "Preview.Color.DarkRed", "#AB1A32")
         ];
         GuardPresets =
         [
             new()
             {
-                GuardLevel = 1,
-                DisplayName = "总督"
+                GuardLevel = 1
             },
             new()
             {
-                GuardLevel = 2,
-                DisplayName = "提督"
+                GuardLevel = 2
             },
             new()
             {
-                GuardLevel = 3,
-                DisplayName = "舰长"
+                GuardLevel = 3
             }
         ];
-        MedalGuardPresets = [new() { GuardLevel = 0, DisplayName = "普通" }, .. GuardPresets];
+        MedalGuardPresets = [new() { GuardLevel = 0 }, .. GuardPresets];
         SelectedSuperChatPreset = SuperChatPresets[0];
         SelectedGuardPreset = GuardPresets[^1];
         SelectedMedalGuardPreset = MedalGuardPresets[0];
         ResetSamples();
+        Localization.LanguageChanged += OnLanguageChanged;
     }
 
     public ObservableCollection<SuperChatItem> SuperChats { get; } = [];
@@ -113,13 +115,25 @@ internal sealed class DanmuStylePreviewViewModel : ViewModelBase
     public string UserName
     {
         get => userName;
-        set => SetProperty(ref userName, value);
+        set
+        {
+            if (SetProperty(ref userName, value))
+            {
+                isUserNameEdited = true;
+            }
+        }
     }
 
     public string Content
     {
         get => content;
-        set => SetProperty(ref content, value);
+        set
+        {
+            if (SetProperty(ref content, value))
+            {
+                isContentEdited = true;
+            }
+        }
     }
 
     public string DanmuStatus
@@ -189,7 +203,7 @@ internal sealed class DanmuStylePreviewViewModel : ViewModelBase
         {
             DanmuItems.Insert(0, CreateDanmuItem(
                 now.AddMilliseconds(index),
-                $"{contentText} （批量 {index + 1}/{DANMU_BATCH_SIZE}）"));
+                Localization.Format("Preview.BatchContent", contentText, index + 1, DANMU_BATCH_SIZE)));
         }
     }
 
@@ -223,6 +237,7 @@ internal sealed class DanmuStylePreviewViewModel : ViewModelBase
 
     internal void ClearSamples()
     {
+        sampleLocalizers.Clear();
         SuperChats.Clear();
         DanmuItems.Clear();
     }
@@ -235,76 +250,121 @@ internal sealed class DanmuStylePreviewViewModel : ViewModelBase
         for (var index = 0; index < SuperChatPresets.Count; index++)
         {
             var preset = SuperChatPresets[index];
-            SuperChats.Add(CreateSuperChatItem(
-                preset,
-                $"{preset.ColorName}档用户",
-                $"这是 {preset.PriceText} 档醒目留言，用于检查边框、金额和长文本换行效果。",
-                now.AddMinutes(-index),
-                preset.BorderColor));
+            var item = CreateSuperChatItem(preset, "", "", now.AddMinutes(-index), preset.BorderColor);
+            SuperChats.Add(item);
+            RegisterSampleLocalization(() =>
+            {
+                item.UserName = Localization.Format("Preview.SuperChatUser", preset.ColorName);
+                item.Content = Localization.Format("Preview.SuperChatContent", preset.PriceText);
+            });
         }
 
         for (var index = 0; index < GuardPresets.Count; index++)
         {
             var preset = GuardPresets[index];
-            SuperChats.Add(CreateGuardPurchaseItem(
-                preset,
-                $"{preset.DisplayName}上舰用户",
-                now.AddMinutes(-SuperChatPresets.Count - index)));
+            var item = CreateGuardPurchaseItem(preset, "", now.AddMinutes(-SuperChatPresets.Count - index));
+            SuperChats.Add(item);
+            RegisterSampleLocalization(() => item.UserName = Localization.Format("Preview.GuardUser", preset.DisplayName));
         }
 
-        DanmuItems.Add(new()
-        {
-            Time = now,
-            UserName = "短名",
-            UserUid = "10001",
-            Content = "普通短弹幕"
-        });
-        DanmuItems.Add(new()
-        {
-            Time = now.AddSeconds(-4),
-            UserName = "礼物测试用户",
-            UserUid = "10005",
-            Content = "赠送 小电视 × 12 · ￥120"
-        });
-        DanmuItems.Add(new()
+        AddDanmuSample(new() { Time = now, UserUid = "10001" }, "Preview.ShortUser", "Preview.ShortContent");
+        AddDanmuSample(new() { Time = now.AddSeconds(-4), UserUid = "10005" }, "Preview.GiftUser", "Preview.GiftContent");
+        AddDanmuSample(new()
         {
             Time = now.AddSeconds(-8),
-            UserName = "这是一个很长很长的用户名",
             UserUid = "10002",
             MedalName = "肉肉",
-            MedalLevel = 25,
-            Content = "这是一条很长的弹幕，用于检查预览区域较窄时用户名裁切以及正文自动换行是否清晰自然。"
-        });
-        DanmuItems.Add(new()
+            MedalLevel = 25
+        }, "Preview.LongUser", "Preview.LongContent");
+        AddDanmuSample(new()
         {
             Time = now.AddSeconds(-16),
-            UserName = "Emoji 用户 🎉",
             UserUid = "10003",
             MedalName = "牵丝蝠",
-            MedalLevel = 8,
-            Content = "中日文、English、数字 12345 与 Emoji ✨🚀 混排测试。"
-        });
-        DanmuItems.Add(new()
-        {
-            Time = now.AddSeconds(-24),
-            UserName = "状态测试",
-            UserUid = "10004",
-            Content = "带有状态文本的弹幕。",
-            Status = "已转发"
-        });
+            MedalLevel = 8
+        }, "Preview.EmojiUser", "Preview.MixedContent");
+        var statusItem = new DanmuFeedItem { Time = now.AddSeconds(-24), UserUid = "10004" };
+        statusItem.SetLocalizedStatus("Preview.Forwarded");
+        AddDanmuSample(statusItem, "Preview.StatusUser", "Preview.StatusContent");
 
         foreach (var preset in GuardPresets)
         {
-            DanmuItems.Add(new()
+            var item = new DanmuFeedItem
             {
                 Time = now.AddSeconds(-32 - preset.GuardLevel),
-                UserName = $"{preset.DisplayName}粉丝牌用户",
                 UserUid = $"medal-guard-{preset.GuardLevel}",
                 MedalName = "肉肉",
                 MedalLevel = 25,
-                MedalGuardLevel = preset.GuardLevel,
-                Content = $"{preset.DisplayName}粉丝牌边缘色测试。"
+                MedalGuardLevel = preset.GuardLevel
+            };
+            DanmuItems.Add(item);
+            RegisterSampleLocalization(() =>
+            {
+                item.UserName = Localization.Format("Preview.MedalUser", preset.DisplayName);
+                item.Content = Localization.Format("Preview.MedalContent", preset.DisplayName);
             });
+        }
+    }
+
+    /// <inheritdoc/>
+    public void Dispose()
+    {
+        Localization.LanguageChanged -= OnLanguageChanged;
+        sampleLocalizers.Clear();
+        GC.SuppressFinalize(this);
+    }
+
+    private void AddDanmuSample(DanmuFeedItem item, string userNameKey, string contentKey)
+    {
+        DanmuItems.Add(item);
+        RegisterSampleLocalization(() =>
+        {
+            item.UserName = Localization.Get(userNameKey);
+            item.SetLocalizedContent(contentKey);
+        });
+    }
+
+    private void RegisterSampleLocalization(Action refresh)
+    {
+        sampleLocalizers.Add(refresh);
+        refresh();
+    }
+
+    private void OnLanguageChanged(object? sender, EventArgs e)
+    {
+        if (!isUserNameEdited)
+        {
+            SetProperty(ref userName, Localization.Get("Preview.DefaultUserName"), nameof(UserName));
+        }
+
+        if (!isContentEdited)
+        {
+            SetProperty(ref content, Localization.Get("Preview.DefaultContent"), nameof(Content));
+        }
+
+        foreach (var preset in SuperChatPresets)
+        {
+            preset.RefreshLocalization();
+        }
+
+        foreach (var preset in MedalGuardPresets)
+        {
+            preset.RefreshLocalization();
+        }
+
+        foreach (var refresh in sampleLocalizers)
+        {
+            refresh();
+        }
+
+        foreach (var item in DanmuItems)
+        {
+            item.RefreshLocalization();
+        }
+
+        foreach (var item in SuperChats)
+        {
+            item.RefreshLocalization();
         }
     }
 
@@ -333,7 +393,7 @@ internal sealed class DanmuStylePreviewViewModel : ViewModelBase
         {
             CnyPrice = cnyPrice,
             BatteryAmount = batteryAmount,
-            ColorName = colorName,
+            ColorNameKey = colorName,
             BorderColor = Color.Parse(colorText)
         };
     }
@@ -351,7 +411,7 @@ internal sealed class DanmuStylePreviewViewModel : ViewModelBase
             MessageId = $"debug-{preset.BatteryAmount}-{time.ToUnixTimeMilliseconds()}",
             Time = time,
             UserName = userName,
-            PriceText = preset.PriceText,
+            BatteryAmount = preset.BatteryAmount,
             BorderColor = borderColor,
             Content = content
         };
@@ -368,18 +428,18 @@ internal sealed class DanmuStylePreviewViewModel : ViewModelBase
             MessageId = $"debug-guard-{preset.GuardLevel}-{Guid.NewGuid():N}",
             Time = time,
             UserName = userName,
-            GuardLevelName = preset.DisplayName,
+            GuardLevel = preset.GuardLevel,
             BorderColor = GuardPurchaseStyleService.GetBorderColor(preset.GuardLevel)
         };
     }
 
     private static string NormalizeUserName(string value)
     {
-        return string.IsNullOrWhiteSpace(value) ? "测试用户" : value.Trim();
+        return string.IsNullOrWhiteSpace(value) ? Localization.Get("Preview.FallbackUserName") : value.Trim();
     }
 
     private static string NormalizeContent(string value)
     {
-        return string.IsNullOrWhiteSpace(value) ? "空内容样式测试" : value.Trim();
+        return string.IsNullOrWhiteSpace(value) ? Localization.Get("Preview.FallbackContent") : value.Trim();
     }
 }

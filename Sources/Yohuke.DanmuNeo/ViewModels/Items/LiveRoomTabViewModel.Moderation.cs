@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Models.Workspace;
 using Yohuke.DanmuNeo.Services;
 
@@ -32,7 +33,7 @@ public partial class LiveRoomTabViewModel
         moderationAccountId = "";
         moderationRoomId = "";
         IsMutingDanmu = false;
-        ModerationStatus = "";
+        SetModerationStatus("");
         MuteDanmuCommand.NotifyCanExecuteChanged();
     }
 
@@ -52,13 +53,13 @@ public partial class LiveRoomTabViewModel
 
         if (account is null || string.IsNullOrWhiteSpace(account.Cookie))
         {
-            ModerationStatus = "缺少登录账号";
-            log?.Warning(CreateLogSource("禁言权限"), "禁言权限查询失败：缺少登录账号");
+            SetModerationStatus("Room.ModerationAccountRequired");
+            log?.Warning(CreateLogSource(Localization.Get("Room.Log.ModerationPermission")), Localization.Get("Room.Log.ModerationAccountMissing"));
             return false;
         }
 
         var roomId = RoomId;
-        var source = CreateLogSource("禁言权限", roomId);
+        var source = CreateLogSource(Localization.Get("Room.Log.ModerationPermission"), roomId);
         var accountId = account.Id;
         var cookie = account.Cookie;
         var tokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -78,7 +79,7 @@ public partial class LiveRoomTabViewModel
             moderationRoomId = roomId;
             moderationAccountId = accountId;
             moderationCookie = cookie;
-            ModerationStatus = permission.CanModerate ? "" : "当前账号没有该直播间的禁言权限";
+            SetModerationStatus(permission.CanModerate ? "" : "Room.ModerationNotAllowed");
             MuteDanmuCommand.NotifyCanExecuteChanged();
             return CanMuteDanmu(item);
         }
@@ -90,8 +91,8 @@ public partial class LiveRoomTabViewModel
         {
             if (IsCurrentModerationOperation(tokenSource, roomId, accountId, cookie))
             {
-                log?.Error(source, "禁言权限查询失败", exception);
-                ModerationStatus = $"权限查询失败：{exception.Message}";
+                log?.Error(source, Localization.Get("Room.Log.ModerationPermissionFailed"), exception);
+                SetModerationStatus("Room.ModerationQueryFailed", new Func<string>(() => LocalizedExceptionText.Get(exception)));
             }
 
             return false;
@@ -119,7 +120,7 @@ public partial class LiveRoomTabViewModel
         }
 
         var roomId = moderationRoomId;
-        var source = CreateLogSource("禁言", roomId);
+        var source = CreateLogSource(Localization.Get("Room.Log.Mute"), roomId);
         var accountId = moderationAccountId;
         var cookie = moderationCookie;
         var userUid = long.Parse(item.UserUid);
@@ -128,7 +129,7 @@ public partial class LiveRoomTabViewModel
         var tokenSource = new CancellationTokenSource();
         moderationTokenSource = tokenSource;
         IsMutingDanmu = true;
-        ModerationStatus = $"正在禁言 {item.UserName}…";
+        SetModerationStatus("Room.ModerationMuting", item.UserName);
 
         try
         {
@@ -143,8 +144,8 @@ public partial class LiveRoomTabViewModel
             if (!permission.CanModerate || !IsModerationTargetEligible(item) ||
                 userUid == permission.AccountUid || userUid == permission.OwnerUid)
             {
-                ModerationStatus = "权限或目标身份已变化，无法禁言该用户";
-                log?.Warning(source, $"禁言失败（UID {userUid}）：权限或目标身份已变化");
+                SetModerationStatus("Room.ModerationIdentityChanged");
+                log?.Warning(source, Localization.Format("Room.Log.MuteIdentityChanged", userUid));
                 return;
             }
 
@@ -153,8 +154,8 @@ public partial class LiveRoomTabViewModel
 
             if (IsCurrentModerationOperation(tokenSource, roomId, accountId, cookie))
             {
-                log?.Information(source, $"已禁言用户（UID {userUid}）");
-                ModerationStatus = $"已禁言 {item.UserName}（UID {userUid}）";
+                log?.Information(source, Localization.Format("Room.Log.MutedUser", userUid));
+                SetModerationStatus("Room.ModerationMuted", item.UserName, userUid);
             }
         }
         catch (OperationCanceledException) when (tokenSource.IsCancellationRequested)
@@ -164,8 +165,8 @@ public partial class LiveRoomTabViewModel
         {
             if (IsCurrentModerationOperation(tokenSource, roomId, accountId, cookie))
             {
-                log?.Error(source, $"禁言失败（UID {userUid}）", exception);
-                ModerationStatus = $"禁言失败：{exception.Message}";
+                log?.Error(source, Localization.Format("Room.Log.MuteFailed", userUid), exception);
+                SetModerationStatus("Room.ModerationFailed", new Func<string>(() => LocalizedExceptionText.Get(exception)));
             }
         }
         finally

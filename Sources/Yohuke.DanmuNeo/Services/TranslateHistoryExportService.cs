@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using System.Xml;
+using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Models.Workspace;
 
 namespace Yohuke.DanmuNeo.Services;
@@ -36,7 +37,12 @@ public class TranslateHistoryExportService
         Directory.CreateDirectory(Path.GetDirectoryName(filePath) ?? ".");
         var rows = items
             .OrderBy(item => item.Time)
+            .Select(item => (item.Time, item.Status, item.Content))
             .ToList();
+        var labels = Localization.CaptureSnapshot(
+        [
+            "Services.Export.History", "Services.Export.Time", "Services.Export.Status", "Services.Export.Content"
+        ]).Strings;
 
         await Task.Run(() =>
         {
@@ -50,9 +56,9 @@ public class TranslateHistoryExportService
             using var archive = ZipFile.Open(filePath, ZipArchiveMode.Create);
             AddTextEntry(archive, "[Content_Types].xml", CreateContentTypesXml());
             AddTextEntry(archive, "_rels/.rels", CreateRootRelsXml());
-            AddTextEntry(archive, "xl/workbook.xml", CreateWorkbookXml());
+            AddTextEntry(archive, "xl/workbook.xml", CreateWorkbookXml(labels["Services.Export.History"]));
             AddTextEntry(archive, "xl/_rels/workbook.xml.rels", CreateWorkbookRelsXml());
-            AddTextEntry(archive, "xl/worksheets/sheet1.xml", CreateWorksheetXml(rows));
+            AddTextEntry(archive, "xl/worksheets/sheet1.xml", CreateWorksheetXml(rows, labels));
         }, cancellationToken);
 
         return filePath;
@@ -90,16 +96,17 @@ public class TranslateHistoryExportService
                """;
     }
 
-    private static string CreateWorkbookXml()
+    private static string CreateWorkbookXml(string sheetName)
     {
         return """
                <?xml version="1.0" encoding="UTF-8"?>
                <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
                  <sheets>
-                   <sheet name="同传历史" sheetId="1" r:id="rId1"/>
+                   <sheet name="__SHEET_NAME__" sheetId="1" r:id="rId1"/>
                  </sheets>
                </workbook>
-               """;
+               """.Replace("__SHEET_NAME__", System.Security.SecurityElement.Escape(
+                   sheetName), StringComparison.Ordinal);
     }
 
     private static string CreateWorkbookRelsXml()
@@ -112,7 +119,9 @@ public class TranslateHistoryExportService
                """;
     }
 
-    private static string CreateWorksheetXml(IReadOnlyList<DanmuFeedItem> rows)
+    private static string CreateWorksheetXml(
+        IReadOnlyList<(DateTimeOffset Time, string Status, string Content)> rows,
+        IReadOnlyDictionary<string, string> labels)
     {
         using var stream = new MemoryStream();
         using (var writer = XmlWriter.Create(stream, new()
@@ -124,7 +133,12 @@ public class TranslateHistoryExportService
             writer.WriteStartDocument();
             writer.WriteStartElement("worksheet", "http://schemas.openxmlformats.org/spreadsheetml/2006/main");
             writer.WriteStartElement("sheetData");
-            WriteRow(writer, 1, ["时间", "状态", "内容"]);
+            WriteRow(writer, 1,
+            [
+                labels["Services.Export.Time"],
+                labels["Services.Export.Status"],
+                labels["Services.Export.Content"]
+            ]);
 
             for (var index = 0; index < rows.Count; index++)
             {

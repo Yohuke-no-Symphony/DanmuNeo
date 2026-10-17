@@ -1,3 +1,4 @@
+using Yohuke.DanmuNeo.I18n;
 using System.Collections.Concurrent;
 using System.Net.Http;
 using System.Security.Cryptography;
@@ -100,7 +101,7 @@ public sealed class EmoticonCacheService : IEmoticonCacheService, IDisposable
         catch (Exception exception) when (exception is HttpRequestException or IOException or
                                            UnauthorizedAccessException or OperationCanceledException)
         {
-            StartupLog.Append("表情图片下载失败", AppLogLevel.WARNING, "表情缓存", exception);
+            StartupLog.Append(Localization.Get("Services.Emoticon.DownloadFailed"), AppLogLevel.WARNING, Localization.Get("Services.Emoticon.Source"), exception);
             return "";
         }
         finally

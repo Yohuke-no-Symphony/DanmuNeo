@@ -9,8 +9,29 @@
                 IsVisible="{Binding IsGlobalSettingsSelected}">
         <Border Classes="panel" Padding="14">
             <StackPanel Spacing="12">
-                <TextBlock Text="外观"
+                <TextBlock Text="{Loc Key=Settings.Appearance.Title}"
                            Classes="sectionTitle"/>
+                <StackPanel Spacing="4">
+                    <TextBlock x:Name="InterfaceLanguageLabel"
+                               Text="{Loc Key=Settings.Language.Label}"
+                               Classes="muted"/>
+                    <ComboBox x:Name="InterfaceLanguageChoice"
+                              ItemsSource="{Binding LanguageOptions}"
+                              SelectedItem="{Binding SelectedLanguageOption, Mode=TwoWay}"
+                              HorizontalAlignment="Stretch"
+                              AutomationProperties.Name="{Loc Key=Settings.Language.Label}">
+                        <ComboBox.Styles>
+                            <Style Selector="ComboBoxItem">
+                                <Setter Property="IsEnabled" Value="{Binding IsAvailable}"/>
+                            </Style>
+                        </ComboBox.Styles>
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate DataType="items:LanguageOption">
+                                <TextBlock Text="{Binding LanguageName}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </StackPanel>
                 <ItemsControl x:Name="ThemeModeChoices"
                               ItemsSource="{Binding ThemeModeOptions}">
                     <ItemsControl.ItemsPanel>
@@ -57,7 +78,7 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
-                <CheckBox Content="在窗口内显示菜单（macOS）"
+                <CheckBox Content="{Loc Key=Settings.Appearance.WindowMenuOnMac}"
                           IsVisible="{Binding IsMacOS}"
                           IsChecked="{Binding UseWindowMenuOnMac}" />
             </StackPanel>
@@ -65,45 +86,46 @@
 
         <Border Classes="panel" Padding="14">
             <StackPanel Spacing="10">
-                <TextBlock Text="弹幕设置"
+                <TextBlock Text="{Loc Key=UI.GlobalSettingsView.DanmuSettings}"
                            Classes="sectionTitle" />
-                <CheckBox Content="紧凑弹幕显示"
+                <CheckBox Content="{Loc Key=UI.GlobalSettingsView.CompactDanmu}"
                           IsChecked="{Binding IsCompactDanmuDisplay}" />
                 <StackPanel Margin="16,0,0,0"
                             Spacing="8"
                             IsEnabled="{Binding IsCompactDanmuDisplay}">
                     <CheckBox x:Name="CompactDanmuWrapCheckBox"
-                              Content="弹幕自动换行"
+                              Content="{Loc Key=UI.GlobalSettingsView.WrapDanmu}"
                               IsChecked="{Binding IsCompactDanmuWrap}" />
                     <CheckBox x:Name="CompactSuperChatWrapCheckBox"
-                              Content="SC 自动换行"
+                              Content="{Loc Key=UI.GlobalSettingsView.WrapSuperChat}"
                               IsChecked="{Binding IsCompactSuperChatWrap}" />
                 </StackPanel>
-                <TextBlock Text="宽松模式始终自动换行。"
+                <TextBlock Text="{Loc Key=UI.GlobalSettingsView.LooseModeWrappingHint}"
                            Classes="muted"
                            TextWrapping="Wrap" />
-                <CheckBox Content="屏蔽表情弹幕"
+                <CheckBox Content="{Loc Key=UI.GlobalSettingsView.BlockEmoticonDanmu}"
                           IsChecked="{Binding IsHideEmoticonDanmu}" />
             </StackPanel>
         </Border>
 
         <Border Classes="panel" Padding="14">
             <StackPanel Spacing="10">
-                <TextBlock Text="全局发送"
+                <TextBlock Text="{Loc Key=UI.GlobalSettingsView.GlobalSending}"
                            Classes="sectionTitle"/>
                 <Grid ColumnDefinitions="*,*"
                       ColumnSpacing="8">
                     <StackPanel Spacing="4">
-                        <TextBlock Text="发送间隔 ms"
+                        <TextBlock Text="{Loc Key=UI.GlobalSettingsView.SendInterval}"
                                    Classes="muted"/>
-                        <TextBox Watermark="发送间隔 ms"
+                        <TextBox Watermark="{Loc Key=UI.GlobalSettingsView.SendInterval}"
                                  Text="{Binding Settings.SendIntervalMs}"/>
                     </StackPanel>
                     <StackPanel Grid.Column="1"
                                 Spacing="4">
-                        <TextBlock Text="超时秒数"
+                        <TextBlock Text="{Loc Key=UI.GlobalSettingsView.TimeoutSeconds}"
                                    Classes="muted"/>
-                        <TextBox Watermark="超时秒数"
+                        <TextBox x:Name="TimeoutSecondsInput"
+                                 Watermark="{Loc Key=UI.GlobalSettingsView.TimeoutSeconds}"
                                  Text="{Binding Settings.TimeoutSeconds}"/>
                     </StackPanel>
                 </Grid>
@@ -111,30 +133,30 @@
                            Orientation="Horizontal"
                            ItemSpacing="16"
                            LineSpacing="8">
-                    <CheckBox Content="开启屏蔽词处理"
+                    <CheckBox Content="{Loc Key=UI.GlobalSettingsView.EnableReplacements}"
                               IsChecked="{Binding Settings.EnableShieldProcessing}"/>
-                    <CheckBox Content="屏蔽时重发"
+                    <CheckBox Content="{Loc Key=UI.GlobalSettingsView.RetryBlockedMessages}"
                               IsChecked="{Binding Settings.ResendWhenShielded}"/>
-                    <CheckBox Content="播放/追帧时自动监听"
+                    <CheckBox Content="{Loc Key=UI.GlobalSettingsView.AutoListenOnPlayback}"
                               IsChecked="{Binding Settings.AutoStartListeningWithLivePlayer}"/>
                 </WrapPanel>
                 <Grid ColumnDefinitions="*,*"
                       ColumnSpacing="8">
                     <StackPanel Spacing="4">
-                        <TextBlock Text="弹幕/SC 插入开符号"
+                        <TextBlock Text="{Loc Key=UI.GlobalSettingsView.FeedInsertPrefix}"
                                    Classes="muted"/>
-                        <TextBox Watermark="弹幕/SC 插入开符号"
+                        <TextBox Watermark="{Loc Key=UI.GlobalSettingsView.FeedInsertPrefix}"
                                  Text="{Binding Settings.DanmuInsertOpenMark}"/>
                     </StackPanel>
                     <StackPanel Grid.Column="1"
                                 Spacing="4">
-                        <TextBlock Text="弹幕/SC 插入闭符号"
+                        <TextBlock Text="{Loc Key=UI.GlobalSettingsView.FeedInsertSuffix}"
                                    Classes="muted"/>
-                        <TextBox Watermark="弹幕/SC 插入闭符号"
+                        <TextBox Watermark="{Loc Key=UI.GlobalSettingsView.FeedInsertSuffix}"
                                  Text="{Binding Settings.DanmuInsertCloseMark}"/>
                     </StackPanel>
                 </Grid>
-                <TextBlock Text="示例：点击内容 你好，插入 &quot;你好&quot;"
+                <TextBlock Text="{Loc Key=UI.GlobalSettingsView.FeedInsertionExample}"
                            Classes="muted"/>
             </StackPanel>
         </Border>

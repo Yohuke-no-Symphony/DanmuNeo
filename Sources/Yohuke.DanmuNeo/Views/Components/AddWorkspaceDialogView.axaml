@@ -28,7 +28,7 @@
                           VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled">
                 <StackPanel>
-                    <TextBox Watermark="名称"
+                    <TextBox Watermark="{Loc Key=UI.AddWorkspaceDialogView.Name}"
                              Text="{Binding NewWorkspaceName}"
                              IsVisible="{Binding IsAddingWorkspace}" />
 
@@ -38,11 +38,11 @@
                         <Grid ColumnDefinitions="*,Auto"
                               ColumnSpacing="8">
                             <TextBox x:Name="LiveRoomSearchTextBox"
-                                     Watermark="搜索主播昵称"
+                                     Watermark="{Loc Key=UI.AddWorkspaceDialogView.SearchStreamer}"
                                      Text="{Binding LiveRoomSearchText}"
                                      KeyDown="LiveRoomSearch_OnKeyDown" />
                             <Button Grid.Column="1"
-                                    Content="搜索"
+                                    Content="{Loc Key=UI.AddWorkspaceDialogView.Search}"
                                     Command="{Binding SearchLiveRoomsCommand}" />
                         </Grid>
                         <TextBlock Grid.Row="1"
@@ -76,7 +76,7 @@
                                                     <Button Grid.Column="1"
                                                             x:Name="AddSearchedRoomButton"
                                                             Classes="primaryButton"
-                                                            Content="添加"
+                                                            Content="{Loc Key=UI.AddWorkspaceDialogView.Add}"
                                                             VerticalAlignment="Center"
                                                             Command="{Binding #Root.DataContext.AddSearchedRoomCommand}"
                                                             CommandParameter="{Binding}" />
@@ -86,18 +86,18 @@
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
                             </ScrollViewer>
-                            <Button Content="加载更多"
+                            <Button Content="{Loc Key=UI.AddWorkspaceDialogView.LoadMore}"
                                     HorizontalAlignment="Center"
                                     IsVisible="{Binding HasMoreLiveRoomSearchResults}"
                                     Command="{Binding LoadMoreLiveRoomsCommand}" />
                         </StackPanel>
-                        <Expander Grid.Row="3" Header="手动添加直播间">
+                        <Expander Grid.Row="3" Header="{Loc Key=UI.AddWorkspaceDialogView.AddRoomManually}">
                             <StackPanel Spacing="10" Margin="0,10,0,0">
-                                <TextBox Watermark="直播间名称"
+                                <TextBox Watermark="{Loc Key=UI.AddWorkspaceDialogView.RoomName}"
                                          Text="{Binding NewRoomName}" />
-                                <TextBox Watermark="直播间 ID"
+                                <TextBox Watermark="{Loc Key=UI.AddWorkspaceDialogView.RoomId}"
                                          Text="{Binding NewRoomId}" />
-                                <TextBox Watermark="主播 UID（可选）"
+                                <TextBox Watermark="{Loc Key=UI.AddWorkspaceDialogView.OptionalStreamerUid}"
                                          Text="{Binding NewRoomOwnerUid}" />
                             </StackPanel>
                         </Expander>
@@ -113,7 +113,7 @@
                            VerticalAlignment="Center"
                            IsVisible="{Binding IsAddingRoom}" />
                 <Button Grid.Column="1"
-                        Content="取消"
+                        Content="{Loc Key=UI.AddWorkspaceDialogView.Cancel}"
                         Command="{Binding #Root.CloseAddDialogCommand}" />
                 <Button Grid.Column="2"
                         Classes="primaryButton"

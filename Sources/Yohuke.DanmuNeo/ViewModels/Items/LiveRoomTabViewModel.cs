@@ -1,12 +1,13 @@
 using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.Globalization;
-using Avalonia.Media;
 using Avalonia.Media.Imaging;
+using Avalonia.Media;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Yohuke.DanmuNeo.Apis.Models.Bilibili;
+using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Models.State;
 using Yohuke.DanmuNeo.Models.Workspace;
 using Yohuke.DanmuNeo.Services;
@@ -98,6 +99,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
         avatarPath = state.AvatarPath;
         RefreshAvatarImage();
         ForwardRules = new(state.ForwardRules.Select(CreateForwardRuleViewModel));
+        Localization.LanguageChanged += OnLanguageChanged;
     }
 
     /// <summary>
@@ -130,9 +132,9 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
     /// </summary>
     public IReadOnlyList<LyricSendModeOption> LyricSendModeOptions { get; } =
     [
-        new(LyricSendMode.Bilingual, "原文 + 翻译"),
-        new(LyricSendMode.OriginalOnly, "仅原文"),
-        new(LyricSendMode.TranslationOnly, "仅翻译")
+        new(LyricSendMode.Bilingual, "Room.LyricMode.Bilingual"),
+        new(LyricSendMode.OriginalOnly, "Room.LyricMode.OriginalOnly"),
+        new(LyricSendMode.TranslationOnly, "Room.LyricMode.TranslationOnly")
     ];
 
     /// <summary>
@@ -266,7 +268,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty] private bool preventRepeatedLyricSend = true;
 
-    [ObservableProperty] private string connectionStatus = "未连接";
+    [ObservableProperty] private string connectionStatus = Localization.Get("Room.Disconnected");
 
     [ObservableProperty] private bool isListening;
 
@@ -297,12 +299,12 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
     /// <summary>
     /// 歌词自动发送切换按钮提示。
     /// </summary>
-    public string LyricAutoSendingToggleToolTip => IsLyricAutoSending ? "暂停歌词发送" : "开始歌词发送";
+    public string LyricAutoSendingToggleToolTip => IsLyricAutoSending ? Localization.Get("Room.PauseLyrics") : Localization.Get("Room.StartLyrics");
 
     /// <summary>
     /// 监听切换按钮文本。
     /// </summary>
-    public string ListenToggleText => IsListening ? "停止" : "监听";
+    public string ListenToggleText => IsListening ? Localization.Get("Room.StopListening") : Localization.Get("Room.StartListening");
 
     /// <summary>
     /// 是否存在主播头像。
@@ -322,7 +324,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
     /// <summary>
     /// 直播播放器播放按钮提示。
     /// </summary>
-    public string LivePlayerToggleToolTip => IsLivePlayerVisible ? "停止播放" : "播放直播";
+    public string LivePlayerToggleToolTip => IsLivePlayerVisible ? Localization.Get("Room.StopPlayer") : Localization.Get("Room.PlayLive");
 
     /// <summary>
     /// 直播播放器是否未静音。
@@ -428,7 +430,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
     /// <summary>
     /// 当前歌词标题展示文本。
     /// </summary>
-    public string CurrentLyricTitleText => HasLyricTitle ? LyricTitle : "未选择歌词";
+    public string CurrentLyricTitleText => HasLyricTitle ? LyricTitle : Localization.Get("Room.NoLyricsSelected");
 
     /// <summary>
     /// 当前是否存在可复制的歌词标题。
@@ -596,7 +598,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
 
         var roomId = RoomId;
         var ownerUid = OwnerUid;
-        var source = CreateLogSource("头像", roomId);
+        var source = CreateLogSource(Localization.Get("Room.Log.Avatar"), roomId);
         var account = resolveAccount?.Invoke(this);
         RoomAvatarResult result;
 
@@ -610,7 +612,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
         }
         catch (Exception exception)
         {
-            log?.Error(source, "主播头像获取失败", exception);
+            log?.Error(source, Localization.Get("Room.Log.AvatarFetchFailed"), exception);
             return false;
         }
 
@@ -663,7 +665,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
         catch (Exception exception)
         {
             avatarImage = null;
-            log?.Warning(CreateLogSource("头像"), "头像图片加载失败", exception.ToString());
+            log?.Warning(CreateLogSource(Localization.Get("Room.Log.Avatar")), Localization.Get("Room.Log.AvatarLoadFailed"), exception.ToString());
         }
 
         OnPropertyChanged(nameof(AvatarImage));
@@ -774,8 +776,8 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
 
         if (settings is null || sendService is null)
         {
-            log?.Error(CreateLogSource("同传发送"), "发送失败：发送服务不可用");
-            TrySetDraftSendFeedback(operationId, revision, "发送失败：发送服务不可用", true);
+            log?.Error(CreateLogSource(Localization.Get("Room.Log.DraftSend")), Localization.Get("Room.Log.SendUnavailable"));
+            TrySetDraftSendFeedback(operationId, revision, new("Room.Draft.ServiceUnavailable"), true);
             return;
         }
 
@@ -784,16 +786,16 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
         var message = $"{markGroup.TranslateOpenMark}{content}{markGroup.TranslateCloseMark}";
         InputDraft = "";
         revision = draftRevision;
-        DraftSendStatus = "发送中";
+        SetDraftSendStatus(new("Room.Draft.Sending"));
         List<DanmuSendResult> results;
 
         try
         {
-            results = await SendMessageAsync(message, account, settings, source: CreateLogSource("同传发送"));
+            results = await SendMessageAsync(message, account, settings, source: CreateLogSource(Localization.Get("Room.Log.DraftSend")));
         }
         catch (Exception exception)
         {
-            TrySetDraftSendFeedback(operationId, revision, $"发送失败：{exception.Message}", true, draft);
+            TrySetDraftSendFeedback(operationId, revision, new("Room.Draft.Failed", new Func<string>(() => LocalizedExceptionText.Get(exception))), true, draft);
             return;
         }
 
@@ -802,24 +804,24 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
 
         if (results.Count == 0)
         {
-            TrySetDraftSendFeedback(operationId, revision, "发送失败：发送服务不可用", true, draft);
+            TrySetDraftSendFeedback(operationId, revision, new("Room.Draft.ServiceUnavailable"), true, draft);
             return;
         }
 
         if (acceptedResults.Count == 0)
         {
-            TrySetDraftSendFeedback(operationId, revision, $"发送失败：{failedResults[0].ErrorMessage}", true, draft);
+            TrySetDraftSendFeedback(operationId, revision, new("Room.Draft.Failed", new Func<string>(() => failedResults[0].ErrorMessage)), true, draft);
             return;
         }
 
         if (failedResults.Count > 0)
         {
             TrySetDraftSendFeedback(operationId, revision,
-                $"部分发送失败：{acceptedResults.Count}/{results.Count} 段接口已接受；{failedResults[0].ErrorMessage}", true, draft);
+                new("Room.Draft.PartiallyFailed", acceptedResults.Count, results.Count, new Func<string>(() => failedResults[0].ErrorMessage)), true, draft);
             return;
         }
 
-        TrySetDraftSendFeedback(operationId, revision, "接口已接受", false);
+        TrySetDraftSendFeedback(operationId, revision, new("Room.Draft.Accepted"), false);
     }
 
     /// <summary>
@@ -1278,7 +1280,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
             return false;
         }
 
-        var source = CreateLogSource("歌词发送");
+        var source = CreateLogSource(Localization.Get("Room.Log.LyricSend"));
 
         try
         {
@@ -1292,7 +1294,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
 
             if (settings is null || sendService is null)
             {
-                log?.Error(source, "发送失败：发送服务不可用");
+                log?.Error(source, Localization.Get("Room.Log.SendUnavailable"));
                 return false;
             }
 
@@ -1330,7 +1332,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
         }
         catch (Exception exception)
         {
-            log?.Error(source, "歌词发送失败", exception);
+            log?.Error(source, Localization.Get("Room.Log.LyricFailed"), exception);
             return false;
         }
         finally
@@ -1375,19 +1377,19 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
 
         if (account is null || string.IsNullOrWhiteSpace(account.Cookie) || string.IsNullOrWhiteSpace(RoomId))
         {
-            ConnectionStatus = "缺少账号或房间";
-            log?.Error(CreateLogSource("监听"), "启动监听失败：缺少账号或房间");
+            SetConnectionStatus("Room.MissingAccountOrRoom");
+            log?.Error(CreateLogSource(Localization.Get("Room.Log.Listening")), Localization.Get("Room.Log.ListenMissingAccount"));
             return;
         }
 
         if (!long.TryParse(RoomId, out var parsedRoomId) || parsedRoomId <= 0)
         {
-            ConnectionStatus = "房间号格式错误";
-            log?.Error(CreateLogSource("监听"), "启动监听失败：房间号格式错误");
+            SetConnectionStatus("Room.InvalidRoomId");
+            log?.Error(CreateLogSource(Localization.Get("Room.Log.Listening")), Localization.Get("Room.Log.ListenInvalidRoom"));
             return;
         }
 
-        var source = CreateLogSource("监听");
+        var source = CreateLogSource(Localization.Get("Room.Log.Listening"));
         log?.SetDiagnosticError(source, null);
         ILiveDanmuSocket socket;
 
@@ -1397,8 +1399,8 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
         }
         catch (Exception exception)
         {
-            log?.Error(source, "启动监听失败", exception);
-            ConnectionStatus = $"启动监听失败：{exception.Message}";
+            log?.Error(source, Localization.Get("Room.Log.ListenFailed"), exception);
+            SetConnectionStatus("Room.ListenFailed", new Func<string>(() => LocalizedExceptionText.Get(exception)));
             return;
         }
 
@@ -1412,13 +1414,13 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
         socket.GiftReceived += OnGiftReceived;
         socket.SuperChatReceived += OnSuperChatReceived;
         socket.GuardPurchaseReceived += OnGuardPurchaseReceived;
-        EventHandler onDisconnected = (_, _) => PostListenerConnectionStatus(socket, "连接中断，正在重连");
+        EventHandler onDisconnected = (_, _) => PostListenerConnectionStatus(socket, "Room.Reconnecting");
         EventHandler onRecovered = (_, _) =>
         {
             if (ReferenceEquals(socket, activeListenSocket) && !cancellationToken.IsCancellationRequested)
             {
                 log?.SetDiagnosticError(source, null);
-                PostListenerConnectionStatus(socket, "监听中");
+                PostListenerConnectionStatus(socket, "Room.Listening");
             }
         };
         EventHandler<Exception> onError = (_, exception) =>
@@ -1426,14 +1428,14 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
             if (ReferenceEquals(socket, activeListenSocket) && !cancellationToken.IsCancellationRequested)
             {
                 log?.SetDiagnosticError(source, exception);
-                PostListenerConnectionStatus(socket, "连接中断，正在重连");
+                PostListenerConnectionStatus(socket, "Room.Reconnecting");
             }
         };
         socket.Disconnected += onDisconnected;
         socket.Recovered += onRecovered;
         socket.ErrorReceived += onError;
         IsListening = true;
-        ConnectionStatus = "监听中";
+        SetConnectionStatus("Room.Listening");
 
         _ = Task.Run((Func<Task?>)(async () =>
         {
@@ -1473,7 +1475,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
                         activeListenSocket = null;
                         listenerLogSource = null;
                         IsListening = false;
-                        ConnectionStatus = "未连接";
+                        SetConnectionStatus("Room.Disconnected");
                         ClearGiftComboState();
                     }
 
@@ -1501,7 +1503,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
         listenTokenSource = null;
         tokenSource?.Cancel();
         IsListening = false;
-        ConnectionStatus = "未连接";
+        SetConnectionStatus("Room.Disconnected");
     }
 
     private void PostListenerConnectionStatus(ILiveDanmuSocket socket, string status)
@@ -1510,7 +1512,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
         {
             if (ReferenceEquals(socket, activeListenSocket))
             {
-                ConnectionStatus = status;
+                SetConnectionStatus(status);
             }
         });
     }
@@ -1575,7 +1577,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
         }
         else
         {
-            SetForwardRuleStatus(rule, "未启用");
+            SetForwardRuleStatus(rule, "Forward.Disabled");
         }
 
         await SaveStateAsync();
@@ -1861,7 +1863,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
             rule.ConfigureUserNameLookup(userNameService, () => getSettings is null
                 ? null
                 : TimeSpan.FromSeconds(getSettings().TimeoutSeconds), log: log,
-                getLogSource: () => CreateLogSource($"转发 / 规则 {rule.Id} / 用户名查询"));
+                getLogSource: () => CreateLogSource(Localization.Format("Forward.Log.UserNameSource", rule.Id)));
         }
     }
 
@@ -1908,7 +1910,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
 
         if (!rule.IsEnabled)
         {
-            SetForwardRuleStatus(rule, "未启用");
+            SetForwardRuleStatus(rule, "Forward.Disabled");
             return;
         }
 
@@ -1917,7 +1919,15 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
 
         if (source is null)
         {
-            SetForwardRuleFailure(rule, "请选择源直播间");
+            SetForwardRuleFailure(rule, "Forward.SelectSourceRoom");
+            return;
+        }
+
+        var errorKey = forwardService.GetValidationErrorKey(rule.State);
+
+        if (errorKey is not null)
+        {
+            SetForwardRuleFailure(rule, "Forward.InvalidPattern", new LocalizedMessage(errorKey));
             return;
         }
 
@@ -1925,7 +1935,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
 
         if (!string.IsNullOrWhiteSpace(error))
         {
-            SetForwardRuleFailure(rule, $"正则错误：{error}");
+            SetForwardRuleFailure(rule, "Forward.InvalidPattern", error);
             return;
         }
 
@@ -1935,13 +1945,13 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
 
         if (sourceAccount is null || string.IsNullOrWhiteSpace(sourceAccount.Cookie))
         {
-            SetForwardRuleFailure(rule, "源直播间缺少账号");
+            SetForwardRuleFailure(rule, "Forward.SourceAccountMissing");
             return;
         }
 
         if (settings is null)
         {
-            SetForwardRuleFailure(rule, "缺少发送设置");
+            SetForwardRuleFailure(rule, "Forward.SettingsMissing");
             return;
         }
 
@@ -1953,13 +1963,13 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
 
         if (!long.TryParse(source.RoomId, out var sourceRoomId) || sourceRoomId <= 0)
         {
-            SetForwardRuleFailure(rule, "源房间号格式错误");
+            SetForwardRuleFailure(rule, "Forward.InvalidSourceRoomId");
             return;
         }
 
         var tokenSource = new CancellationTokenSource();
         var cancellationToken = tokenSource.Token;
-        var logSource = CreateLogSource($"转发 / 规则 {rule.Id} / 来源 {source.DisplayName}");
+        var logSource = CreateLogSource(Localization.Format("Forward.Log.Source", rule.Id, source.DisplayName));
 
         lock (forwardingGate)
         {
@@ -1973,7 +1983,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
             forwardLogSources[rule.Id] = logSource;
         }
 
-        SetForwardRuleStatus(rule, "监听中");
+        SetForwardRuleStatus(rule, "Forward.Listening");
 
         _ = Task.Run(async () =>
         {
@@ -1986,14 +1996,14 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
                 if (!cancellationToken.IsCancellationRequested)
                 {
                     log?.SetDiagnosticError(logSource, exception);
-                    SetForwardRuleStatus(rule, "连接中断，正在重连", cancellationToken);
+                    SetForwardRuleStatus(rule, "Forward.Reconnecting", cancellationToken);
                 }
             };
             EventHandler onDisconnected = (_, _) =>
             {
                 if (!cancellationToken.IsCancellationRequested)
                 {
-                    SetForwardRuleStatus(rule, "连接中断，正在重连", cancellationToken);
+                    SetForwardRuleStatus(rule, "Forward.Reconnecting", cancellationToken);
                 }
             };
             EventHandler onRecovered = (_, _) =>
@@ -2001,7 +2011,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
                 if (!cancellationToken.IsCancellationRequested)
                 {
                     log?.SetDiagnosticError(logSource, null);
-                    SetForwardRuleStatus(rule, "监听中", cancellationToken);
+                    SetForwardRuleStatus(rule, "Forward.Listening", cancellationToken);
                 }
             };
 
@@ -2024,7 +2034,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
                 {
                     connectionFailed = true;
                     log?.SetDiagnosticError(logSource, exception);
-                    SetForwardRuleStatus(rule, $"转发连接失败：{exception.Message}", cancellationToken);
+                    SetForwardRuleStatus(rule, "Forward.ConnectionFailed", cancellationToken, new Func<string>(() => LocalizedExceptionText.Get(exception)));
                 }
             }
             finally
@@ -2039,7 +2049,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
 
                 if (!connectionFailed && !cancellationToken.IsCancellationRequested && rule.IsEnabled)
                 {
-                    SetForwardRuleStatus(rule, "已停止", cancellationToken);
+                    SetForwardRuleStatus(rule, "Forward.Stopped", cancellationToken);
                 }
 
                 if (socket is IDisposable disposable)
@@ -2072,7 +2082,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
         {
             if (fallbackAccount is null || string.IsNullOrWhiteSpace(fallbackAccount.Cookie))
             {
-                error = "目标直播间缺少账号";
+                error = "Forward.TargetAccountMissing";
                 return null;
             }
 
@@ -2083,13 +2093,13 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
 
         if (account is null)
         {
-            error = "指定账号不存在";
+            error = "Forward.AccountMissing";
             return null;
         }
 
         if (string.IsNullOrWhiteSpace(account.Cookie))
         {
-            error = "指定账号缺少 Cookie";
+            error = "Forward.AccountCookieMissing";
             return null;
         }
 
@@ -2127,9 +2137,18 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
             if (!cancellationToken.IsCancellationRequested)
             {
                 var failure = results.FirstOrDefault(result => !result.IsAccepted);
-                SetForwardRuleStatus(rule, results.Count > 0 && failure is null
-                    ? $"已转发 {DateTime.Now:HH:mm:ss}"
-                    : $"转发失败：{failure?.ErrorMessage ?? "发送服务不可用"}", cancellationToken);
+                if (results.Count > 0 && failure is null)
+                {
+                    SetForwardRuleStatus(rule, "Forward.Forwarded", cancellationToken, DateTime.Now);
+                }
+                else if (failure is not null)
+                {
+                    SetForwardRuleStatus(rule, "Forward.Failed", cancellationToken, new Func<string>(() => failure.ErrorMessage));
+                }
+                else
+                {
+                    SetForwardRuleStatus(rule, "Forward.ServiceUnavailable", cancellationToken);
+                }
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -2139,8 +2158,8 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
         {
             if (!cancellationToken.IsCancellationRequested)
             {
-                log?.Error(logSource, "转发失败", exception);
-                SetForwardRuleStatus(rule, $"转发失败：{exception.Message}", cancellationToken);
+                log?.Error(logSource, Localization.Get("Forward.Log.Failed"), exception);
+                SetForwardRuleStatus(rule, "Forward.Failed", cancellationToken, new Func<string>(() => LocalizedExceptionText.Get(exception)));
             }
         }
     }
@@ -2160,17 +2179,17 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
             }
         }
 
-        SetForwardRuleStatus(rule, rule.IsEnabled ? "已停止" : "未启用");
+        SetForwardRuleStatus(rule, rule.IsEnabled ? "Forward.Stopped" : "Forward.Disabled");
     }
 
-    private void SetForwardRuleFailure(DanmuForwardRuleViewModel rule, string message)
+    private void SetForwardRuleFailure(DanmuForwardRuleViewModel rule, string key, params object[] arguments)
     {
-        log?.Error(CreateLogSource($"转发 / 规则 {rule.Id}"), message);
-        SetForwardRuleStatus(rule, message);
+        log?.Error(CreateLogSource(Localization.Format("Forward.Log.Rule", rule.Id)), new LocalizedMessage(key, arguments).Render());
+        SetForwardRuleStatus(rule, key, default, arguments);
     }
 
-    private void SetForwardRuleStatus(DanmuForwardRuleViewModel rule, string status,
-        CancellationToken cancellationToken = default)
+    private void SetForwardRuleStatus(DanmuForwardRuleViewModel rule, string key,
+        CancellationToken cancellationToken = default, params object[] arguments)
     {
         if (isDisposed || cancellationToken.IsCancellationRequested)
         {
@@ -2179,7 +2198,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
 
         if (Dispatcher.UIThread.CheckAccess())
         {
-            rule.StatusText = status;
+            rule.SetLocalizedStatus(key, arguments);
             return;
         }
 
@@ -2187,7 +2206,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
         {
             if (!isDisposed && !cancellationToken.IsCancellationRequested)
             {
-                rule.StatusText = status;
+                rule.SetLocalizedStatus(key, arguments);
             }
         });
     }
@@ -2206,7 +2225,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
     {
         if (sendService is null)
         {
-            log?.Error(source, "发送失败：发送服务不可用");
+            log?.Error(source, Localization.Get("Room.Log.SendUnavailable"));
             return [];
         }
 
@@ -2229,7 +2248,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
             if (rejected.Count > 0)
             {
                 var errors = rejected.Select(result => result.ApiCode is { } code
-                    ? $"{result.ErrorMessage}（接口状态码 {code}）"
+                    ? Localization.Format("Room.Log.ApiError", result.ErrorMessage, code)
                     : result.ErrorMessage).Distinct();
                 var exceptions = rejected.Select(result => result.Error).OfType<Exception>().ToList();
                 var details = exceptions.Count switch
@@ -2239,12 +2258,12 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
                     _ => new AggregateException(exceptions)
                 };
                 log?.Error(source,
-                    $"弹幕发送失败：{results.Count - rejected.Count}/{results.Count} 段接口已接受；{string.Join("；", errors)}",
+                    Localization.Format("Room.Log.SendPartiallyAccepted", results.Count - rejected.Count, results.Count, string.Join(Localization.Get("Room.Log.ErrorSeparator"), errors)),
                     details);
             }
             else if (results.Count == 0)
             {
-                log?.Error(source, "弹幕发送失败：没有可发送的分段");
+                log?.Error(source, Localization.Get("Room.Log.SendNoSegments"));
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -2254,8 +2273,12 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
         catch (Exception exception)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            log?.Error(source, "弹幕发送失败", exception);
-            results.Add(new() { ErrorMessage = exception.Message });
+            log?.Error(source, Localization.Get("Room.Log.SendFailed"), exception);
+            results.Add(new()
+            {
+                ErrorMessageProvider = () => LocalizedExceptionText.Get(exception),
+                Error = exception
+            });
         }
 
         return results;
@@ -2264,10 +2287,10 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
     private string CreateLogSource(string operation, string? roomId = null)
     {
         var workspace = string.IsNullOrWhiteSpace(logWorkspace) ? "" : $"{logWorkspace} / ";
-        return $"{workspace}{RoomName}（房间 {roomId ?? RoomId}，{Id}） / {operation}";
+        return Localization.Format("Room.Log.Source", workspace, RoomName, roomId ?? RoomId, Id, operation);
     }
 
-    private bool TrySetDraftSendFeedback(long operationId, long revision, string status, bool failed,
+    private bool TrySetDraftSendFeedback(long operationId, long revision, LocalizedMessage status, bool failed,
         string? draftToRestore = null)
     {
         if (isDisposed || operationId != draftSendOperationId || revision != draftRevision)
@@ -2280,8 +2303,9 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
             InputDraft = draftToRestore;
         }
 
-        DraftSendStatus = status;
-        DraftSendError = failed ? status : "";
+        SetDraftSendStatus(status);
+        draftSendErrorMessage = failed ? status : new("");
+        DraftSendError = draftSendErrorMessage.Render();
         IsDraftSendFailed = failed;
         return true;
     }
@@ -2410,7 +2434,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
         IEmoticonCacheService cacheService,
         CancellationToken cancellationToken)
     {
-        var source = CreateLogSource("表情图片", item.RoomId);
+        var source = CreateLogSource(Localization.Get("Room.Log.Emoticon"), item.RoomId);
 
         try
         {
@@ -2442,11 +2466,11 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
 
             if (log is null)
             {
-                System.Diagnostics.Trace.TraceWarning($"表情图片加载失败：{exception.GetType().Name}");
+                System.Diagnostics.Trace.TraceWarning(Localization.Format("Room.Log.EmoticonException", exception.GetType().Name));
                 return;
             }
 
-            log.Error(source, "表情图片加载失败", exception);
+            log.Error(source, Localization.Get("Room.Log.EmoticonFailed"), exception);
         }
     }
 
@@ -2484,7 +2508,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
                     ? Math.Max(combo.Count, message.BatchComboCount)
                     : (int)Math.Min(int.MaxValue, (long)combo.Count + message.Quantity);
                 var unitPrice = message.UnitPrice > 0 ? message.UnitPrice : combo.UnitPrice;
-                combo.Item.Content = CreateGiftContent(message.GiftName, count, unitPrice);
+                SetGiftContent(combo.Item, message.GiftName, count, unitPrice);
                 giftComboItems[comboIdentity] = (combo.Item, count, unitPrice, combo.OrderNode);
                 return;
             }
@@ -2500,9 +2524,9 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
                 ? DateTimeOffset.FromUnixTimeSeconds(message.Timestamp)
                 : DateTimeOffset.Now,
             UserName = message.UserName,
-            UserUid = message.Uid.ToString(CultureInfo.InvariantCulture),
-            Content = CreateGiftContent(message.GiftName, initialCount, message.UnitPrice)
+            UserUid = message.Uid.ToString(CultureInfo.InvariantCulture)
         };
+        SetGiftContent(item, message.GiftName, initialCount, message.UnitPrice);
 
         DanmuItems.Insert(0, item);
         TrimDanmuItems();
@@ -2529,17 +2553,17 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
             message.BatchComboId);
     }
 
-    private static string CreateGiftContent(string giftName, int count, decimal unitPrice)
+    private static void SetGiftContent(DanmuFeedItem item, string giftName, int count, decimal unitPrice)
     {
-        var content = $"赠送 {giftName} × {count}";
+        var price = "";
         var totalPrice = unitPrice * count / 1000m;
 
         if (totalPrice > 0)
         {
-            content += $" · ￥{totalPrice.ToString("0.##", CultureInfo.InvariantCulture)}";
+            price = $" · ￥{totalPrice.ToString("0.##", CultureInfo.InvariantCulture)}";
         }
 
-        return content;
+        item.SetLocalizedContent("Room.GiftContent", giftName, count, price);
     }
 
     private void AddGiftCombo(string identity, DanmuFeedItem item, int count, decimal unitPrice)
@@ -2685,7 +2709,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
             MessageId = message.MessageId,
             Time = message.Timestamp > 0 ? DateTimeOffset.FromUnixTimeSeconds(message.Timestamp) : DateTimeOffset.Now,
             UserName = message.UserName,
-            GuardLevelName = message.GuardLevelName,
+            GuardLevel = message.GuardLevel,
             BorderColor = GuardPurchaseStyleService.GetBorderColor(message.GuardLevel)
         });
         Trim(SuperChats, 100);

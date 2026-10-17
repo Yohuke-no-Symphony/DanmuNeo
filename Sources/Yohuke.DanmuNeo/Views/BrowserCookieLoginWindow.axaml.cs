@@ -1,6 +1,7 @@
 using System.Net;
 using Avalonia.Controls;
 using Avalonia.Platform;
+using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Models.BrowserLogin;
 using Yohuke.DanmuNeo.Models.Logging;
 using Yohuke.DanmuNeo.Services;
@@ -19,6 +20,10 @@ public partial class BrowserCookieLoginWindow : Window
     private NativeWebView? webView;
     private bool isClosed;
     private bool isCapturing;
+    private string statusKey = "UI.BrowserCookieLoginWindow.SignInHint";
+    private object[] statusArguments = [];
+    private string? rawStatus;
+    private bool browserInitializationFailed;
 
     /// <summary>
     /// 初始化内嵌浏览器登录窗口。
@@ -44,6 +49,7 @@ public partial class BrowserCookieLoginWindow : Window
         WindowChrome.AttachFrame(this);
         Opened += BrowserCookieLoginWindow_OnOpened;
         Closed += BrowserCookieLoginWindow_OnClosed;
+        Localization.LanguageChanged += OnLanguageChanged;
         ConfigureShell();
     }
 
@@ -51,9 +57,31 @@ public partial class BrowserCookieLoginWindow : Window
     {
         var platformName = loginService.GetPlatformName(platform);
 
-        Title = $"{platformName} 浏览器登录";
-        HeaderText.Text = $"{platformName} 浏览器登录";
-        StatusText.Text = "登录完成后点击“完成并抓取 Cookie”。Cookie 只会保存当前 API 需要的字段。";
+        Title = Localization.Format("UI.BrowserCookieLoginWindow.PlatformTitle", platformName);
+        HeaderText.Text = Title;
+        StatusText.Text = rawStatus ?? RenderStatus();
+        WebViewPlaceholderText.Text = Localization.Get(browserInitializationFailed
+            ? "UI.BrowserCookieLoginWindow.InitializationFailed"
+            : "UI.BrowserCookieLoginWindow.PreparingBrowser");
+    }
+
+    private void OnLanguageChanged(object? sender, EventArgs e)
+    {
+        ConfigureShell();
+    }
+
+    private void SetLocalizedStatus(string key, params object[] arguments)
+    {
+        statusKey = key;
+        statusArguments = arguments;
+        rawStatus = null;
+        StatusText.Text = RenderStatus();
+    }
+
+    private string RenderStatus()
+    {
+        return Localization.Format(statusKey, statusArguments.Select(argument =>
+            argument is Func<string> provider ? provider() : argument).ToArray());
     }
 
     private async void BrowserCookieLoginWindow_OnOpened(object? sender, EventArgs e)
@@ -71,6 +99,7 @@ public partial class BrowserCookieLoginWindow : Window
         isClosed = true;
         Opened -= BrowserCookieLoginWindow_OnOpened;
         Closed -= BrowserCookieLoginWindow_OnClosed;
+        Localization.LanguageChanged -= OnLanguageChanged;
         ReleaseBrowser();
     }
 
@@ -90,7 +119,7 @@ public partial class BrowserCookieLoginWindow : Window
             }
             catch (Exception exception)
             {
-                StartupLog.Append($"浏览器停止失败：{platform}", AppLogLevel.ERROR, "浏览器登录", exception);
+                StartupLog.Append(Localization.Format("UI.BrowserCookieLoginWindow.StopFailed", platform), AppLogLevel.ERROR, Localization.Get("UI.BrowserCookieLoginWindow.LogSource"), exception);
             }
         }
 
@@ -108,17 +137,17 @@ public partial class BrowserCookieLoginWindow : Window
             webView.Source = loginUri;
             WebViewHost.Child = webView;
             WebViewPlaceholderText.IsVisible = false;
-            StartupLog.Append($"Browser login WebView created platform={platform}");
+            StartupLog.Append(Localization.Format("UI.BrowserCookieLoginWindow.BrowserCreated", platform));
         }
         catch (Exception exception)
         {
             ReleaseBrowser();
-            const string MESSAGE = "当前平台 WebView 初始化失败，无法使用内嵌浏览器登录。";
-            StatusText.Text = $"{MESSAGE} {exception.Message}";
-            WebViewPlaceholderText.Text = MESSAGE;
+            browserInitializationFailed = true;
+            SetLocalizedStatus("UI.BrowserCookieLoginWindow.InitializationFailedWithDetail", new Func<string>(() => LocalizedExceptionText.Get(exception)));
+            WebViewPlaceholderText.Text = Localization.Get("UI.BrowserCookieLoginWindow.InitializationFailed");
             WebViewHost.Child = WebViewPlaceholderText;
             WebViewPlaceholderText.IsVisible = true;
-            StartupLog.Append($"浏览器初始化失败：{platform}", AppLogLevel.ERROR, "浏览器登录", exception);
+            StartupLog.Append(Localization.Format("UI.BrowserCookieLoginWindow.InitializeLogFailed", platform), AppLogLevel.ERROR, Localization.Get("UI.BrowserCookieLoginWindow.LogSource"), exception);
         }
     }
 
@@ -161,7 +190,8 @@ public partial class BrowserCookieLoginWindow : Window
     {
         if (!isClosed)
         {
-            StatusText.Text = webView?.Source.ToString() ?? loginService.GetLoginUri(platform).ToString();
+            rawStatus = webView?.Source.ToString() ?? loginService.GetLoginUri(platform).ToString();
+            StatusText.Text = rawStatus;
         }
     }
 
@@ -216,8 +246,8 @@ public partial class BrowserCookieLoginWindow : Window
         {
             if (!isClosed)
             {
-                StatusText.Text = exception.Message;
-                StartupLog.Append($"读取登录状态失败：{platform}", AppLogLevel.ERROR, "浏览器登录", exception);
+                SetLocalizedStatus("UI.BrowserCookieLoginWindow.CaptureFailed", new Func<string>(() => LocalizedExceptionText.Get(exception)));
+                StartupLog.Append(Localization.Format("UI.BrowserCookieLoginWindow.ReadSignInLogFailed", platform), AppLogLevel.ERROR, Localization.Get("UI.BrowserCookieLoginWindow.LogSource"), exception);
             }
         }
         finally
@@ -237,11 +267,13 @@ public partial class BrowserCookieLoginWindow : Window
 
         if (currentWebView is null)
         {
-            throw new InvalidOperationException("内嵌浏览器尚未初始化完成。");
+            throw LocalizedExceptionText.Create("UI.BrowserCookieLoginWindow.BrowserNotReady",
+                message => new InvalidOperationException(message));
         }
 
         var cookieManager = currentWebView.TryGetCookieManager()
-                            ?? throw new InvalidOperationException("当前平台 WebView 暂不支持读取 Cookie。");
+                            ?? throw LocalizedExceptionText.Create("UI.BrowserCookieLoginWindow.CookieReadingUnsupported",
+                                message => new InvalidOperationException(message));
         return await cookieManager.GetCookiesAsync();
     }
 }

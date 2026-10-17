@@ -1,3 +1,4 @@
+using Yohuke.DanmuNeo.I18n;
 using System.Globalization;
 using Newtonsoft.Json.Linq;
 using Yohuke.DanmuNeo.Apis;
@@ -64,12 +65,14 @@ public class BilibiliDanmuConfigService : IBilibiliDanmuConfigService
 
         if (string.IsNullOrWhiteSpace(ApiCookieHelper.GetValue(key.Cookie, "bili_jct")))
         {
-            throw new InvalidOperationException("账号登录凭据不完整，请重新登录");
+            throw LocalizedExceptionText.Create("Services.BilibiliDanmuConfig.CredentialsIncomplete",
+                message => new InvalidOperationException(message));
         }
 
         if (!options.IsValid)
         {
-            throw new InvalidOperationException("弹幕颜色或位置格式错误");
+            throw LocalizedExceptionText.Create("Services.BilibiliDanmuConfig.SettingsInvalid",
+                message => new InvalidOperationException(message));
         }
 
         await configLock.WaitAsync(cancellationToken);
@@ -88,7 +91,8 @@ public class BilibiliDanmuConfigService : IBilibiliDanmuConfigService
             if ((colorChanged && !config.Colors.Any(option => option.Value == options.Color)) ||
                 (modeChanged && !config.Modes.Any(option => option.Value == options.Mode)))
             {
-                throw new InvalidOperationException("当前账号尚未解锁所选弹幕颜色或位置");
+                throw LocalizedExceptionText.Create("Services.BilibiliDanmuConfig.SelectionLocked",
+                    message => new InvalidOperationException(message));
             }
 
             if (!colorChanged && !modeChanged)
@@ -138,7 +142,7 @@ public class BilibiliDanmuConfigService : IBilibiliDanmuConfigService
             throw;
         }
 
-        EnsureSuccess(response.Code, response.Message, response.Msg, "弹幕配置保存失败");
+        EnsureSuccess(response.Code, response.Message, response.Msg, "Services.BilibiliDanmuConfig.SaveFailed");
         configs[key] = confirmed;
         cancellationToken.ThrowIfCancellationRequested();
         return confirmed;
@@ -149,9 +153,9 @@ public class BilibiliDanmuConfigService : IBilibiliDanmuConfigService
     {
         using var api = new BilibiliApi(cookie, timeout, httpClient);
         var response = await api.GetDanmuConfigAsync(roomId, timeout: timeout, cancellationToken: cancellationToken);
-        EnsureSuccess(response.Code, response.Message, response.Msg, "弹幕可用选项读取失败");
+        EnsureSuccess(response.Code, response.Message, response.Msg, "Services.BilibiliDanmuConfig.OptionsReadFailed");
         var userResponse = await api.GetUserInfoAsync(roomId, timeout: timeout, cancellationToken: cancellationToken);
-        EnsureSuccess(userResponse.Code, userResponse.Message, userResponse.Msg, "当前弹幕配置读取失败");
+        EnsureSuccess(userResponse.Code, userResponse.Message, userResponse.Msg, "Services.BilibiliDanmuConfig.CurrentReadFailed");
         return BilibiliDanmuConfigSelector.Select(response.Data, userResponse.Data);
     }
 
@@ -159,20 +163,22 @@ public class BilibiliDanmuConfigService : IBilibiliDanmuConfigService
     {
         if (!long.TryParse(roomId, out var parsedRoomId) || parsedRoomId <= 0)
         {
-            throw new InvalidOperationException("房间号格式错误");
+            throw LocalizedExceptionText.Create("Services.BilibiliDanmuConfig.RoomIdInvalid",
+                message => new InvalidOperationException(message));
         }
 
         var normalizedCookie = ApiCookieHelper.CreateBilibiliCookie(cookie);
 
         if (string.IsNullOrWhiteSpace(ApiCookieHelper.GetValue(normalizedCookie, "SESSDATA")))
         {
-            throw new InvalidOperationException("未配置登录账号");
+            throw LocalizedExceptionText.Create("Services.BilibiliDanmuConfig.AccountMissing",
+                message => new InvalidOperationException(message));
         }
 
         return (parsedRoomId, normalizedCookie);
     }
 
-    private static void EnsureSuccess(int code, string? message, string? msg, string fallback)
+    private static void EnsureSuccess(int code, string? message, string? msg, string fallbackKey)
     {
         if (code == 0)
         {
@@ -180,6 +186,9 @@ public class BilibiliDanmuConfigService : IBilibiliDanmuConfigService
         }
 
         var error = !string.IsNullOrWhiteSpace(message) ? message : msg;
-        throw new InvalidOperationException(string.IsNullOrWhiteSpace(error) ? $"{fallback}：{code}" : error);
+        throw string.IsNullOrWhiteSpace(error)
+            ? LocalizedExceptionText.Create("Services.BilibiliDanmuConfig.FailureWithCode",
+                text => new InvalidOperationException(text), new Func<string>(() => Localization.Get(fallbackKey)), code)
+            : new InvalidOperationException(error);
     }
 }

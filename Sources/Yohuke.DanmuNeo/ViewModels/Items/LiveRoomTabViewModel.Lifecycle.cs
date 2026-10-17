@@ -1,3 +1,5 @@
+using Yohuke.DanmuNeo.I18n;
+
 namespace Yohuke.DanmuNeo.ViewModels.Items;
 
 public partial class LiveRoomTabViewModel
@@ -23,6 +25,7 @@ public partial class LiveRoomTabViewModel
         }
 
         isDisposed = true;
+        Localization.LanguageChanged -= OnLanguageChanged;
         Deactivate();
         StopAutoLyric(false);
         StopListening();

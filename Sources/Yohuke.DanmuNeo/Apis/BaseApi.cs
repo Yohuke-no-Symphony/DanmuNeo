@@ -1,3 +1,4 @@
+using Yohuke.DanmuNeo.I18n;
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
@@ -154,7 +155,8 @@ public class BaseApi : IDisposable
 
         if (value is null)
         {
-            throw new JsonSerializationException("JSON 反序列化结果为空。");
+            throw LocalizedExceptionText.Create("Services.Api.EmptyJsonResult",
+                message => new JsonSerializationException(message));
         }
 
         return value;

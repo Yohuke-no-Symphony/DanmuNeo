@@ -5,6 +5,7 @@ using Avalonia.Controls.Templates;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
+using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Layouts;
 using Yohuke.DanmuNeo.ViewModels;
 using Yohuke.DanmuNeo.Views.Components;
@@ -42,10 +43,16 @@ internal sealed class WorkbenchAuxiliaryCoordinator : IDisposable
 
     internal void OpenAbout()
     {
-        windows.OpenAuxiliary("about", "关于 Yohuke Danmu Neo", () =>
+        windows.OpenLocalizedAuxiliary("about", "Window.About.Title", bindings =>
         {
-            var link = new Button { Content = "项目主页" };
+            var link = new Button();
             var error = new TextBlock { TextWrapping = TextWrapping.Wrap, IsVisible = false };
+            var version = new TextBlock { TextWrapping = TextWrapping.Wrap };
+            var developer = new TextBlock { TextWrapping = TextWrapping.Wrap };
+            bindings.Bind(link, ContentControl.ContentProperty, "Window.About.ProjectHome");
+            bindings.Bind(error, TextBlock.TextProperty, "Window.About.BrowserFailed");
+            bindings.Bind(version, TextBlock.TextProperty, () => Localization.Format("Window.About.Version", application.AppVersion));
+            bindings.Bind(developer, TextBlock.TextProperty, "Window.About.Developer");
             link.Click += async (_, _) =>
             {
                 try
@@ -53,16 +60,15 @@ internal sealed class WorkbenchAuxiliaryCoordinator : IDisposable
                     if (!await TopLevel.GetTopLevel(link)!.Launcher.LaunchUriAsync(
                             new("https://github.com/Yohuke-no-Symphony/DanmuNeo")))
                     {
-                        error.Text = "无法打开浏览器。";
                         error.IsVisible = true;
-                        application.Log.Error("关于", "无法打开项目主页");
+                        application.Log.Error(Localization.Get("Workbench.Menu.About"), Localization.Get("Window.About.ProjectHomeFailed"));
                     }
                 }
                 catch (Exception exception)
                 {
-                    error.Text = "无法打开浏览器。";
                     error.IsVisible = true;
-                    application.LogErrorOnce("关于", "无法打开项目主页", exception);
+                    application.LogErrorOnce(Localization.Get("Workbench.Menu.About"),
+                        Localization.Get("Window.About.ProjectHomeFailed"), exception);
                 }
             };
             return CreateDialogSurface(new StackPanel
@@ -75,8 +81,7 @@ internal sealed class WorkbenchAuxiliaryCoordinator : IDisposable
                         Text = "Yohuke Danmu Neo", FontSize = 24, FontWeight = FontWeight.SemiBold,
                         TextWrapping = TextWrapping.Wrap
                     },
-                    new TextBlock { Text = $"版本 {application.AppVersion}", TextWrapping = TextWrapping.Wrap },
-                    new TextBlock { Text = "开发者：Yohuke no Symphony", TextWrapping = TextWrapping.Wrap },
+                    version, developer,
                     new TextBlock
                         { Text = "https://github.com/Yohuke-no-Symphony/DanmuNeo", TextWrapping = TextWrapping.Wrap },
                     link, error
@@ -94,11 +99,13 @@ internal sealed class WorkbenchAuxiliaryCoordinator : IDisposable
 
     internal void SaveLayoutAs()
     {
-        windows.OpenAuxiliary("save-layout", "另存为布局", () =>
+        windows.OpenLocalizedAuxiliary("save-layout", "Window.SaveLayout.Title", bindings =>
         {
-            var name = new TextBox { Watermark = "布局名称" };
+            var name = new TextBox();
             var error = new TextBlock { TextWrapping = TextWrapping.Wrap, IsVisible = false };
-            var save = new Button { Content = "保存", HorizontalAlignment = HorizontalAlignment.Right };
+            var save = new Button { HorizontalAlignment = HorizontalAlignment.Right };
+            bindings.Bind(name, TextBox.WatermarkProperty, "Layout.NamePlaceholder");
+            bindings.Bind(save, ContentControl.ContentProperty, "Window.Save");
             save.Click += (_, _) =>
             {
                 try
@@ -108,9 +115,9 @@ internal sealed class WorkbenchAuxiliaryCoordinator : IDisposable
                 }
                 catch (ArgumentException exception)
                 {
-                    error.Text = exception.Message;
+                    bindings.Bind(error, TextBlock.TextProperty, () => LayoutValidationFailure.GetDisplayMessage(exception));
                     error.IsVisible = true;
-                    application.Log.Warning("布局", exception.Message);
+                    application.Log.Warning(Localization.Get("Workbench.Menu.Layouts"), exception.Message);
                 }
             };
             return CreateDialogSurface(new StackPanel { Spacing = 16, Children = { name, error, save } });
@@ -119,7 +126,7 @@ internal sealed class WorkbenchAuxiliaryCoordinator : IDisposable
 
     internal void ManageLayouts()
     {
-        windows.OpenAuxiliary("manage-layouts", "管理布局", () =>
+        windows.OpenLocalizedAuxiliary("manage-layouts", "Window.ManageLayouts.Title", bindings =>
         {
             var selection = new ComboBox
             {
@@ -127,10 +134,15 @@ internal sealed class WorkbenchAuxiliaryCoordinator : IDisposable
                 ItemTemplate = new FuncDataTemplate<WorkspaceLayoutPreset>((preset, _) =>
                     new TextBlock { Text = preset?.Name })
             };
-            var name = new TextBox { Watermark = "新名称" };
+            var name = new TextBox();
             var error = new TextBlock { TextWrapping = TextWrapping.Wrap };
-            var rename = new Button { Content = "重命名" };
-            var delete = new Button { Content = "删除" };
+            var rename = new Button();
+            var delete = new Button();
+            var heading = new TextBlock { FontSize = 20 };
+            bindings.Bind(name, TextBox.WatermarkProperty, "Layout.NewNamePlaceholder");
+            bindings.Bind(rename, ContentControl.ContentProperty, "Layout.Rename");
+            bindings.Bind(delete, ContentControl.ContentProperty, "Window.Delete");
+            bindings.Bind(heading, TextBlock.TextProperty, "Layout.CustomLayouts");
 
             void Refresh()
             {
@@ -153,13 +165,13 @@ internal sealed class WorkbenchAuxiliaryCoordinator : IDisposable
                 try
                 {
                     layouts.Rename(preset.Id, name.Text?.Trim() ?? "");
-                    error.Text = "";
+                    bindings.Bind(error, TextBlock.TextProperty, () => string.Empty);
                     Refresh();
                 }
                 catch (ArgumentException exception)
                 {
-                    error.Text = exception.Message;
-                    application.Log.Warning("布局", exception.Message);
+                    bindings.Bind(error, TextBlock.TextProperty, () => LayoutValidationFailure.GetDisplayMessage(exception));
+                    application.Log.Warning(Localization.Get("Workbench.Menu.Layouts"), exception.Message);
                 }
             };
             delete.Click += (_, _) =>
@@ -169,10 +181,15 @@ internal sealed class WorkbenchAuxiliaryCoordinator : IDisposable
                     return;
                 }
 
-                windows.OpenAuxiliary("delete-layout", "删除布局", () =>
+                windows.OpenLocalizedAuxiliary("delete-layout", "Window.DeleteLayout.Title", confirmationBindings =>
                     {
-                        var confirm = new Button { Content = "删除" };
-                        var cancel = new Button { Content = "取消" };
+                        var confirm = new Button();
+                        var cancel = new Button();
+                        var question = new TextBlock { TextWrapping = TextWrapping.Wrap };
+                        confirmationBindings.Bind(confirm, ContentControl.ContentProperty, "Window.Delete");
+                        confirmationBindings.Bind(cancel, ContentControl.ContentProperty, "Window.Cancel");
+                        confirmationBindings.Bind(question, TextBlock.TextProperty,
+                            () => Localization.Format("Layout.DeleteQuestion", preset.Name));
                         cancel.Click += (_, _) => windows.CloseAuxiliary("delete-layout");
                         confirm.Click += (_, _) =>
                         {
@@ -185,7 +202,7 @@ internal sealed class WorkbenchAuxiliaryCoordinator : IDisposable
                             Spacing = 20,
                             Children =
                             {
-                                new TextBlock { Text = $"删除布局“{preset.Name}”？", TextWrapping = TextWrapping.Wrap },
+                                question,
                                 new StackPanel
                                 {
                                     Orientation = Orientation.Horizontal, Spacing = 12, Children = { cancel, confirm }
@@ -201,7 +218,7 @@ internal sealed class WorkbenchAuxiliaryCoordinator : IDisposable
                 Spacing = 16,
                 Children =
                 {
-                    new TextBlock { Text = "自定义布局", FontSize = 20 }, selection, name, error,
+                    heading, selection, name, error,
                     new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, Children = { rename, delete } }
                 }
             });
@@ -242,7 +259,7 @@ internal sealed class WorkbenchAuxiliaryCoordinator : IDisposable
 
         if (application.IsSettingsOpen)
         {
-            windows.OpenAuxiliary("settings", "设置", () =>
+            windows.OpenLocalizedAuxiliary("settings", "Window.Settings.Title", _ =>
                 {
                     var view = new SettingsDialogView { DataContext = application };
                     view.CloseRequested += (_, _) => windows.CloseAuxiliary("settings");
@@ -258,7 +275,7 @@ internal sealed class WorkbenchAuxiliaryCoordinator : IDisposable
 
         if (application.IsWorkspaceSettingsOpen)
         {
-            windows.OpenAuxiliary("workspace-settings", "工作区设置", () =>
+            windows.OpenLocalizedAuxiliary("workspace-settings", "Window.WorkspaceSettings.Title", _ =>
                 {
                     var view = new WorkspaceSettingsDialogView { DataContext = application };
                     view.CloseRequested += (_, _) => windows.CloseAuxiliary("workspace-settings");
@@ -274,7 +291,7 @@ internal sealed class WorkbenchAuxiliaryCoordinator : IDisposable
 
         if (application.IsAddDialogOpen)
         {
-            windows.OpenAuxiliary("add", "添加工作区或直播间", () => new AddWorkspaceDialogView { DataContext = application },
+            windows.OpenLocalizedAuxiliary("add", "Window.Add.Title", _ => new AddWorkspaceDialogView { DataContext = application },
                 true, () =>
                 {
                     application.CloseAddDialog();
@@ -289,7 +306,7 @@ internal sealed class WorkbenchAuxiliaryCoordinator : IDisposable
 
         if (application.IsConfirmDeleteDialogOpen)
         {
-            windows.OpenAuxiliary("confirm", "确认删除", () => new ConfirmDeleteDialogView { DataContext = application },
+            windows.OpenLocalizedAuxiliary("confirm", "Window.ConfirmDelete.Title", _ => new ConfirmDeleteDialogView { DataContext = application },
                 true, () =>
                 {
                     application.CloseDeleteDialog();
@@ -304,7 +321,7 @@ internal sealed class WorkbenchAuxiliaryCoordinator : IDisposable
 
         if (application.IsUpdateDialogOpen)
         {
-            windows.OpenAuxiliary("update", "检查更新", () => new AppUpdateDialogView { DataContext = application },
+            windows.OpenLocalizedAuxiliary("update", "Window.CheckUpdates.Title", _ => new AppUpdateDialogView { DataContext = application },
                 false, () =>
                 {
                     application.CloseUpdateDialog();

@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using Yohuke.DanmuNeo.Apis;
+using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Models.Logging;
 using Yohuke.DanmuNeo.Models.Workspace;
 
@@ -17,6 +18,17 @@ public class LivePlayerService : ILivePlayerService, IDisposable
     private const string MPEGTS_RESOURCE_NAME = "Yohuke.DanmuNeo.Assets.Player.mpegts.js";
     private const int MAXIMUM_DIAGNOSTIC_LENGTH = 4096;
     private const int MAXIMUM_DIAGNOSTIC_SIGNATURES = 64;
+    private static readonly string[] PLAYER_LOCALIZATION_KEYS =
+    [
+        "Player.Connecting", "Player.EnableSound", "Player.ScriptError", "Player.AsyncFailed",
+        "Player.Recovered", "Player.Playing", "Player.Muted", "Player.ClickSound",
+        "Player.StartByClick", "Player.StartByClickDetail", "Player.StartFailed", "Player.StartFailedDetail",
+        "Player.SeekingEdge", "Player.RecoveryStoppedDiagnostic", "Player.RecoveryStopped", "Player.Rebuilding",
+        "Player.NoVideo", "Player.VideoStuck", "Player.BufferTimeout", "Player.TokenMissing",
+        "Player.UnsupportedMse", "Player.Reconnecting", "Player.Interrupted", "Player.Unknown",
+        "Player.ReconnectStopped", "Player.MediaInfo", "Player.Waiting", "Player.StreamStalled",
+        "Player.MediaErrorCode", "Player.MediaError"
+    ];
     private readonly Dictionary<string, LivePlayerStreamEntry> streams = [];
     private readonly Lock gate = new();
 
@@ -135,7 +147,8 @@ public class LivePlayerService : ILivePlayerService, IDisposable
             }
             catch (Exception exception)
             {
-                StartupLog.Append("播放器 HTTP 服务监听失败", AppLogLevel.ERROR, "播放器", exception);
+                StartupLog.Append(Localization.Get("Player.HttpListenerFailed"), AppLogLevel.ERROR,
+                    Localization.Get("Player.LogSource"), exception);
                 break;
             }
 
@@ -188,13 +201,15 @@ public class LivePlayerService : ILivePlayerService, IDisposable
 
             if (!cancellationToken.IsCancellationRequested && active)
             {
-                StartupLog.Append("播放器请求失败", AppLogLevel.ERROR, "播放器", exception);
+                StartupLog.Append(Localization.Get("Player.RequestFailed"), AppLogLevel.ERROR,
+                    Localization.Get("Player.LogSource"), exception);
             }
 
             if (context.Response.OutputStream.CanWrite)
             {
                 context.Response.StatusCode = 500;
-                await WriteTextAsync(context.Response, "播放器服务错误", "text/plain; charset=utf-8", cancellationToken);
+                await WriteTextAsync(context.Response, Localization.Get("Player.ServiceError"),
+                    "text/plain; charset=utf-8", cancellationToken);
                 return;
             }
         }
@@ -339,8 +354,9 @@ public class LivePlayerService : ILivePlayerService, IDisposable
             }
         }
 
-        StartupLog.Append(safeMessage ?? "直播播放已恢复", safeMessage is null ? AppLogLevel.INFO : level,
-            $"播放器/房间 {entry.RoomId}");
+        StartupLog.Append(safeMessage ?? Localization.Get("Player.PlaybackRecovered"),
+            safeMessage is null ? AppLogLevel.INFO : level,
+            Localization.Format("Player.RoomLogSource", entry.RoomId));
     }
 
     private async Task ProxyStreamAsync(
@@ -359,7 +375,8 @@ public class LivePlayerService : ILivePlayerService, IDisposable
         if (entry is null)
         {
             context.Response.StatusCode = 404;
-            await WriteTextAsync(context.Response, "直播流已失效", "text/plain; charset=utf-8", serviceCancellationToken);
+            await WriteTextAsync(context.Response, Localization.Get("Player.StreamExpired"),
+                "text/plain; charset=utf-8", serviceCancellationToken);
             return;
         }
 
@@ -384,7 +401,8 @@ public class LivePlayerService : ILivePlayerService, IDisposable
             HttpCompletionOption.ResponseHeadersRead,
             linkedTokenSource.Token);
         StartupLog.Append(
-            $"Live player upstream roomId={entry.RoomId} status={(int)response.StatusCode} contentType={response.Content.Headers.ContentType} host={request.RequestUri?.Host}");
+            Localization.Format("Player.UpstreamResponse", entry.RoomId, (int)response.StatusCode,
+                response.Content.Headers.ContentType?.ToString() ?? string.Empty, request.RequestUri?.Host ?? string.Empty));
         context.Response.StatusCode = (int)response.StatusCode;
         context.Response.ContentType = response.Content.Headers.ContentType?.ToString() ?? "video/x-flv";
         context.Response.Headers["Access-Control-Allow-Origin"] = "*";
@@ -392,7 +410,8 @@ public class LivePlayerService : ILivePlayerService, IDisposable
 
         if (!response.IsSuccessStatusCode)
         {
-            var errorText = $"直播流请求失败：{(int)response.StatusCode} {response.ReasonPhrase}";
+            var errorText = Localization.Format("Player.StreamRequestFailed", (int)response.StatusCode,
+                response.ReasonPhrase ?? string.Empty);
             ReportDiagnostic(entry, errorText, AppLogLevel.ERROR, upstreamFailure: true);
             await WriteTextAsync(context.Response, errorText, "text/plain; charset=utf-8", linkedTokenSource.Token);
             return;
@@ -427,17 +446,32 @@ public class LivePlayerService : ILivePlayerService, IDisposable
         }
 
         using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(MPEGTS_RESOURCE_NAME) ??
-                           throw new InvalidOperationException("播放器脚本资源缺失");
+                           throw LocalizedExceptionText.Create("Player.ScriptMissing",
+                               message => new InvalidOperationException(message));
         using var reader = new StreamReader(stream, Encoding.UTF8);
         mpegtsScript = reader.ReadToEnd();
         return mpegtsScript;
     }
 
+    internal static string CreateLocalizationScript()
+    {
+        var snapshot = Localization.CaptureSnapshot(PLAYER_LOCALIZATION_KEYS);
+        var json = CreateLocalizationJson(snapshot.LanguageID, snapshot.Strings);
+        return $"window.yohukeSetLivePlayerLanguage({json});";
+    }
+
+    private static string CreateLocalizationJson(string languageId, IReadOnlyDictionary<string, string> strings)
+    {
+        return JsonSerializer.Serialize(new { languageId, strings });
+    }
+
     private static string CreatePlayerHtml()
     {
-        return """
+        var snapshot = Localization.CaptureSnapshot(PLAYER_LOCALIZATION_KEYS);
+        var json = CreateLocalizationJson(snapshot.LanguageID, snapshot.Strings);
+        return $$"""
                <!doctype html>
-               <html lang="zh-CN">
+               <html lang="{{WebUtility.HtmlEncode(snapshot.LanguageID)}}">
                <head>
                  <meta charset="utf-8">
                  <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -458,8 +492,8 @@ public class LivePlayerService : ILivePlayerService, IDisposable
                <body>
                  <div id="root">
                    <video id="player" autoplay muted playsinline></video>
-                   <div id="status">正在连接直播流...</div>
-                   <button id="soundGate" type="button">点击开启声音</button>
+                   <div id="status">{{WebUtility.HtmlEncode(snapshot.Strings["Player.Connecting"])}}</div>
+                   <button id="soundGate" type="button">{{WebUtility.HtmlEncode(snapshot.Strings["Player.EnableSound"])}}</button>
                  </div>
                  <script src="/mpegts.js"></script>
                  <script>
@@ -469,6 +503,8 @@ public class LivePlayerService : ILivePlayerService, IDisposable
                    const status = document.getElementById("status");
                    const soundGate = document.getElementById("soundGate");
                    const video = document.getElementById("player");
+                   let localization = {{json}};
+                   let currentStatusText = () => text("Player.Connecting");
                    let player = null;
                    let retryCount = 0;
                    let recoveryCount = 0;
@@ -497,9 +533,33 @@ public class LivePlayerService : ILivePlayerService, IDisposable
                        const stuckTimeoutMs = 10000;
                        const edgeRemainSeconds = 1.2;
 
-                   function setStatus(text) {
-                     status.textContent = text;
+                   function text(key, ...values) {
+                     const format = typeof localization.strings[key] === "string" ? localization.strings[key] : key;
+                     return format.replace(/\{(\d+)\}/g, (_, index) => {
+                       const value = values[Number(index)];
+                       return String(typeof value === "function" ? value() : value ?? "");
+                     });
                    }
+
+                   function renderStatus() {
+                     status.textContent = currentStatusText();
+                   }
+
+                   function setStatus(key, ...values) {
+                     currentStatusText = () => text(key, ...values);
+                     renderStatus();
+                   }
+
+                   window.yohukeSetLivePlayerLanguage = next => {
+                     if (!next || typeof next.languageId !== "string" || !next.strings || typeof next.strings !== "object") {
+                       return;
+                     }
+
+                     localization = next;
+                     document.documentElement.lang = next.languageId;
+                     soundGate.textContent = text("Player.EnableSound");
+                     renderStatus();
+                   };
 
                    function reportDiagnostic(kind, message, category = "playback") {
                      if (!token) {
@@ -513,12 +573,12 @@ public class LivePlayerService : ILivePlayerService, IDisposable
                    }
 
                    window.addEventListener("error", event => {
-                     reportDiagnostic("error", event.error && event.error.stack || event.message || "播放器脚本错误");
+                     reportDiagnostic("error", event.error && event.error.stack || event.message || text("Player.ScriptError"));
                    });
                    window.addEventListener("unhandledrejection", event => {
                      const error = event.reason;
                      if (!error || error.name !== "AbortError") {
-                       reportDiagnostic("error", error && (error.stack || error.message) || "播放器异步操作失败");
+                       reportDiagnostic("error", error && (error.stack || error.message) || text("Player.AsyncFailed"));
                      }
                    });
 
@@ -533,31 +593,32 @@ public class LivePlayerService : ILivePlayerService, IDisposable
                    }
 
                    function getPlaybackStatusText() {
-                     const message = recoveryCount > 0 ? "直播已恢复" : "播放中";
+                     const message = text(recoveryCount > 0 ? "Player.Recovered" : "Player.Playing");
 
                      if (video.muted) {
-                       return requestedMuted ? `${message}（已静音）` : `${message}（点击开启声音）`;
+                       return text(requestedMuted ? "Player.Muted" : "Player.ClickSound", message);
                      }
 
                      return message;
                    }
 
                    function setPlaybackStatus() {
-                     setStatus(getPlaybackStatusText());
+                     currentStatusText = getPlaybackStatusText;
+                     renderStatus();
                    }
 
                    function handlePlayFailure(error) {
                      const message = error && error.message ? error.message : "";
 
                      if (error && error.name === "NotAllowedError") {
-                       setStatus(`点击播放器开始播放${message ? `：${message}` : ""}`);
+                       setStatus(message ? "Player.StartByClickDetail" : "Player.StartByClick", message);
                        setSoundGateVisible(!requestedMuted);
                        return;
                      }
 
-                     setStatus(`播放启动失败${message ? `：${message}` : ""}`);
+                     setStatus(message ? "Player.StartFailedDetail" : "Player.StartFailed", message);
                      if (!error || error.name !== "AbortError") {
-                       reportDiagnostic("error", `播放启动失败：${message}`);
+                       reportDiagnostic("error", text(message ? "Player.StartFailedDetail" : "Player.StartFailed", message));
                      }
                    }
 
@@ -719,7 +780,7 @@ public class LivePlayerService : ILivePlayerService, IDisposable
                          stuckSince = 0;
                        }
 
-                       function seekToLiveEdge(reason) {
+                       function seekToLiveEdge(reasonKey) {
                          const buffered = video.buffered;
 
                      if (!buffered || buffered.length <= 0) {
@@ -734,11 +795,11 @@ public class LivePlayerService : ILivePlayerService, IDisposable
                      }
 
                      video.currentTime = target;
-                         setStatus(`${reason}，正在跳到最新缓冲...`);
+                         setStatus("Player.SeekingEdge", () => text(reasonKey));
                          return true;
                        }
 
-                   function recoverFromStuck(reason) {
+                   function recoverFromStuck(reasonKey) {
                      if (isRecovering) {
                        return;
                      }
@@ -746,16 +807,16 @@ public class LivePlayerService : ILivePlayerService, IDisposable
                      isRecovering = true;
 
                      if (recoveryCount >= maxRecoveries) {
-                       reportDiagnostic("error", `${reason}，已停止自动恢复`);
-                       setStatus(`${reason}，已停止自动恢复，请点击追帧。`);
+                       reportDiagnostic("error", text("Player.RecoveryStoppedDiagnostic", () => text(reasonKey)));
+                       setStatus("Player.RecoveryStopped", () => text(reasonKey));
                        destroyPlayer();
                        return;
                      }
 
                      recoveryCount++;
-                     reportDiagnostic("warning", reason);
+                     reportDiagnostic("warning", text(reasonKey));
 
-                         if (seekToLiveEdge(reason)) {
+                         if (seekToLiveEdge(reasonKey)) {
                            lastActiveAt = Date.now();
                            lastTimelineActiveAt = lastActiveAt;
                            lastVideoFrameAt = lastActiveAt;
@@ -767,7 +828,7 @@ public class LivePlayerService : ILivePlayerService, IDisposable
                      }
 
                      retryCount++;
-                     setStatus(`${reason}，正在重建直播流（${recoveryCount}/${maxRecoveries}）...`);
+                     setStatus("Player.Rebuilding", () => text(reasonKey), recoveryCount, maxRecoveries);
                      recoveryTimer = setTimeout(() => {
                        recoveryTimer = null;
                        createPlayer();
@@ -797,7 +858,7 @@ public class LivePlayerService : ILivePlayerService, IDisposable
                            if (!hasVideoOutput &&
                                currentTime > 0 &&
                                now - lastVideoFrameAt > noVideoTimeoutMs) {
-                             recoverFromStuck("直播画面未输出");
+                             recoverFromStuck("Player.NoVideo");
                              return;
                            }
     
@@ -805,7 +866,7 @@ public class LivePlayerService : ILivePlayerService, IDisposable
                                canTrackDecodedFrames &&
                                now - lastVideoFrameAt > videoFrameTimeoutMs &&
                                now - lastTimelineActiveAt < waitingTimeoutMs) {
-                             recoverFromStuck("直播画面卡住");
+                             recoverFromStuck("Player.VideoStuck");
                              return;
                            }
     
@@ -815,7 +876,7 @@ public class LivePlayerService : ILivePlayerService, IDisposable
     
                            if (video.readyState < HTMLMediaElement.HAVE_FUTURE_DATA &&
                                now - lastActiveAt > waitingTimeoutMs) {
-                         recoverFromStuck("直播缓冲超时");
+                         recoverFromStuck("Player.BufferTimeout");
                          return;
                        }
 
@@ -824,20 +885,20 @@ public class LivePlayerService : ILivePlayerService, IDisposable
                        }
 
                        if (now - stuckSince > stuckTimeoutMs) {
-                         recoverFromStuck("直播画面卡住");
+                         recoverFromStuck("Player.VideoStuck");
                        }
                      }, 1000);
                    }
 
                    function createPlayer() {
                      if (!token) {
-                       setStatus("直播流令牌缺失");
+                       setStatus("Player.TokenMissing");
                        return;
                      }
 
                      if (!window.mpegts || !mpegts.isSupported()) {
-                       reportDiagnostic("error", "当前 WebView 不支持 MSE 直播播放");
-                       setStatus("当前 WebView 不支持 MSE 直播播放");
+                       reportDiagnostic("error", text("Player.UnsupportedMse"));
+                       setStatus("Player.UnsupportedMse");
                        return;
                          }
     
@@ -845,7 +906,7 @@ public class LivePlayerService : ILivePlayerService, IDisposable
                          resetVideoDiagnostics();
                          applyAudioState();
                          startWatchdog();
-                         setStatus(retryCount > 0 ? `正在重新连接直播流（${retryCount}/${maxRetries}）...` : "正在连接直播流...");
+                         setStatus(retryCount > 0 ? "Player.Reconnecting" : "Player.Connecting", retryCount, maxRetries);
                      const streamUrl = new URL(`/stream/${encodeURIComponent(token)}?v=${Date.now()}`, location.href).toString();
                      player = mpegts.createPlayer({
                        type: "flv",
@@ -866,14 +927,16 @@ public class LivePlayerService : ILivePlayerService, IDisposable
                        const infoText = typeof errorInfo === "string"
                          ? errorInfo
                          : JSON.stringify(errorInfo || {});
-                       const message = `播放中断：${errorType || "Unknown"} / ${errorDetail || "Unknown"} ${infoText}`;
-                       setStatus(message);
+                       const messageArguments = [() => errorType || text("Player.Unknown"),
+                         () => errorDetail || text("Player.Unknown"), infoText];
+                       const message = text("Player.Interrupted", ...messageArguments);
+                       setStatus("Player.Interrupted", ...messageArguments);
                        reportDiagnostic("error", message,
                          errorType === mpegts.ErrorTypes.NETWORK_ERROR ? "network" : "media");
                        console.error(message, errorInfo);
 
                        if (retryCount >= maxRetries) {
-                         setStatus(`${message}。已停止自动重连，请点击追帧或播放重试。`);
+                         setStatus("Player.ReconnectStopped", () => text("Player.Interrupted", ...messageArguments));
                          destroyPlayer();
                          return;
                        }
@@ -892,7 +955,7 @@ public class LivePlayerService : ILivePlayerService, IDisposable
                          player.on(mpegts.Events.MEDIA_INFO, mediaInfo => {
                            lastMediaInfo = mediaInfo || {};
                            updateVideoMetrics();
-                           console.info("直播媒体信息", {
+                           console.info(text("Player.MediaInfo"), {
                              hasVideo: lastMediaInfo.hasVideo,
                              videoCodec: lastMediaInfo.videoCodec,
                              width: lastMediaInfo.width,
@@ -920,12 +983,13 @@ public class LivePlayerService : ILivePlayerService, IDisposable
                            updateVideoMetrics();
                          };
                          video.onprogress = () => markNetworkActive();
-                         video.onwaiting = () => setStatus("缓冲中，正在监测直播状态...");
-                     video.onstalled = () => recoverFromStuck("直播流停止响应");
+                         video.onwaiting = () => setStatus("Player.Waiting");
+                     video.onstalled = () => recoverFromStuck("Player.StreamStalled");
                      video.onerror = () => {
                        const error = video.error;
-                       reportDiagnostic("error", error ? `播放器错误：${error.code}` : "播放器错误");
-                       setStatus(error ? `播放器错误：${error.code}` : "播放器错误");
+                       const key = error ? "Player.MediaErrorCode" : "Player.MediaError";
+                       reportDiagnostic("error", text(key, error && error.code));
+                       setStatus(key, error && error.code);
                      };
                      playVideo();
                    }
@@ -935,6 +999,7 @@ public class LivePlayerService : ILivePlayerService, IDisposable
                    root.addEventListener("pointerdown", unlockSoundByUserGesture);
                    root.addEventListener("touchstart", unlockSoundByUserGesture, { passive: true });
                    document.addEventListener("keydown", unlockSoundByUserGesture);
+                   window.yohukeSetLivePlayerLanguage(localization);
                    createPlayer();
                  </script>
                </body>

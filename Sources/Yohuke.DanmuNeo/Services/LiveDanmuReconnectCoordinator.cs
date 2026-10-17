@@ -1,3 +1,4 @@
+using Yohuke.DanmuNeo.I18n;
 using System.Net.WebSockets;
 
 namespace Yohuke.DanmuNeo.Services;
@@ -51,7 +52,8 @@ internal class LiveDanmuReconnectCoordinator
                     break;
                 }
 
-                throw new WebSocketException("直播弹幕连接已关闭。");
+                throw LocalizedExceptionText.Create("Services.Socket.ConnectionClosed",
+                    message => new WebSocketException(message));
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {

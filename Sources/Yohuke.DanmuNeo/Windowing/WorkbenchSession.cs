@@ -2,6 +2,7 @@ using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Threading;
+using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Layouts;
 using Yohuke.DanmuNeo.Menus;
 using Yohuke.DanmuNeo.ViewModels;
@@ -71,6 +72,7 @@ internal sealed class WorkbenchSession : IAsyncDisposable
         Panels.LyricLibraryRequested += OpenLyricLibrary;
         UpdateMenuMode();
         OnModalChanged();
+        Localization.LanguageChanged += OnLanguageChanged;
     }
 
     internal WorkbenchContext Context { get; }
@@ -121,6 +123,7 @@ internal sealed class WorkbenchSession : IAsyncDisposable
 
         await Layouts.DisposeAsync();
         disposed = true;
+        Localization.LanguageChanged -= OnLanguageChanged;
         application.Log.Changed -= OnLogChanged;
         application.PropertyChanged -= OnApplicationChanged;
         Panels.LyricLibraryRequested -= OpenLyricLibrary;
@@ -183,8 +186,9 @@ internal sealed class WorkbenchSession : IAsyncDisposable
         {
             if (!disposed)
             {
-                application.StatusMessage = $"布局保存失败：{exception.Message}";
-                application.Log.Error("布局", "布局保存失败", exception);
+                application.SetLocalizedStatus("Layout.SaveFailedDetail",
+                    (Func<string>)(() => LocalizedExceptionText.Get(exception)));
+                application.Log.Error(Localization.Get("Workbench.Menu.Layouts"), Localization.Get("Layout.SaveFailed"), exception);
             }
         });
     }
@@ -210,9 +214,16 @@ internal sealed class WorkbenchSession : IAsyncDisposable
     private void UpdateLogPresentation()
     {
         var unread = application.Log.UnreadErrorCount;
-        Layouts.PanelAdapters[WorkbenchPanelIds.LOG].Title = unread > 0 ? $"日志 ({unread})" : "日志";
+        Layouts.PanelAdapters[WorkbenchPanelIds.LOG].Title = unread > 0
+            ? Localization.Format("Workbench.Panel.LogUnread", unread)
+            : Localization.Get("Workbench.Panel.Log");
         Layouts.RefreshFloatingTitles();
         menuCatalog.Refresh();
+    }
+
+    private void OnLanguageChanged(object? sender, EventArgs e)
+    {
+        UpdateLogPresentation();
     }
 
     private void OnApplicationChanged(object? sender, PropertyChangedEventArgs e)
@@ -251,7 +262,7 @@ internal sealed class WorkbenchSession : IAsyncDisposable
         application.OpenLyricLibraryPicker();
         var picker = new LyricLibraryPickerView(Context);
         picker.CloseRequested += (_, _) => windows.CloseAuxiliary("lyric-library");
-        var window = windows.OpenAuxiliary("lyric-library", "歌词库", () => picker, true,
+        var window = windows.OpenLocalizedAuxiliary("lyric-library", "Window.LyricLibrary.Title", _ => picker, true,
             owner: owner ?? mainWindow, width: 760, height: 640);
         window.Closed += (_, _) => picker.Dispose();
     }

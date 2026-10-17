@@ -1,3 +1,4 @@
+using Yohuke.DanmuNeo.I18n;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Platform.Storage;
@@ -94,11 +95,11 @@ public partial class WorkspaceSidebarView : UserControl
         var workspace = (sender as Control)?.DataContext as WorkspaceViewModel ?? viewModel.SelectedWorkspace;
         var file = await topLevel.StorageProvider.SaveFilePickerAsync(new()
         {
-            Title = "导出工作区",
+            Title = Localization.Get("UI.WorkspaceSidebarView.ExportWorkspace"),
             SuggestedFileName = viewModel.GetExportFileName(workspace),
             FileTypeChoices =
             [
-                new FilePickerFileType("DanmuNeo Workspace")
+                new FilePickerFileType(Localization.Get("UI.WorkspaceSidebarView.WorkspaceFileType"))
                 {
                     Patterns = ["*.dnworkspace.json"]
                 }
@@ -123,11 +124,11 @@ public partial class WorkspaceSidebarView : UserControl
 
         var files = await topLevel.StorageProvider.OpenFilePickerAsync(new()
         {
-            Title = "导入工作区",
+            Title = Localization.Get("UI.WorkspaceSidebarView.ImportWorkspace"),
             AllowMultiple = false,
             FileTypeFilter =
             [
-                new FilePickerFileType("DanmuNeo Workspace")
+                new FilePickerFileType(Localization.Get("UI.WorkspaceSidebarView.WorkspaceFileType"))
                 {
                     Patterns = ["*.dnworkspace.json", "*.json"]
                 }

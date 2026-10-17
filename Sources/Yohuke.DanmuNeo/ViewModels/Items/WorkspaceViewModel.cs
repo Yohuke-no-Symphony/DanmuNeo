@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Models.State;
 
 namespace Yohuke.DanmuNeo.ViewModels.Items;
@@ -21,6 +22,7 @@ public partial class WorkspaceViewModel : ViewModelBase, IDisposable
         this.getAccountName = getAccountName;
         Rooms = new(state.LiveRooms.OrderBy(room => room.SortOrder).Select(room => new LiveRoomTabViewModel(room)));
         selectedRoom = Rooms.FirstOrDefault(room => room.Id == state.SelectedLiveRoomId) ?? Rooms.FirstOrDefault();
+        Localization.LanguageChanged += OnLanguageChanged;
     }
 
     /// <summary>
@@ -107,7 +109,7 @@ public partial class WorkspaceViewModel : ViewModelBase, IDisposable
     /// <summary>
     /// 直播间数量文本。
     /// </summary>
-    public string RoomCountText => $"{Rooms.Count} 个直播间";
+    public string RoomCountText => Localization.Format("Workspace.RoomCount", Rooms.Count);
 
     [ObservableProperty] private bool isExpanded = true;
 
@@ -171,6 +173,7 @@ public partial class WorkspaceViewModel : ViewModelBase, IDisposable
         }
 
         isDisposed = true;
+        Localization.LanguageChanged -= OnLanguageChanged;
 
         foreach (var room in Rooms)
         {
@@ -215,6 +218,12 @@ public partial class WorkspaceViewModel : ViewModelBase, IDisposable
         {
             room.IsSelected = IsSelected && room == SelectedRoom;
         }
+    }
+
+    private void OnLanguageChanged(object? sender, EventArgs e)
+    {
+        OnPropertyChanged(nameof(RoomCountText));
+        OnPropertyChanged(nameof(AccountLabel));
     }
 
     private void RefreshRoomSortOrder()

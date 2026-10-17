@@ -1,3 +1,4 @@
+using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Apis;
 using Yohuke.DanmuNeo.Models.Workspace;
 
@@ -27,7 +28,8 @@ public class BilibiliModerationService : IBilibiliModerationService
     {
         if (!long.TryParse(roomId, out var parsedRoomId) || parsedRoomId <= 0)
         {
-            throw new InvalidOperationException("房间号格式错误");
+            throw LocalizedExceptionText.Create("Services.BilibiliModeration.RoomIdInvalid",
+                text => new InvalidOperationException(text));
         }
 
         using var api = new BilibiliApi(cookie, httpClient: httpClient);
@@ -36,14 +38,15 @@ public class BilibiliModerationService : IBilibiliModerationService
 
         if (userResponse.Code != 0)
         {
-            throw new InvalidOperationException(GetErrorMessage(userResponse.Message, userResponse.Msg, "禁言权限查询失败"));
+            throw CreateError(userResponse.Message, userResponse.Msg, "Services.BilibiliModeration.PermissionQueryFailed");
         }
 
         var userInfo = userResponse.Data?.Info;
 
         if (userInfo is null || userInfo.Uid <= 0)
         {
-            throw new InvalidOperationException("未获取到登录身份，请重新登录账号");
+            throw LocalizedExceptionText.Create("Services.BilibiliModeration.AccountIdentityMissing",
+                text => new InvalidOperationException(text));
         }
 
         var roomResponse = await api.GetRoomPlayInfoAsync(parsedRoomId, cookie: cookie, timeout: timeout,
@@ -51,14 +54,15 @@ public class BilibiliModerationService : IBilibiliModerationService
 
         if (roomResponse.Code != 0)
         {
-            throw new InvalidOperationException(GetErrorMessage(roomResponse.Message, roomResponse.Msg, "直播间资料查询失败"));
+            throw CreateError(roomResponse.Message, roomResponse.Msg, "Services.BilibiliModeration.RoomQueryFailed");
         }
 
         var roomInfo = roomResponse.Data;
 
         if (roomInfo is null || roomInfo.Uid <= 0 || roomInfo.RoomId <= 0)
         {
-            throw new InvalidOperationException("未获取到直播间身份，无法确认禁言权限");
+            throw LocalizedExceptionText.Create("Services.BilibiliModeration.RoomIdentityMissing",
+                text => new InvalidOperationException(text));
         }
 
         return new()
@@ -85,7 +89,8 @@ public class BilibiliModerationService : IBilibiliModerationService
         if (string.IsNullOrWhiteSpace(ApiCookieHelper.GetValue(cookie, "SESSDATA")) ||
             string.IsNullOrWhiteSpace(ApiCookieHelper.GetValue(cookie, "bili_jct")))
         {
-            throw new InvalidOperationException("账号登录凭据不完整，请重新登录");
+            throw LocalizedExceptionText.Create("Services.BilibiliModeration.CredentialsIncomplete",
+                text => new InvalidOperationException(text));
         }
 
         using var api = new BilibiliApi(cookie, httpClient: httpClient);
@@ -95,17 +100,19 @@ public class BilibiliModerationService : IBilibiliModerationService
 
         if (response.Code != 0)
         {
-            throw new InvalidOperationException(GetErrorMessage(response.Message, response.Msg, "禁言失败"));
+            throw CreateError(response.Message, response.Msg, "Services.BilibiliModeration.MuteFailed");
         }
     }
 
-    private static string GetErrorMessage(string? message, string? msg, string fallback)
+    private static InvalidOperationException CreateError(string? message, string? msg, string fallbackKey)
     {
         if (!string.IsNullOrWhiteSpace(message))
         {
-            return message;
+            return new(message);
         }
 
-        return !string.IsNullOrWhiteSpace(msg) ? msg : fallback;
+        return !string.IsNullOrWhiteSpace(msg)
+            ? new(msg)
+            : LocalizedExceptionText.Create(fallbackKey, text => new InvalidOperationException(text));
     }
 }

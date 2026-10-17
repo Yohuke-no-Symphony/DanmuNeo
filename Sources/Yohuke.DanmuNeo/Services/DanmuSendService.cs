@@ -1,4 +1,5 @@
 using Yohuke.DanmuNeo.Apis;
+using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Models.State;
 using Yohuke.DanmuNeo.Models.Workspace;
 
@@ -40,7 +41,7 @@ public class DanmuSendService : IDanmuSendService
     {
         if (account is null || string.IsNullOrWhiteSpace(account.Cookie))
         {
-            return CreateResult(roomId, message, "未配置账号", false);
+            return CreateResult(roomId, message, "", false, statusKey: "Services.Send.NoAccount");
         }
 
         var cookie = account.Cookie;
@@ -66,13 +67,19 @@ public class DanmuSendService : IDanmuSendService
 
             if (response.Code == 0 && !isBlocked)
             {
-                return CreateResult(roomId, message, "接口已接受", true, response.Code);
+                return CreateResult(roomId, message, "", true, response.Code, statusKey: "Services.Send.Accepted");
             }
 
-            var errorMessage = isBlocked
-                ? "弹幕被屏蔽"
-                : response.Message ?? response.Msg ?? $"发送失败：{response.Code}";
-            return CreateResult(roomId, message, errorMessage, false, response.Code);
+            if (isBlocked)
+            {
+                return CreateResult(roomId, message, "", false, response.Code, statusKey: "Services.Send.Blocked");
+            }
+
+            var errorMessage = response.Message ?? response.Msg;
+            return errorMessage is not null
+                ? CreateResult(roomId, message, errorMessage, false, response.Code)
+                : CreateResult(roomId, message, "", false, response.Code,
+                    statusKey: "Services.Send.FailedCode", statusArguments: [response.Code]);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -122,7 +129,9 @@ public class DanmuSendService : IDanmuSendService
         string status,
         bool isAccepted,
         int? apiCode = null,
-        Exception? error = null)
+        Exception? error = null,
+        string? statusKey = null,
+        object[]? statusArguments = null)
     {
         var record = new DanmuFeedItem
         {
@@ -133,12 +142,25 @@ public class DanmuSendService : IDanmuSendService
             IsSendAccepted = isAccepted,
             Status = status
         };
+
+        if (statusKey is not null)
+        {
+            record.SetLocalizedStatus(statusKey, statusArguments ?? []);
+        }
+        else if (error is not null)
+        {
+            record.SetLocalizedStatus(() => LocalizedExceptionText.Get(error));
+        }
+
         RecordCreated?.Invoke(this, record);
         return new()
         {
             IsAccepted = isAccepted,
             ApiCode = apiCode,
-            ErrorMessage = isAccepted ? "" : status,
+            ErrorMessage = isAccepted ? "" : record.Status,
+            ErrorMessageKey = isAccepted ? null : statusKey,
+            ErrorMessageArguments = statusArguments ?? [],
+            ErrorMessageProvider = error is null ? null : () => LocalizedExceptionText.Get(error),
             Error = error,
             Record = record
         };

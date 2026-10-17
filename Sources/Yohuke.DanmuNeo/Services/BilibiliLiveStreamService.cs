@@ -1,3 +1,4 @@
+using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Apis;
 using Yohuke.DanmuNeo.Models.Workspace;
 
@@ -18,7 +19,8 @@ public class BilibiliLiveStreamService : IBilibiliLiveStreamService
     {
         if (!long.TryParse(roomId, out var parsedRoomId))
         {
-            throw new InvalidOperationException("房间号格式错误");
+            throw LocalizedExceptionText.Create("Services.BilibiliLiveStream.RoomIdInvalid",
+                message => new InvalidOperationException(message));
         }
 
         using var api = new BilibiliApi(cookie ?? "", timeout);
@@ -26,7 +28,11 @@ public class BilibiliLiveStreamService : IBilibiliLiveStreamService
 
         if (response.Code != 0)
         {
-            throw new InvalidOperationException(response.Message ?? response.Msg ?? "直播流获取失败");
+            var message = response.Message ?? response.Msg;
+            throw message is null
+                ? LocalizedExceptionText.Create("Services.BilibiliLiveStream.FetchFailed",
+                    text => new InvalidOperationException(text))
+                : new InvalidOperationException(message);
         }
 
         return BilibiliLivePlayInfoSelector.Select(response.Data, roomId);

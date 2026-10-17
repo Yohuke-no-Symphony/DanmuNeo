@@ -11,8 +11,8 @@
     </UserControl.Styles>
     <Button x:Name="WindowTopmostButton"
             Classes="iconButton"
-            ToolTip.Tip="独立置顶此窗口"
-            AutomationProperties.Name="独立置顶此窗口"
+            ToolTip.Tip="{Loc Key=UI.FloatingWindowPinButton.PinIndependently}"
+            AutomationProperties.Name="{Loc Key=UI.FloatingWindowPinButton.PinIndependently}"
             Click="Pin_OnClick">
         <Grid>
             <LucideIcon x:Name="PinOutlineIcon"

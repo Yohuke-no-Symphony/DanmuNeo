@@ -76,25 +76,20 @@ public partial class LyricLibraryListView : UserControl
             return;
         }
 
-        var menu = new ContextMenu
+        var edit = new MenuItem
         {
-            ItemsSource = new MenuItem[]
-            {
-                new()
-                {
-                    Header = "修改",
-                    IsVisible = ShowEditButton,
-                    Command = EditLyricCommand,
-                    CommandParameter = item
-                },
-                new()
-                {
-                    Header = "删除",
-                    Command = DeleteLyricLibraryItemCommand,
-                    CommandParameter = item
-                }
-            }
+            IsVisible = ShowEditButton,
+            Command = EditLyricCommand,
+            CommandParameter = item
         };
+        var delete = new MenuItem
+        {
+            Command = DeleteLyricLibraryItemCommand,
+            CommandParameter = item
+        };
+        var menu = new LocalizedContextMenu { ItemsSource = new[] { edit, delete } };
+        menu.SetHeader(edit, "UI.LyricLibraryListView.Edit");
+        menu.SetHeader(delete, "UI.LyricLibraryListView.Delete");
         menu.Open(button);
     }
 

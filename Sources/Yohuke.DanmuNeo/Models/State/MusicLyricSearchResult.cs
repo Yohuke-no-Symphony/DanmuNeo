@@ -1,9 +1,12 @@
+using CommunityToolkit.Mvvm.ComponentModel;
+using Yohuke.DanmuNeo.I18n;
+
 namespace Yohuke.DanmuNeo.Models.State;
 
 /// <summary>
 /// 音乐 API 歌词搜索结果。
 /// </summary>
-public class MusicLyricSearchResult
+public class MusicLyricSearchResult : ObservableObject
 {
     /// <summary>
     /// 来源平台。
@@ -45,8 +48,12 @@ public class MusicLyricSearchResult
     /// </summary>
     public string SourceLabel => Source switch
     {
-        "wy" => "网易云",
-        "qq" => "QQ 音乐",
+        "wy" => Localization.Get("App.Music.Source.wy"),
+        "qq" => Localization.Get("App.Music.Source.qq"),
         _ => Source
     };
+    internal void RefreshLocalization()
+    {
+        OnPropertyChanged(nameof(SourceLabel));
+    }
 }

@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Models.State;
 using Yohuke.DanmuNeo.Models.Workspace;
 using Yohuke.DanmuNeo.Services;
@@ -9,7 +10,7 @@ namespace Yohuke.DanmuNeo.ViewModels.Items;
 
 public partial class LiveRoomTabViewModel
 {
-    private const string DANMU_CONFIGURATION_HINT = "颜色和位置会立即保存到当前发送账号在该直播间的配置";
+    private const string DANMU_CONFIGURATION_HINT = "Room.ConfigurationHint";
     private IBilibiliDanmuConfigService? danmuConfigService;
     private CancellationTokenSource? danmuConfigurationTokenSource;
     private CancellationToken danmuConfigurationCancellationToken;
@@ -57,7 +58,7 @@ public partial class LiveRoomTabViewModel
     [ObservableProperty] private DanmuColorOption? selectedDanmuColor;
     [ObservableProperty] private DanmuModeOption? selectedDanmuMode;
     [ObservableProperty] private bool isSavingDanmuConfiguration;
-    [ObservableProperty] private string danmuConfigurationStatus = DANMU_CONFIGURATION_HINT;
+    [ObservableProperty] private string danmuConfigurationStatus = Localization.Get(DANMU_CONFIGURATION_HINT);
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanSelectDanmuColor), nameof(CanSelectDanmuMode))]
@@ -141,7 +142,7 @@ public partial class LiveRoomTabViewModel
         if (danmuConfigService is null || string.IsNullOrWhiteSpace(danmuConfigurationCookie) ||
             string.IsNullOrWhiteSpace(danmuConfigurationRoomId))
         {
-            DanmuConfigurationStatus = "配置发送账号的 Cookie 和直播间 ID 后可设置弹幕颜色、位置";
+            SetDanmuConfigurationStatus("Room.ConfigurationAccountRequired");
             RefreshDanmuConfigurationAvailability();
             return DanmuConfigurationTask = Task.CompletedTask;
         }
@@ -149,7 +150,7 @@ public partial class LiveRoomTabViewModel
         danmuConfigurationTokenSource = new();
         danmuConfigurationCancellationToken = danmuConfigurationTokenSource.Token;
         IsLoadingDanmuConfiguration = true;
-        DanmuConfigurationStatus = "正在读取弹幕颜色和位置";
+        SetDanmuConfigurationStatus("Room.ConfigurationLoading");
         DanmuConfigurationTask = LoadDanmuConfigurationAsync(danmuConfigurationVersion,
             danmuConfigurationRoomId, danmuConfigurationCookie, danmuConfigurationTokenSource.Token);
         return DanmuConfigurationTask;
@@ -157,7 +158,7 @@ public partial class LiveRoomTabViewModel
 
     private async Task LoadDanmuConfigurationAsync(long version, string roomId, string cookie, CancellationToken token)
     {
-        var source = CreateLogSource("弹幕配置读取", roomId);
+        var source = CreateLogSource(Localization.Get("Room.Log.ConfigLoad"), roomId);
 
         try
         {
@@ -167,7 +168,7 @@ public partial class LiveRoomTabViewModel
             if (IsCurrentDanmuConfiguration(version, token))
             {
                 ApplyDanmuConfiguration(config);
-                DanmuConfigurationStatus = DANMU_CONFIGURATION_HINT;
+                SetDanmuConfigurationStatus(DANMU_CONFIGURATION_HINT);
             }
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
@@ -177,8 +178,8 @@ public partial class LiveRoomTabViewModel
         {
             if (IsCurrentDanmuConfiguration(version, token))
             {
-                log?.Error(source, "读取弹幕颜色和位置失败", exception);
-                DanmuConfigurationStatus = $"读取失败：{exception.Message}；打开下拉框重试";
+                log?.Error(source, Localization.Get("Room.Log.ConfigLoadFailed"), exception);
+                SetDanmuConfigurationStatus("Room.ConfigurationLoadFailed", new Func<string>(() => LocalizedExceptionText.Get(exception)));
             }
         }
         finally
@@ -227,14 +228,14 @@ public partial class LiveRoomTabViewModel
 
     private async Task SaveDanmuConfigurationAsync(long version, string roomId, string cookie, CancellationToken token)
     {
-        var source = CreateLogSource("弹幕配置保存", roomId);
+        var source = CreateLogSource(Localization.Get("Room.Log.ConfigSave"), roomId);
 
         try
         {
             while (pendingDanmuConfiguration is { } options && IsCurrentDanmuConfiguration(version, token))
             {
                 pendingDanmuConfiguration = null;
-                DanmuConfigurationStatus = "正在保存弹幕颜色和位置";
+                SetDanmuConfigurationStatus("Room.ConfigurationSaving");
                 var config = await danmuConfigService!.SetConfigAsync(roomId, cookie, options,
                     GetDanmuConfigurationTimeout(), token);
 
@@ -253,7 +254,7 @@ public partial class LiveRoomTabViewModel
 
             if (IsCurrentDanmuConfiguration(version, token))
             {
-                DanmuConfigurationStatus = DANMU_CONFIGURATION_HINT;
+                SetDanmuConfigurationStatus(DANMU_CONFIGURATION_HINT);
             }
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
@@ -263,9 +264,9 @@ public partial class LiveRoomTabViewModel
         {
             if (IsCurrentDanmuConfiguration(version, token))
             {
-                log?.Error(source, "保存弹幕颜色和位置失败", exception);
+                log?.Error(source, Localization.Get("Room.Log.ConfigSaveFailed"), exception);
                 pendingDanmuConfiguration = null;
-                await RecoverDanmuConfigurationAsync(version, roomId, cookie, token, exception.Message);
+                await RecoverDanmuConfigurationAsync(version, roomId, cookie, token, new Func<string>(() => LocalizedExceptionText.Get(exception)));
             }
         }
         finally
@@ -278,9 +279,9 @@ public partial class LiveRoomTabViewModel
     }
 
     private async Task RecoverDanmuConfigurationAsync(long version, string roomId, string cookie,
-        CancellationToken token, string error)
+        CancellationToken token, Func<string> error)
     {
-        var source = CreateLogSource("弹幕配置恢复", roomId);
+        var source = CreateLogSource(Localization.Get("Room.Log.ConfigRecover"), roomId);
         IsLoadingDanmuConfiguration = true;
 
         try
@@ -290,7 +291,7 @@ public partial class LiveRoomTabViewModel
             if (IsCurrentDanmuConfiguration(version, token))
             {
                 ApplyDanmuConfiguration(config);
-                DanmuConfigurationStatus = $"保存失败：{error}；已恢复服务端确认的配置";
+                SetDanmuConfigurationStatus("Room.ConfigurationRecovered", error);
             }
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
@@ -300,9 +301,9 @@ public partial class LiveRoomTabViewModel
         {
             if (IsCurrentDanmuConfiguration(version, token))
             {
-                log?.Error(source, "恢复服务端弹幕配置失败", exception);
+                log?.Error(source, Localization.Get("Room.Log.ConfigRecoverFailed"), exception);
                 ClearDanmuConfiguration();
-                DanmuConfigurationStatus = $"保存失败：{error}；无法确认当前配置，打开下拉框重新读取";
+                SetDanmuConfigurationStatus("Room.ConfigurationRecoveryFailed", error);
             }
         }
         finally

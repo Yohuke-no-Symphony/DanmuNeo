@@ -1,5 +1,6 @@
 using Dock.Model.Controls;
 using Dock.Model.Core;
+using Yohuke.DanmuNeo.I18n;
 
 namespace Yohuke.DanmuNeo.Layouts;
 
@@ -97,7 +98,8 @@ internal sealed class WorkbenchDockSnapshotCodec
 
         if (dockable is not IDock dock)
         {
-            throw new InvalidDataException($"不支持的 Dock 节点：{dockable.GetType().Name}。");
+            throw LocalizedExceptionText.Create("Layout.UnsupportedDockNode",
+                message => new InvalidDataException(message), dockable.GetType().Name);
         }
 
         if (dock is IToolDock)

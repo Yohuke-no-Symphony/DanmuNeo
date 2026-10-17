@@ -12,9 +12,9 @@
                 <Grid ColumnDefinitions="*,Auto"
                       ColumnSpacing="8">
                     <StackPanel>
-                        <TextBlock Text="屏蔽词替换库"
+                        <TextBlock Text="{Loc Key=UI.ShieldReplacementSettingsView.Title}"
                                    Classes="sectionTitle"/>
-                        <TextBlock Text="发送前按顺序将匹配文本替换为目标文本。"
+                        <TextBlock Text="{Loc Key=UI.ShieldReplacementSettingsView.ReplacementHint}"
                                    Classes="muted"/>
                     </StackPanel>
                     <Button Grid.Column="1"
@@ -22,12 +22,12 @@
                         <StackPanel Orientation="Horizontal"
                                     Spacing="6">
                             <LucideIcon Kind="ListPlus"/>
-                            <TextBlock Text="新增规则"/>
+                            <TextBlock Text="{Loc Key=UI.ShieldReplacementSettingsView.AddRule}"/>
                         </StackPanel>
                     </Button>
                 </Grid>
 
-                <CheckBox Content="对歌词生效"
+                <CheckBox Content="{Loc Key=UI.ShieldReplacementSettingsView.ApplyToLyrics}"
                           IsChecked="{Binding Settings.ApplyShieldReplacementToLyrics}"/>
 
                 <ItemsControl ItemsSource="{Binding ShieldReplacementRules}">
@@ -37,21 +37,21 @@
                                 <Grid ColumnDefinitions="*,*,Auto,Auto,Auto"
                                       ColumnSpacing="8">
                                     <StackPanel Spacing="4">
-                                        <TextBlock Text="匹配文本"
+                                        <TextBlock Text="{Loc Key=UI.ShieldReplacementSettingsView.MatchText}"
                                                    Classes="muted"/>
                                         <TextBox Text="{Binding SourceText, UpdateSourceTrigger=PropertyChanged}"
-                                                 Watermark="需要替换的文本"/>
+                                                 Watermark="{Loc Key=UI.ShieldReplacementSettingsView.MatchWatermark}"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="1"
                                                 Spacing="4">
-                                        <TextBlock Text="替换为"
+                                        <TextBlock Text="{Loc Key=UI.ShieldReplacementSettingsView.ReplacementText}"
                                                    Classes="muted"/>
                                         <TextBox Text="{Binding ReplacementText, UpdateSourceTrigger=PropertyChanged}"
-                                                 Watermark="替换后的文本"/>
+                                                 Watermark="{Loc Key=UI.ShieldReplacementSettingsView.ReplacementWatermark}"/>
                                     </StackPanel>
                                     <Button Grid.Column="2"
                                             Classes="iconButton"
-                                            ToolTip.Tip="上移"
+                                            ToolTip.Tip="{Loc Key=UI.ShieldReplacementSettingsView.MoveUp}"
                                             VerticalAlignment="Bottom"
                                             Command="{Binding #Root.MoveShieldReplacementRuleUpCommand}"
                                             CommandParameter="{Binding}">
@@ -59,7 +59,7 @@
                                     </Button>
                                     <Button Grid.Column="3"
                                             Classes="iconButton"
-                                            ToolTip.Tip="下移"
+                                            ToolTip.Tip="{Loc Key=UI.ShieldReplacementSettingsView.MoveDown}"
                                             VerticalAlignment="Bottom"
                                             Command="{Binding #Root.MoveShieldReplacementRuleDownCommand}"
                                             CommandParameter="{Binding}">
@@ -67,7 +67,7 @@
                                     </Button>
                                     <Button Grid.Column="4"
                                             Classes="iconButton"
-                                            ToolTip.Tip="删除"
+                                            ToolTip.Tip="{Loc Key=UI.ShieldReplacementSettingsView.Delete}"
                                             VerticalAlignment="Bottom"
                                             Command="{Binding #Root.DeleteShieldReplacementRuleCommand}"
                                             CommandParameter="{Binding}">

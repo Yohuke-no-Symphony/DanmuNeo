@@ -7,18 +7,18 @@
                 IsVisible="{Binding IsMiscSettingsSelected}">
         <Border Classes="panel" Padding="14">
             <StackPanel Spacing="10">
-                <TextBlock Text="应用信息"
+                <TextBlock Text="{Loc Key=UI.MiscSettingsView.AppInformation}"
                            Classes="sectionTitle"/>
                 <Grid ColumnDefinitions="120,*"
                       RowDefinitions="Auto,Auto"
                       ColumnSpacing="12"
                       RowSpacing="8">
-                    <TextBlock Text="当前版本"
+                    <TextBlock Text="{Loc Key=UI.MiscSettingsView.CurrentVersion}"
                                Classes="muted"/>
                     <TextBlock Grid.Column="1"
                                Text="{Binding AppVersion}"/>
                     <TextBlock Grid.Row="1"
-                               Text="配置目录"
+                               Text="{Loc Key=UI.MiscSettingsView.ConfigurationDirectory}"
                                Classes="muted"/>
                     <TextBox Grid.Row="1"
                              Grid.Column="1"
@@ -26,7 +26,7 @@
                              Text="{Binding ConfigDirectory}"/>
                 </Grid>
                 <CheckBox x:Name="CheckForUpdatesOnStartupCheckBox"
-                          Content="启动时检查更新"
+                          Content="{Loc Key=UI.MiscSettingsView.CheckUpdatesAtStartup}"
                           IsChecked="{Binding CheckForUpdatesOnStartup, Mode=TwoWay}"/>
                 <StackPanel Orientation="Horizontal"
                             Spacing="8">
@@ -34,7 +34,7 @@
                         <StackPanel Orientation="Horizontal"
                                     Spacing="6">
                             <LucideIcon Kind="FolderOpen"/>
-                            <TextBlock Text="打开配置目录"/>
+                            <TextBlock Text="{Loc Key=UI.MiscSettingsView.OpenConfigurationDirectory}"/>
                         </StackPanel>
                     </Button>
                     <Button Classes="primaryButton"
@@ -42,7 +42,7 @@
                         <StackPanel Orientation="Horizontal"
                                     Spacing="6">
                             <LucideIcon Kind="Archive"/>
-                            <TextBlock Text="导出全部备份"/>
+                            <TextBlock Text="{Loc Key=UI.MiscSettingsView.ExportAllBackups}"/>
                         </StackPanel>
                     </Button>
                 </StackPanel>
@@ -53,7 +53,7 @@
                 <Grid ColumnDefinitions="120,*"
                       ColumnSpacing="12"
                       RowSpacing="8">
-                    <TextBlock Text="自动备份"
+                    <TextBlock Text="{Loc Key=UI.MiscSettingsView.AutomaticBackups}"
                                Classes="muted"
                                VerticalAlignment="Center"/>
                     <StackPanel Grid.Column="1"
@@ -62,7 +62,7 @@
                                  HorizontalAlignment="Left"
                                  Watermark="10"
                                  Text="{Binding Settings.BackupRetentionCount}"/>
-                        <TextBlock Text="每个配置文件保留的自动备份数量，0 表示不保留，范围 0-100。"
+                        <TextBlock Text="{Loc Key=UI.MiscSettingsView.BackupCountHint}"
                                    Classes="muted"
                                    TextWrapping="Wrap"/>
                     </StackPanel>
@@ -72,19 +72,19 @@
 
         <Border Classes="panel" Padding="14">
             <StackPanel Spacing="10">
-                <TextBlock Text="缓存"
+                <TextBlock Text="{Loc Key=UI.MiscSettingsView.Cache}"
                            Classes="sectionTitle"/>
                 <Grid ColumnDefinitions="120,*"
                       RowDefinitions="Auto,Auto"
                       ColumnSpacing="12"
                       RowSpacing="8">
-                    <TextBlock Text="缓存目录"
+                    <TextBlock Text="{Loc Key=UI.MiscSettingsView.CacheDirectory}"
                                Classes="muted"/>
                     <TextBox Grid.Column="1"
                              IsReadOnly="True"
                              Text="{Binding CacheDirectory}"/>
                     <TextBlock Grid.Row="1"
-                               Text="缓存体积"
+                               Text="{Loc Key=UI.MiscSettingsView.CacheSize}"
                                Classes="muted"/>
                     <TextBlock Grid.Row="1"
                                Grid.Column="1"
@@ -97,21 +97,21 @@
                         <StackPanel Orientation="Horizontal"
                                     Spacing="6">
                             <LucideIcon Kind="RefreshCcw"/>
-                            <TextBlock Text="刷新体积"/>
+                            <TextBlock Text="{Loc Key=UI.MiscSettingsView.RefreshCacheSize}"/>
                         </StackPanel>
                     </Button>
                     <Button Command="{Binding #Root.OpenCacheDirectoryCommand}">
                         <StackPanel Orientation="Horizontal"
                                     Spacing="6">
                             <LucideIcon Kind="FolderOpen"/>
-                            <TextBlock Text="打开缓存目录"/>
+                            <TextBlock Text="{Loc Key=UI.MiscSettingsView.OpenCacheDirectory}"/>
                         </StackPanel>
                     </Button>
                     <Button Command="{Binding #Root.ClearCacheCommand}">
                         <StackPanel Orientation="Horizontal"
                                     Spacing="6">
                             <LucideIcon Kind="Trash2"/>
-                            <TextBlock Text="清理缓存"/>
+                            <TextBlock Text="{Loc Key=UI.MiscSettingsView.ClearCache}"/>
                         </StackPanel>
                     </Button>
                 </StackPanel>

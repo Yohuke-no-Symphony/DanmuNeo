@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using Avalonia.Controls;
+using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
@@ -65,16 +66,18 @@ internal sealed class WorkbenchFeedInteraction : IDisposable
     public ContextMenu CreateDanmuContextMenu(DanmuFeedItem item, LiveRoomTabViewModel sourceRoom)
     {
         var selection = context.CaptureSelection();
-        var copyText = new MenuItem { Header = "复制文本" };
+        var menu = new LocalizedContextMenu();
+        var copyText = new MenuItem();
+        menu.SetHeader(copyText, "UI.WorkbenchFeedInteraction.CopyText");
         copyText.Click += async (_, _) => await CopyAsync(item.Content);
         var copyUid = new MenuItem
         {
-            Header = "复制用户 UID", IsEnabled = !string.IsNullOrWhiteSpace(item.UserUid)
+            IsEnabled = !string.IsNullOrWhiteSpace(item.UserUid)
         };
+        menu.SetHeader(copyUid, "UI.WorkbenchFeedInteraction.CopyUserUid");
         copyUid.Click += async (_, _) => await CopyAsync(item.UserUid);
         var forward = new MenuItem
         {
-            Header = "引入到工作区转发",
             IsEnabled = !string.IsNullOrWhiteSpace(item.UserUid),
             ItemsSource = context.Application.Workspaces.Select(workspace => new MenuItem
             {
@@ -84,15 +87,15 @@ internal sealed class WorkbenchFeedInteraction : IDisposable
                     .Select(room => CreateForwardTarget(item, sourceRoom, room, selection)).ToList()
             }).ToList()
         };
+        menu.SetHeader(forward, "UI.WorkbenchFeedInteraction.AddForwardingRule");
         var mute = new MenuItem
         {
-            Header = "检查禁言权限…", Command = sourceRoom.MuteDanmuCommand,
+            Command = sourceRoom.MuteDanmuCommand,
             CommandParameter = item, IsEnabled = false
         };
-        var menu = new ContextMenu
-        {
-            ItemsSource = new object[] { copyText, copyUid, new Separator(), forward, new Separator(), mute }
-        };
+        menu.SetHeader(mute, "UI.WorkbenchFeedInteraction.CheckingMutePermission");
+        mute.Bind(ToolTip.TipProperty, new Binding(nameof(LiveRoomTabViewModel.ModerationStatus)) { Source = sourceRoom });
+        menu.ItemsSource = new object[] { copyText, copyUid, new Separator(), forward, new Separator(), mute };
         menu.Opened += async (_, _) => await RefreshMuteMenuItemAsync(menu, mute, item, sourceRoom);
         return menu;
     }
@@ -186,7 +189,7 @@ internal sealed class WorkbenchFeedInteraction : IDisposable
         return menuItem;
     }
 
-    private static async Task RefreshMuteMenuItemAsync(ContextMenu menu, MenuItem mute,
+    private static async Task RefreshMuteMenuItemAsync(LocalizedContextMenu menu, MenuItem mute,
         DanmuFeedItem item, LiveRoomTabViewModel room)
     {
         using var cancellation = new CancellationTokenSource();
@@ -199,9 +202,10 @@ internal sealed class WorkbenchFeedInteraction : IDisposable
 
             if (!cancellation.IsCancellationRequested && menu.IsOpen)
             {
-                mute.Header = allowed ? "禁言该用户" : "无法禁言该用户";
+                menu.SetHeader(mute, allowed
+                    ? "UI.WorkbenchFeedInteraction.MuteUser"
+                    : "UI.WorkbenchFeedInteraction.CannotMuteUser");
                 mute.IsEnabled = allowed;
-                ToolTip.SetTip(mute, room.ModerationStatus);
             }
         }
         finally

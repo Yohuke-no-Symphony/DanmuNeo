@@ -31,7 +31,11 @@ public partial class DanmuStylePreviewWindow : Window
             this.FindControl<ScrollViewer>("DanmuScrollViewer")!,
             this.FindControl<ItemsControl>("DanmuItemsControl")!);
         scrollController.Attach(viewModel.DanmuItems);
-        Closed += (_, _) => scrollController.Dispose();
+        Closed += (_, _) =>
+        {
+            scrollController.Dispose();
+            viewModel.Dispose();
+        };
         Opened += (_, _) =>
         {
             var ownerViewModel = Owner?.DataContext as MainWindowViewModel;

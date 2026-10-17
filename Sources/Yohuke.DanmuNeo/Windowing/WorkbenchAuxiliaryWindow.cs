@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
+using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Models.Logging;
 using Yohuke.DanmuNeo.Services;
 using Yohuke.DanmuNeo.ViewModels;
@@ -20,6 +21,8 @@ internal sealed class WorkbenchAuxiliaryWindow : Window
     private bool allowClose;
     private bool opened;
     private bool updatingConstraints;
+    private string? titleKey;
+    private Exception? closeError;
 
     internal WorkbenchAuxiliaryWindow(Window owner, Control content, double width, double height,
         WorkbenchAuxiliarySizing sizing, Func<Task>? beforeClose)
@@ -55,6 +58,24 @@ internal sealed class WorkbenchAuxiliaryWindow : Window
 
         WindowChrome.AttachFrame(this);
         UpdateScreenConstraints();
+    }
+
+    internal void SetLocalizedTitle(string key)
+    {
+        titleKey = key;
+        RefreshLocalization();
+    }
+
+    internal void RefreshLocalization()
+    {
+        if (closeError is not null)
+        {
+            Title = Localization.Format("Window.SaveFailedTitle", LocalizedExceptionText.Get(closeError));
+        }
+        else if (titleKey is not null)
+        {
+            Title = Localization.Get(titleKey);
+        }
     }
 
     /// <inheritdoc/>
@@ -181,14 +202,17 @@ internal sealed class WorkbenchAuxiliaryWindow : Window
         }
         catch (Exception exception)
         {
-            Title = $"保存失败：{exception.Message}";
+            closeError = exception;
+            RefreshLocalization();
             if (startupOwner.DataContext is MainWindowViewModel application)
             {
-                application.LogErrorOnce("设置", "设置窗口关闭前保存失败", exception);
+                application.LogErrorOnce(Localization.Get("Window.Settings.Title"),
+                    Localization.Get("Window.Settings.CloseSaveFailed"), exception);
             }
             else
             {
-                StartupLog.Append("辅助窗口关闭前保存失败", AppLogLevel.ERROR, "设置", exception);
+                StartupLog.Append(Localization.Get("Window.CloseSaveFailed"), AppLogLevel.ERROR,
+                    Localization.Get("Window.Settings.Title"), exception);
             }
 
             closing = false;

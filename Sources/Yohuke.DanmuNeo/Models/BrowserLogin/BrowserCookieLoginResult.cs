@@ -19,4 +19,6 @@ public class BrowserCookieLoginResult
     /// 状态提示。
     /// </summary>
     public string Message { get; set; } = "";
+
+    internal string? MessageKey { get; init; }
 }

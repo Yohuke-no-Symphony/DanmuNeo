@@ -1,3 +1,4 @@
+using Yohuke.DanmuNeo.I18n;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
@@ -79,11 +80,11 @@ public partial class WorkspaceSettingsView : UserControl
         var workspace = viewModel.SelectedWorkspace;
         var file = await topLevel.StorageProvider.SaveFilePickerAsync(new()
         {
-            Title = "导出工作区",
+            Title = Localization.Get("UI.WorkspaceSettingsView.ExportWorkspace"),
             SuggestedFileName = viewModel.GetExportFileName(workspace),
             FileTypeChoices =
             [
-                new FilePickerFileType("DanmuNeo Workspace")
+                new FilePickerFileType(Localization.Get("UI.WorkspaceSettingsView.WorkspaceFileType"))
                 {
                     Patterns = ["*.dnworkspace.json"]
                 }

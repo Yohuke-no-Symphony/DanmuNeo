@@ -1,3 +1,4 @@
+using Yohuke.DanmuNeo.I18n;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
@@ -167,7 +168,7 @@ public sealed class EmoticonTextBlock : TextBlock
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or
                                            ArgumentException or NotSupportedException or NullReferenceException)
         {
-            System.Diagnostics.Trace.TraceWarning($"表情图片解码失败：{exception.GetType().Name}");
+            System.Diagnostics.Trace.TraceWarning(Localization.Format("UI.EmoticonTextBlock.ImageDecodeFailed", exception.GetType().Name));
             return null;
         }
     }

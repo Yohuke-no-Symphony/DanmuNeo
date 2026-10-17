@@ -1,6 +1,7 @@
 using System.Globalization;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Services;
 
 namespace Yohuke.DanmuNeo.Models.Workspace;
@@ -12,6 +13,12 @@ public class DanmuFeedItem : ObservableObject
 {
     private const int MAX_MEDAL_NAME_LENGTH = 3;
     private string content = "";
+    private string userName = "";
+    private string? contentKey;
+    private object[] contentArguments = [];
+    private string? statusKey;
+    private Func<string>? statusProvider;
+    private object[] statusArguments = [];
     private IReadOnlyList<DanmuEmoticon> emoticons = [];
 
     /// <summary>
@@ -91,7 +98,11 @@ public class DanmuFeedItem : ObservableObject
     /// <summary>
     /// 用户名。
     /// </summary>
-    public string UserName { get; set; } = "";
+    public string UserName
+    {
+        get => userName;
+        set => SetProperty(ref userName, value);
+    }
 
     /// <summary>
     /// 用户 UID。
@@ -104,7 +115,11 @@ public class DanmuFeedItem : ObservableObject
     public string Content
     {
         get => content;
-        set => SetProperty(ref content, value);
+        set
+        {
+            contentKey = null;
+            SetProperty(ref content, value);
+        }
     }
 
     /// <summary>
@@ -136,10 +151,64 @@ public class DanmuFeedItem : ObservableObject
         get => status;
         set
         {
+            statusKey = null;
+            statusProvider = null;
+            statusArguments = [];
+
             if (SetProperty(ref status, value))
             {
                 OnPropertyChanged(nameof(DetailLine));
             }
+        }
+    }
+
+    /// <summary>
+    /// 记录由应用生成且需要随语言切换刷新的状态。
+    /// </summary>
+    public void SetLocalizedStatus(string key, params object[] arguments)
+    {
+        statusKey = key;
+        statusProvider = null;
+        statusArguments = arguments;
+        RefreshLocalization();
+    }
+
+    internal void SetLocalizedStatus(Func<string> textProvider)
+    {
+        ArgumentNullException.ThrowIfNull(textProvider);
+        statusKey = null;
+        statusArguments = [];
+        statusProvider = textProvider;
+        RefreshLocalization();
+    }
+
+    /// <summary>
+    /// 记录由应用生成且需要随语言切换刷新的正文。
+    /// </summary>
+    public void SetLocalizedContent(string key, params object[] arguments)
+    {
+        contentKey = key;
+        contentArguments = arguments;
+        RefreshLocalization();
+    }
+
+    /// <summary>
+    /// 仅刷新应用生成的本地化文字，保留用户和服务器提供的内容。
+    /// </summary>
+    public void RefreshLocalization()
+    {
+        if (contentKey is not null)
+        {
+            SetProperty(ref content, Localization.Format(contentKey, contentArguments), nameof(Content));
+        }
+
+        var localizedStatus = statusProvider is { } provider
+            ? provider()
+            : statusKey is not null ? Localization.Format(statusKey, statusArguments) : null;
+
+        if (localizedStatus is not null && SetProperty(ref status, localizedStatus, nameof(Status)))
+        {
+            OnPropertyChanged(nameof(DetailLine));
         }
     }
 

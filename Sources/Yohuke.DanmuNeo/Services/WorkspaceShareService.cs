@@ -1,3 +1,4 @@
+using Yohuke.DanmuNeo.I18n;
 using System.Text.Json;
 using Yohuke.DanmuNeo.Models.State;
 using Yohuke.DanmuNeo.Models.Workspace;
@@ -62,7 +63,8 @@ public class WorkspaceShareService
         await using var stream = File.OpenRead(filePath);
         var package =
             await JsonSerializer.DeserializeAsync<WorkspaceSharePackage>(stream, JSON_OPTIONS, cancellationToken)
-            ?? throw new InvalidDataException("工作区分享包为空。");
+            ?? throw LocalizedExceptionText.Create("Services.WorkspaceShare.Empty",
+                message => new InvalidDataException(message));
 
         return CreateWorkspace(existingWorkspaces, package);
     }
@@ -74,7 +76,7 @@ public class WorkspaceShareService
     {
         var names = existingWorkspaces.Select(workspace => workspace.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var workspaceName =
-            GetUniqueName(string.IsNullOrWhiteSpace(package.WorkspaceName) ? "导入工作区" : package.WorkspaceName, names);
+            GetUniqueName(string.IsNullOrWhiteSpace(package.WorkspaceName) ? Localization.Get("Services.WorkspaceShare.ImportedName") : package.WorkspaceName, names);
 
         return new()
         {

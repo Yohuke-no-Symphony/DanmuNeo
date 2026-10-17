@@ -1,3 +1,4 @@
+using Yohuke.DanmuNeo.I18n;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -59,15 +60,15 @@ public partial class LyricLocalImportButton : UserControl
 
         var files = await topLevel.StorageProvider.OpenFilePickerAsync(new()
         {
-            Title = "导入歌词文件",
+            Title = Localization.Get("UI.LyricLocalImportButton.ImportFile"),
             AllowMultiple = false,
             FileTypeFilter =
             [
-                new FilePickerFileType("Lyric")
+                new FilePickerFileType(Localization.Get("UI.LyricLocalImportButton.LyricFileType"))
                 {
                     Patterns = ["*.lrc", "*.txt", "*.xml"]
                 },
-                new FilePickerFileType("All")
+                new FilePickerFileType(Localization.Get("UI.LyricLocalImportButton.AllFileType"))
                 {
                     Patterns = ["*"]
                 }

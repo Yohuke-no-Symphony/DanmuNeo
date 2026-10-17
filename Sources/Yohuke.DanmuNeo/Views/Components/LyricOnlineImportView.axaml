@@ -51,9 +51,9 @@
         <StackPanel Spacing="12">
             <StackPanel Spacing="4"
                         IsVisible="{Binding #Root.ShowHeader}">
-                <TextBlock Text="歌词导入"
+                <TextBlock Text="{Loc Key=UI.LyricOnlineImportView.Title}"
                            Classes="sectionTitle"/>
-                <TextBlock Text="可从本地文件导入，也可以搜索网易云或 QQ 音乐。"
+                <TextBlock Text="{Loc Key=UI.LyricOnlineImportView.ImportHint}"
                            Classes="muted"
                            TextWrapping="Wrap"/>
             </StackPanel>
@@ -65,8 +65,8 @@
                         Spacing="8">
                 <Button Classes="musicProviderButton"
                         Classes.selected="{Binding IsNetEaseMusicLyricSource}"
-                        ToolTip.Tip="网易云音乐"
-                        AutomationProperties.Name="网易云音乐"
+                        ToolTip.Tip="{Loc Key=UI.LyricOnlineImportView.NetEaseMusic}"
+                        AutomationProperties.Name="{Loc Key=UI.LyricOnlineImportView.NetEaseMusic}"
                         Command="{Binding #Root.SelectNetEaseMusicLyricSourceCommand}">
                     <Image Width="24"
                            Height="24"
@@ -74,8 +74,8 @@
                 </Button>
                 <Button Classes="musicProviderButton"
                         Classes.selected="{Binding IsQQMusicLyricSource}"
-                        ToolTip.Tip="QQ 音乐"
-                        AutomationProperties.Name="QQ 音乐"
+                        ToolTip.Tip="{Loc Key=UI.LyricOnlineImportView.QqMusic}"
+                        AutomationProperties.Name="{Loc Key=UI.LyricOnlineImportView.QqMusic}"
                         Command="{Binding #Root.SelectQQMusicLyricSourceCommand}">
                     <Image Width="24"
                            Height="24"
@@ -87,24 +87,24 @@
                 <TextBox x:Name="MusicLyricSearchTextBox"
                          MinWidth="0"
                          MinHeight="36"
-                         Watermark="搜索歌名或歌手"
-                         AutomationProperties.Name="在线歌词搜索关键词"
+                         Watermark="{Loc Key=UI.LyricOnlineImportView.SearchWatermark}"
+                         AutomationProperties.Name="{Loc Key=UI.LyricOnlineImportView.SearchKeywords}"
                          Text="{Binding MusicLyricSearchText}"
                          KeyDown="MusicLyricSearch_OnKeyDown"/>
                 <Button Grid.Column="1"
                         Classes="primaryButton lyricSearchButton"
-                        AutomationProperties.Name="搜索在线歌词"
+                        AutomationProperties.Name="{Loc Key=UI.LyricOnlineImportView.SearchOnlineLyrics}"
                         IsEnabled="{Binding !IsMusicLyricSearching}"
                         Command="{Binding #Root.SearchMusicLyricsCommand}">
                     <StackPanel Orientation="Horizontal"
                                 Spacing="6">
                         <LucideIcon Kind="Search"/>
-                        <TextBlock Text="搜索"/>
+                        <TextBlock Text="{Loc Key=UI.LyricOnlineImportView.Search}"/>
                     </StackPanel>
                 </Button>
             </Grid>
 
-            <TextBlock Text="正在搜索..."
+            <TextBlock Text="{Loc Key=UI.LyricOnlineImportView.Searching}"
                        Classes="muted"
                        IsVisible="{Binding IsMusicLyricSearching}"/>
         </StackPanel>
@@ -135,8 +135,8 @@
                                 </StackPanel>
                                 <Button Grid.Column="1"
                                         Classes="iconButton"
-                                        ToolTip.Tip="导入歌词"
-                                        AutomationProperties.Name="导入在线歌词"
+                                        ToolTip.Tip="{Loc Key=UI.LyricOnlineImportView.ImportLyrics}"
+                                        AutomationProperties.Name="{Loc Key=UI.LyricOnlineImportView.ImportOnlineLyrics}"
                                         VerticalAlignment="Center"
                                         Command="{Binding #Root.ImportMusicLyricCommand}"
                                         CommandParameter="{Binding}">

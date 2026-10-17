@@ -1,4 +1,5 @@
 using Yohuke.DanmuNeo.Models.Workspace;
+using Yohuke.DanmuNeo.I18n;
 
 namespace Yohuke.DanmuNeo.Services;
 
@@ -7,6 +8,12 @@ namespace Yohuke.DanmuNeo.Services;
 /// </summary>
 public class DanmuSendResult
 {
+    private readonly string errorMessage = "";
+
+    internal string? ErrorMessageKey { get; init; }
+    internal object[] ErrorMessageArguments { get; init; } = [];
+    internal Func<string>? ErrorMessageProvider { get; init; }
+
     /// <summary>
     /// 是否被 B 站接口接受。
     /// </summary>
@@ -25,7 +32,13 @@ public class DanmuSendResult
     /// <summary>
     /// 接口返回的错误信息。
     /// </summary>
-    public string ErrorMessage { get; init; } = "";
+    public string ErrorMessage
+    {
+        get => ErrorMessageKey is { } key
+            ? Localization.Format(key, ErrorMessageArguments)
+            : ErrorMessageProvider?.Invoke() ?? errorMessage;
+        init => errorMessage = value;
+    }
 
     /// <summary>
     /// 本地或传输失败的原始异常，供日志保留完整诊断详情。

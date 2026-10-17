@@ -1,3 +1,4 @@
+using Yohuke.DanmuNeo.I18n;
 using System.Globalization;
 using Newtonsoft.Json.Linq;
 using Yohuke.DanmuNeo.Apis.Models.Bilibili;
@@ -17,7 +18,8 @@ public static class BilibiliDanmuConfigSelector
     {
         if (config?.Group is not JArray groups || config.Mode is not JArray modeItems)
         {
-            throw new InvalidOperationException("未获取到可用弹幕配置");
+            throw LocalizedExceptionText.Create("Services.BilibiliDanmuConfig.OptionsMissing",
+                message => new InvalidOperationException(message));
         }
 
         var danmu = (user?.Property as JObject)?["danmu"] as JObject;
@@ -25,14 +27,16 @@ public static class BilibiliDanmuConfigSelector
         if (!TryReadInteger(danmu?["color"], out var currentColor) ||
             !TryReadInteger(danmu?["mode"], out var currentMode))
         {
-            throw new InvalidOperationException("未获取到当前弹幕颜色和位置");
+            throw LocalizedExceptionText.Create("Services.BilibiliDanmuConfig.CurrentSettingsMissing",
+                message => new InvalidOperationException(message));
         }
 
         var current = new DanmuSendOptions { Color = currentColor, Mode = currentMode };
 
         if (!current.IsValid)
         {
-            throw new InvalidOperationException("当前弹幕颜色或位置格式错误");
+            throw LocalizedExceptionText.Create("Services.BilibiliDanmuConfig.CurrentSettingsInvalid",
+                message => new InvalidOperationException(message));
         }
 
         var colors = new List<DanmuColorOption>();

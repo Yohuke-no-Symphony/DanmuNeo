@@ -1,3 +1,4 @@
+using Yohuke.DanmuNeo.I18n;
 using System.Net;
 using System.Text.RegularExpressions;
 using Newtonsoft.Json;
@@ -177,7 +178,8 @@ public class QQMusicApi : BaseApi
 
         if (!match.Success)
         {
-            throw new InvalidOperationException("QQ 音乐授权回跳链接中没有 code。");
+            throw LocalizedExceptionText.Create("Services.QqMusic.AuthorizationCodeMissing",
+                message => new InvalidOperationException(message));
         }
 
         var jsonData = new

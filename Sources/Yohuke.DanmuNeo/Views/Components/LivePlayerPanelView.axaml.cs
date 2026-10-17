@@ -4,6 +4,8 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Platform;
 using Avalonia.Threading;
+using Yohuke.DanmuNeo.I18n;
+using Yohuke.DanmuNeo.Services;
 using Yohuke.DanmuNeo.ViewModels.Items;
 using Yohuke.DanmuNeo.Windowing;
 
@@ -83,13 +85,16 @@ public partial class LivePlayerPanelView : WorkbenchRoomPanel
     {
         base.OnAttachedToVisualTree(e);
         isAttached = true;
+        Localization.LanguageChanged += OnLanguageChanged;
         UpdateLivePlayerHost();
+        SyncLivePlayerLanguage();
     }
 
     /// <inheritdoc/>
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         isAttached = false;
+        Localization.LanguageChanged -= OnLanguageChanged;
 
         if (migrationDepth == 0)
         {
@@ -121,6 +126,7 @@ public partial class LivePlayerPanelView : WorkbenchRoomPanel
     protected override void DisposePanel()
     {
         isDisposed = true;
+        Localization.LanguageChanged -= OnLanguageChanged;
 
         if (Context is not null)
         {
@@ -183,6 +189,7 @@ public partial class LivePlayerPanelView : WorkbenchRoomPanel
                     Context.IsCurrent(selection))
                 {
                     SyncLivePlayerAudio();
+                    SyncLivePlayerLanguage();
                 }
             };
             liveWebView.NavigationCompleted += navigationCompleted;
@@ -237,6 +244,35 @@ public partial class LivePlayerPanelView : WorkbenchRoomPanel
         {
             liveWebView.InvokeScript(
                 $"window.yohukeSetLivePlayerAudio && window.yohukeSetLivePlayerAudio({volume}, {muted});");
+        }
+        catch (InvalidOperationException)
+        {
+        }
+    }
+
+    private void OnLanguageChanged(object? sender, EventArgs e)
+    {
+        var generation = hostGeneration;
+        var selection = Context.CaptureSelection();
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (generation == hostGeneration && Context.IsCurrent(selection) && !isDisposed && isAttached)
+            {
+                SyncLivePlayerLanguage();
+            }
+        }, DispatcherPriority.Background);
+    }
+
+    private void SyncLivePlayerLanguage()
+    {
+        if (liveWebView is null || isDisposed || !isAttached)
+        {
+            return;
+        }
+
+        try
+        {
+            liveWebView.InvokeScript(LivePlayerService.CreateLocalizationScript());
         }
         catch (InvalidOperationException)
         {

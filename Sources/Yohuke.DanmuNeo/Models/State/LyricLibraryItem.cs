@@ -1,9 +1,12 @@
+using CommunityToolkit.Mvvm.ComponentModel;
+using Yohuke.DanmuNeo.I18n;
+
 namespace Yohuke.DanmuNeo.Models.State;
 
 /// <summary>
 /// 本地歌词库条目。
 /// </summary>
-public class LyricLibraryItem
+public class LyricLibraryItem : ObservableObject
 {
     /// <summary>
     /// 歌词条目 ID。
@@ -86,9 +89,13 @@ public class LyricLibraryItem
     /// </summary>
     public string SourceLabel => Source switch
     {
-        "wy" => "网易云",
-        "qq" => "QQ 音乐",
-        "local" => "本地",
+        "wy" => Localization.Get("App.Music.Source.wy"),
+        "qq" => Localization.Get("App.Music.Source.qq"),
+        "local" => Localization.Get("App.Music.Source.local"),
         _ => Source
     };
+    internal void RefreshLocalization()
+    {
+        OnPropertyChanged(nameof(SourceLabel));
+    }
 }

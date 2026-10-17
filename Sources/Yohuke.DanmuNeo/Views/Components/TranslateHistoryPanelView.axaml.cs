@@ -1,3 +1,4 @@
+using Yohuke.DanmuNeo.I18n;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
@@ -39,11 +40,11 @@ public partial class TranslateHistoryPanelView : WorkbenchRoomPanel
         var safeHeader = string.IsNullOrWhiteSpace(header) ? "live-room" : header;
         var file = await topLevel.StorageProvider.SaveFilePickerAsync(new()
         {
-            Title = "导出同传历史",
+            Title = Localization.Get("UI.TranslateHistoryPanelView.ExportHistory"),
             SuggestedFileName = $"translate-history-{safeHeader}-{DateTime.Now:yyyyMMdd-HHmmss}.xlsx",
             FileTypeChoices =
             [
-                new FilePickerFileType("Excel Workbook")
+                new FilePickerFileType(Localization.Get("UI.TranslateHistoryPanelView.WorkbookFileType"))
                 {
                     Patterns = ["*.xlsx"],
                     MimeTypes = ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"]

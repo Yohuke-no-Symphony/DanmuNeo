@@ -7,13 +7,13 @@
     <Border Classes="sidebar">
         <Border.ContextMenu>
             <ContextMenu>
-                <MenuItem Header="新建工作区"
+                <MenuItem Header="{Loc Key=UI.WorkspaceSidebarView.NewWorkspace}"
                           Command="{Binding #Root.OpenAddWorkspaceDialogCommand}">
                     <MenuItem.Icon>
                         <LucideIcon Kind="FolderPlus" />
                     </MenuItem.Icon>
                 </MenuItem>
-                <MenuItem Header="导入工作区"
+                <MenuItem Header="{Loc Key=UI.WorkspaceSidebarView.ImportWorkspace}"
                           Click="ImportWorkspace_OnClick">
                     <MenuItem.Icon>
                         <LucideIcon Kind="Import" />
@@ -31,27 +31,27 @@
                             <Grid Classes="workspaceTreeRow">
                                 <Grid.ContextMenu>
                                     <ContextMenu DataContext="{Binding}">
-                                        <MenuItem Header="添加直播间"
+                                        <MenuItem Header="{Loc Key=UI.WorkspaceSidebarView.AddRoom}"
                                                   Click="OpenAddRoomDialog_OnClick">
                                             <MenuItem.Icon>
                                                 <LucideIcon Kind="Monitor" />
                                             </MenuItem.Icon>
                                         </MenuItem>
-                                        <MenuItem Header="工作区设置"
+                                        <MenuItem Header="{Loc Key=UI.WorkspaceSidebarView.WorkspaceSettings}"
                                                   Click="OpenWorkspaceSettings_OnClick">
                                             <MenuItem.Icon>
                                                 <LucideIcon Kind="Settings" />
                                             </MenuItem.Icon>
                                         </MenuItem>
                                         <Separator />
-                                        <MenuItem Header="上移"
+                                        <MenuItem Header="{Loc Key=UI.WorkspaceSidebarView.MoveUp}"
                                                   Command="{Binding #Root.MoveWorkspaceUpCommand}"
                                                   CommandParameter="{Binding}">
                                             <MenuItem.Icon>
                                                 <LucideIcon Kind="SquareArrowUp" />
                                             </MenuItem.Icon>
                                         </MenuItem>
-                                        <MenuItem Header="下移"
+                                        <MenuItem Header="{Loc Key=UI.WorkspaceSidebarView.MoveDown}"
                                                   Command="{Binding #Root.MoveWorkspaceDownCommand}"
                                                   CommandParameter="{Binding}">
                                             <MenuItem.Icon>
@@ -59,20 +59,20 @@
                                             </MenuItem.Icon>
                                         </MenuItem>
                                         <Separator />
-                                        <MenuItem Header="导出分享"
+                                        <MenuItem Header="{Loc Key=UI.WorkspaceSidebarView.ExportShare}"
                                                   Click="ExportWorkspace_OnClick">
                                             <MenuItem.Icon>
                                                 <LucideIcon Kind="FileDown" />
                                             </MenuItem.Icon>
                                         </MenuItem>
-                                        <MenuItem Header="导入工作区"
+                                        <MenuItem Header="{Loc Key=UI.WorkspaceSidebarView.ImportWorkspace}"
                                                   Click="ImportWorkspace_OnClick">
                                             <MenuItem.Icon>
                                                 <LucideIcon Kind="Import" />
                                             </MenuItem.Icon>
                                         </MenuItem>
                                         <Separator />
-                                        <MenuItem Header="删除"
+                                        <MenuItem Header="{Loc Key=UI.WorkspaceSidebarView.Delete}"
                                                   Click="DeleteWorkspace_OnClick">
                                             <MenuItem.Icon>
                                                 <LucideIcon Kind="Trash2" />
@@ -112,14 +112,14 @@
                                                 CommandParameter="{Binding}">
                                             <Button.ContextMenu>
                                                 <ContextMenu DataContext="{Binding}">
-                                                    <MenuItem Header="上移"
+                                                    <MenuItem Header="{Loc Key=UI.WorkspaceSidebarView.MoveUp}"
                                                               Command="{Binding #Root.MoveRoomUpCommand}"
                                                               CommandParameter="{Binding}">
                                                         <MenuItem.Icon>
                                                             <LucideIcon Kind="SquareArrowUp" />
                                                         </MenuItem.Icon>
                                                     </MenuItem>
-                                                    <MenuItem Header="下移"
+                                                    <MenuItem Header="{Loc Key=UI.WorkspaceSidebarView.MoveDown}"
                                                               Command="{Binding #Root.MoveRoomDownCommand}"
                                                               CommandParameter="{Binding}">
                                                         <MenuItem.Icon>
@@ -127,7 +127,7 @@
                                                         </MenuItem.Icon>
                                                     </MenuItem>
                                                     <Separator />
-                                                    <MenuItem Header="删除"
+                                                    <MenuItem Header="{Loc Key=UI.WorkspaceSidebarView.Delete}"
                                                               Click="DeleteRoom_OnClick">
                                                         <MenuItem.Icon>
                                                             <LucideIcon Kind="Trash2" />

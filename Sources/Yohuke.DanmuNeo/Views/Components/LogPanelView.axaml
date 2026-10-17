@@ -73,7 +73,7 @@
                 <ComboBox Name="LogLevelFilter"
                           Width="116"
                           Margin="0,0,6,6"
-                          ToolTip.Tip="日志级别"
+                          ToolTip.Tip="{Loc Key=UI.LogPanelView.Level}"
                           ItemsSource="{Binding Levels}"
                           SelectedIndex="{Binding FilterIndex, Mode=TwoWay}" />
                 <TextBox Name="LogSearch"
@@ -81,13 +81,13 @@
                          MaxWidth="160"
                          MinWidth="0"
                          Margin="0,0,6,6"
-                         Watermark="搜索日志"
-                         ToolTip.Tip="搜索时间、级别、来源、内容和异常详情"
+                         Watermark="{Loc Key=UI.LogPanelView.Search}"
+                         ToolTip.Tip="{Loc Key=UI.LogPanelView.SearchHint}"
                          Text="{Binding FilterText, Mode=TwoWay}" />
                 <Button Name="CopyLogSelected"
                         Margin="0,0,6,6"
                         Classes="iconButton"
-                        ToolTip.Tip="复制选中日志"
+                        ToolTip.Tip="{Loc Key=UI.LogPanelView.CopySelected}"
                         IsEnabled="{Binding HasSelection}"
                         Click="CopySelected_OnClick">
                     <LucideIcon Kind="Copy" />
@@ -95,14 +95,14 @@
                 <Button Name="CopyLogVisible"
                         Margin="0,0,6,6"
                         Classes="iconButton"
-                        ToolTip.Tip="复制筛选结果"
+                        ToolTip.Tip="{Loc Key=UI.LogPanelView.CopyFiltered}"
                         Click="CopyVisible_OnClick">
                     <LucideIcon Kind="CopyCheck" />
                 </Button>
                 <Button Name="ClearLog"
                         Margin="0,0,0,6"
                         Classes="iconButton"
-                        ToolTip.Tip="清空日志"
+                        ToolTip.Tip="{Loc Key=UI.LogPanelView.Clear}"
                         Command="{Binding ClearCommand}">
                     <LucideIcon Kind="Trash2" />
                 </Button>
@@ -148,7 +148,7 @@
                     </ListBox.ItemTemplate>
                 </ListBox>
                 <TextBlock Name="LogEmptyLabel"
-                           Text="暂无符合条件的日志"
+                           Text="{Loc Key=UI.LogPanelView.NoMatchingLogs}"
                            TextWrapping="Wrap"
                            Foreground="{DynamicResource AppMutedTextBrush}"
                            IsVisible="{Binding IsEmpty}"

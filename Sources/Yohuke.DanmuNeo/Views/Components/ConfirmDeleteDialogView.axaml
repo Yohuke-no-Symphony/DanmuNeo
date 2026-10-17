@@ -26,7 +26,7 @@
                   ColumnSpacing="8">
                 <Button x:Name="CancelDeleteButton"
                         Grid.Column="1"
-                        Content="取消"
+                        Content="{Loc Key=UI.ConfirmDeleteDialogView.Cancel}"
                         Command="{Binding #Root.CloseDeleteDialogCommand}"/>
                 <Button Grid.Column="2"
                         Classes="primaryButton"

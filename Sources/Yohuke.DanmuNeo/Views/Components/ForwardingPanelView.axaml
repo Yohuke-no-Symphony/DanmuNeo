@@ -76,22 +76,22 @@
     <Border Padding="{StaticResource WorkbenchPanelPadding}">
         <Grid RowDefinitions="Auto,Auto,*" RowSpacing="8">
             <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="6">
-                <TextBlock Text="转发规则" Classes="sectionTitle" VerticalAlignment="Center"
-                           ToolTip.Tip="UID 和正则至少填写一个；都填写时需同时满足。命中后自动套用开闭规则。&#10;点击拖拽手柄可多选，拖动已选规则可整体排序。" />
+                <TextBlock Text="{Loc Key=UI.ForwardingPanelView.RulesTitle}" Classes="sectionTitle" VerticalAlignment="Center"
+                           ToolTip.Tip="{Loc Key=UI.ForwardingPanelView.RulesHint}" />
                 <Border Grid.Column="1" Height="1" Margin="4,0"
                         VerticalAlignment="Center" Background="{DynamicResource AppBorderBrush}" />
                 <Button x:Name="ForwardCopyButton" Grid.Column="2" Classes="iconButton"
-                        ToolTip.Tip="复制选中规则；未选中时复制全部" AutomationProperties.Name="复制转发规则"
+                        ToolTip.Tip="{Loc Key=UI.ForwardingPanelView.CopyRulesHint}" AutomationProperties.Name="{Loc Key=UI.ForwardingPanelView.CopyRules}"
                         Click="CopyForwardRules_OnClick">
                     <LucideIcon Kind="Copy" />
                 </Button>
                 <Button x:Name="ForwardPasteButton" Grid.Column="3" Classes="iconButton"
-                        ToolTip.Tip="粘贴转发规则，追加后默认禁用" AutomationProperties.Name="粘贴转发规则"
+                        ToolTip.Tip="{Loc Key=UI.ForwardingPanelView.PasteRulesHint}" AutomationProperties.Name="{Loc Key=UI.ForwardingPanelView.PasteRules}"
                         Click="PasteForwardRules_OnClick">
                     <LucideIcon Kind="ClipboardPaste" />
                 </Button>
                 <Button x:Name="ForwardAddButton" Grid.Column="4" Classes="iconButton"
-                        ToolTip.Tip="添加转发规则" AutomationProperties.Name="添加转发规则"
+                        ToolTip.Tip="{Loc Key=UI.ForwardingPanelView.AddRule}" AutomationProperties.Name="{Loc Key=UI.ForwardingPanelView.AddRule}"
                         Command="{Binding AddForwardRuleCommand}">
                     <LucideIcon Kind="Plus" />
                 </Button>
@@ -110,18 +110,18 @@
                                     <Grid RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="6">
                                         <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto" ColumnSpacing="6">
                                             <Button x:Name="ForwardDragHandle" Classes="forwardDragHandle"
-                                                    ToolTip.Tip="点击选择，可多选；拖动排序" AutomationProperties.Name="选择或拖动转发规则"
+                                                    ToolTip.Tip="{Loc Key=UI.ForwardingPanelView.SelectOrDragHint}" AutomationProperties.Name="{Loc Key=UI.ForwardingPanelView.SelectOrDrag}"
                                                     Click="ForwardDragHandle_OnClick" KeyDown="ForwardDragHandle_OnKeyDown"
                                                     PointerCaptureLost="ForwardDragHandle_OnPointerCaptureLost">
                                                 <LucideIcon Kind="GripVertical" />
                                             </Button>
                                             <ToggleButton x:Name="ForwardEnabledToggle" Grid.Column="1"
                                                           Classes="forwardEnabledToggle" IsChecked="{Binding IsEnabled}"
-                                                          ToolTip.Tip="启用或禁用转发规则" AutomationProperties.Name="启用转发规则">
+                                                          ToolTip.Tip="{Loc Key=UI.ForwardingPanelView.ToggleRuleHint}" AutomationProperties.Name="{Loc Key=UI.ForwardingPanelView.EnableRule}">
                                                 <LucideIcon Kind="Power" />
                                             </ToggleButton>
                                             <ComboBox x:Name="ForwardSourceRoomSelector" Grid.Column="2" Classes="forwardSelector"
-                                                      AutomationProperties.Name="转发来源直播间"
+                                                      AutomationProperties.Name="{Loc Key=UI.ForwardingPanelView.SourceRoom}"
                                                       ItemsSource="{Binding SourceRoomOptions}" SelectedValue="{Binding SourceRoomKey}"
                                                       SelectedValueBinding="{Binding Key}">
                                                 <ComboBox.ItemTemplate>
@@ -131,12 +131,12 @@
                                                 </ComboBox.ItemTemplate>
                                             </ComboBox>
                                             <Button x:Name="ForwardCopyRuleButton" Grid.Column="3" Classes="iconButton"
-                                                    ToolTip.Tip="复制此规则" AutomationProperties.Name="复制此转发规则"
+                                                    ToolTip.Tip="{Loc Key=UI.ForwardingPanelView.CopyRuleHint}" AutomationProperties.Name="{Loc Key=UI.ForwardingPanelView.CopyRule}"
                                                     Click="CopyForwardRule_OnClick">
                                                 <LucideIcon Kind="Copy" />
                                             </Button>
                                             <Button x:Name="ForwardDeleteRuleButton" Grid.Column="4" Classes="iconButton"
-                                                    ToolTip.Tip="删除规则" AutomationProperties.Name="删除此转发规则"
+                                                    ToolTip.Tip="{Loc Key=UI.ForwardingPanelView.DeleteRuleHint}" AutomationProperties.Name="{Loc Key=UI.ForwardingPanelView.DeleteRule}"
                                                     Command="{Binding #Root.Context.CurrentRoom.RemoveForwardRuleCommand}"
                                                     CommandParameter="{Binding}">
                                                 <LucideIcon Kind="Trash2" />
@@ -144,8 +144,8 @@
                                         </Grid>
                                         <Grid Grid.Row="1" ColumnDefinitions="*,*" ColumnSpacing="6">
                                             <TextBox x:Name="ForwardUidInput" Classes="forwardInput"
-                                                     Watermark="发送人 UID" Text="{Binding SenderUid}"
-                                                     AutomationProperties.Name="转发发送人 UID" SizeChanged="ForwardUidInput_OnSizeChanged">
+                                                     Watermark="{Loc Key=UI.ForwardingPanelView.SenderUid}" Text="{Binding SenderUid}"
+                                                     AutomationProperties.Name="{Loc Key=UI.ForwardingPanelView.ForwardSenderUid}" SizeChanged="ForwardUidInput_OnSizeChanged">
                                                 <TextBox.InnerRightContent>
                                                     <Border x:Name="ForwardUserNameBadge" Classes="forwardUserNameBadge" MaxWidth="100"
                                                             IsVisible="{Binding SenderUserNameDisplayText, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}">
@@ -158,12 +158,12 @@
                                                 </TextBox.InnerRightContent>
                                             </TextBox>
                                             <TextBox x:Name="ForwardPatternInput" Grid.Column="1" Classes="forwardInput"
-                                                     Watermark="内容正则" Text="{Binding ContentPattern}"
-                                                     ToolTip.Tip="同传格式正则，例如 ^【.*?】$" AutomationProperties.Name="转发内容正则" />
+                                                     Watermark="{Loc Key=UI.ForwardingPanelView.ContentPattern}" Text="{Binding ContentPattern}"
+                                                     ToolTip.Tip="{Loc Key=UI.ForwardingPanelView.ContentPatternHint}" AutomationProperties.Name="{Loc Key=UI.ForwardingPanelView.ForwardContentPattern}" />
                                         </Grid>
                                         <Grid Grid.Row="2" ColumnDefinitions="*,*" ColumnSpacing="6">
                                             <ComboBox x:Name="ForwardAccountSelector" Classes="forwardSelector"
-                                                      ToolTip.Tip="转发发送账号" AutomationProperties.Name="转发发送账号"
+                                                      ToolTip.Tip="{Loc Key=UI.ForwardingPanelView.SenderAccount}" AutomationProperties.Name="{Loc Key=UI.ForwardingPanelView.SenderAccount}"
                                                       ItemsSource="{Binding AccountOptions}" SelectedValue="{Binding AccountOverrideId}"
                                                       SelectedValueBinding="{Binding AccountId}">
                                                 <ComboBox.ItemTemplate>
@@ -173,7 +173,7 @@
                                                 </ComboBox.ItemTemplate>
                                             </ComboBox>
                                             <ComboBox x:Name="ForwardSymbolSelector" Grid.Column="1" Classes="forwardSelector"
-                                                      ToolTip.Tip="转发开闭规则" AutomationProperties.Name="转发符号组"
+                                                      ToolTip.Tip="{Loc Key=UI.ForwardingPanelView.PrefixSuffixHint}" AutomationProperties.Name="{Loc Key=UI.ForwardingPanelView.SymbolGroup}"
                                                       ItemsSource="{Binding SymbolGroups}" SelectedValue="{Binding MarkSymbolGroupId}"
                                                       SelectedValueBinding="{Binding Id}">
                                                 <ComboBox.ItemTemplate>

@@ -1,3 +1,4 @@
+using Yohuke.DanmuNeo.I18n;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -33,7 +34,7 @@ internal sealed class WindowsWindowChrome : IWindowChrome
         var platformHandle = window.TryGetPlatformHandle();
         if (platformHandle is not { HandleDescriptor: "HWND", Handle: not 0 })
         {
-            throw new ArgumentException("Windows 标题栏必须附加到真实 HWND。", nameof(window));
+            throw new ArgumentException(Localization.Get("Window.Chrome.InvalidWindowsHandle"), nameof(window));
         }
 
         this.window = window;
@@ -42,7 +43,7 @@ internal sealed class WindowsWindowChrome : IWindowChrome
         minimumTitleBarHeight = titleBar.View.Height;
         if (!double.IsFinite(minimumTitleBarHeight) || minimumTitleBarHeight <= 0)
         {
-            throw new ArgumentException("标题栏必须提供正数高度。", nameof(titleBar));
+            throw new ArgumentException(Localization.Get("Window.Chrome.InvalidTitleBarHeight"), nameof(titleBar));
         }
 
         if (window.SizeToContent == SizeToContent.Manual && double.IsFinite(window.Width) && window.Width > 0 &&
@@ -86,7 +87,7 @@ internal sealed class WindowsWindowChrome : IWindowChrome
         ObjectDisposedException.ThrowIf(disposed, this);
         if (LastError is { } error)
         {
-            throw new InvalidOperationException("原生 Windows 标题栏已经失败，不能提交客户区尺寸。", error);
+            throw new InvalidOperationException(Localization.Get("Window.Chrome.ClientSizeFailed"), error);
         }
 
         var outerSize = WindowsChromeGeometry.GetOuterSize(size, ReadDpi(), ReadFrameInsets());
@@ -215,7 +216,7 @@ internal sealed class WindowsWindowChrome : IWindowChrome
         {
             LastError = error;
             handled = false;
-            Trace.TraceError("Windows 原生标题栏失败：{0}", error);
+            Trace.TraceError(Localization.Get("Window.Chrome.WindowsFailed"), error);
             return 0;
         }
     }
@@ -288,7 +289,7 @@ internal sealed class WindowsWindowChrome : IWindowChrome
         var dpi = WindowsNativeMethods.GetDpiForWindow(handle);
         if (dpi == 0)
         {
-            throw new Win32Exception("无法读取 Windows 窗口 DPI。");
+            throw new Win32Exception(Localization.Get("Window.Chrome.ReadDpiFailed"));
         }
 
         return dpi;
@@ -420,7 +421,7 @@ internal sealed class WindowsWindowChrome : IWindowChrome
         catch (Exception error) when (error is Win32Exception or COMException or OverflowException or ArgumentException)
         {
             LastError = error;
-            Trace.TraceError("Windows 原生标题栏刷新失败：{0}", error);
+            Trace.TraceError(Localization.Get("Window.Chrome.WindowsRefreshFailed"), error);
         }
     }
 

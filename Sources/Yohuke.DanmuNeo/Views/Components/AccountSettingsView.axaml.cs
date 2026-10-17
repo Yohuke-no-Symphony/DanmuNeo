@@ -1,3 +1,4 @@
+using Yohuke.DanmuNeo.I18n;
 using Avalonia.Controls;
 using CommunityToolkit.Mvvm.Input;
 using Yohuke.DanmuNeo.Models.BrowserLogin;
@@ -104,8 +105,8 @@ public partial class AccountSettingsView : UserControl
         {
             if (DataContext is MainWindowViewModel viewModel)
             {
-                viewModel.StatusMessage = $"浏览器登录不可用：{exception.Message}";
-                viewModel.LogErrorOnce("浏览器登录", "浏览器登录不可用", exception);
+                viewModel.SetLocalizedStatus("UI.AccountSettingsView.BrowserUnavailable", new Func<string>(() => LocalizedExceptionText.Get(exception)));
+                viewModel.LogErrorOnce(Localization.Get("UI.AccountSettingsView.BrowserLogSource"), Localization.Get("UI.AccountSettingsView.BrowserLogUnavailable"), exception);
             }
 
             return null;

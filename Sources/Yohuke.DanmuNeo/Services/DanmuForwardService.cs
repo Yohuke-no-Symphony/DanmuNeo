@@ -1,3 +1,4 @@
+using Yohuke.DanmuNeo.I18n;
 using System.Text.RegularExpressions;
 using Yohuke.DanmuNeo.Apis.Models.Bilibili;
 using Yohuke.DanmuNeo.Models.State;
@@ -33,9 +34,9 @@ public class DanmuForwardService
     /// </summary>
     public string Validate(DanmuForwardRuleState rule)
     {
-        if (string.IsNullOrWhiteSpace(rule.SenderUid) && string.IsNullOrWhiteSpace(rule.ContentPattern))
+        if (GetValidationErrorKey(rule) is { } errorKey)
         {
-            return "请填写 UID 或正则规则。";
+            return Localization.Get(errorKey);
         }
 
         if (string.IsNullOrWhiteSpace(rule.ContentPattern))
@@ -52,6 +53,13 @@ public class DanmuForwardService
         {
             return exception.Message;
         }
+    }
+
+    internal string? GetValidationErrorKey(DanmuForwardRuleState rule)
+    {
+        return string.IsNullOrWhiteSpace(rule.SenderUid) && string.IsNullOrWhiteSpace(rule.ContentPattern)
+            ? "Services.DanmuForward.FilterRequired"
+            : null;
     }
 
     /// <summary>

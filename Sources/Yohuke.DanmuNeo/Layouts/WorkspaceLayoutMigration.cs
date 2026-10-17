@@ -1,3 +1,4 @@
+using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Models.State;
 
 namespace Yohuke.DanmuNeo.Layouts;
@@ -17,7 +18,8 @@ internal static class WorkspaceLayoutMigration
 
         if (file.UserPresets is null || file.UserPresets.Any(preset => preset is null))
         {
-            throw new InvalidDataException("布局文件缺少有效的自定义布局集合。");
+            throw LocalizedExceptionText.Create("Layout.Validation.ValidUserPresetsRequired",
+                message => new InvalidDataException(message));
         }
 
         return file with
@@ -79,9 +81,9 @@ internal static class WorkspaceLayoutMigration
 
     private static WorkspaceLayoutSnapshot AddLogPanel(WorkspaceLayoutSnapshot layout)
     {
-        if (!WorkspaceLayoutValidator.TryValidate(layout, out var error, legacy: true))
+        if (!WorkspaceLayoutValidator.TryValidate(layout, out _, out var errorKey, legacy: true))
         {
-            throw new InvalidDataException(error);
+            throw LocalizedExceptionText.Create(errorKey, message => new InvalidDataException(message));
         }
 
         return layout with { HiddenPanelIds = [.. layout.HiddenPanelIds, WorkbenchPanelIds.LOG] };

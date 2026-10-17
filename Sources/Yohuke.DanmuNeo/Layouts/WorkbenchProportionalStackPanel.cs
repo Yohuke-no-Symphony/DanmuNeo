@@ -1,3 +1,4 @@
+using Yohuke.DanmuNeo.I18n;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Presenters;
@@ -26,7 +27,7 @@ internal sealed class WorkbenchProportionalStackPanel : ProportionalStackPanel
 
         if (!double.IsFinite(availableSize.Height))
         {
-            throw new InvalidOperationException("工作台竖向分栏需要有限的可用高度。");
+            throw new InvalidOperationException(Localization.Get("Layout.FiniteHeightRequired"));
         }
 
         var heights = AllocateHeights(availableSize.Height);

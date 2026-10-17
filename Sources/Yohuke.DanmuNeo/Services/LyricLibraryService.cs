@@ -1,3 +1,4 @@
+using Yohuke.DanmuNeo.I18n;
 using System.Xml.Linq;
 using System.Text.RegularExpressions;
 using Yohuke.DanmuNeo.Models.State;
@@ -77,7 +78,8 @@ public class LyricLibraryService
 
         if (string.IsNullOrWhiteSpace(text))
         {
-            throw new InvalidDataException("歌词文件为空。");
+            throw LocalizedExceptionText.Create("Services.LyricLibrary.EmptyFile",
+                message => new InvalidDataException(message));
         }
 
         if (LooksLikeLocalXml(text))
@@ -111,17 +113,19 @@ public class LyricLibraryService
     {
         if (string.IsNullOrWhiteSpace(item.Title))
         {
-            throw new InvalidDataException("歌曲名不能为空。");
+            throw LocalizedExceptionText.Create("Services.LyricLibrary.TitleRequired",
+                message => new InvalidDataException(message));
         }
 
         if (string.IsNullOrWhiteSpace(item.LyricText) &&
             string.IsNullOrWhiteSpace(item.TranslatedLyricText))
         {
-            throw new InvalidDataException("歌词内容不能为空。");
+            throw LocalizedExceptionText.Create("Services.LyricLibrary.ContentRequired",
+                message => new InvalidDataException(message));
         }
 
-        ValidateLyricText(item.LyricText, "原文歌词");
-        ValidateLyricText(item.TranslatedLyricText, "翻译歌词");
+        ValidateLyricText(item.LyricText, "Services.LyricLibrary.OriginalLyrics");
+        ValidateLyricText(item.TranslatedLyricText, "Services.LyricLibrary.TranslatedLyrics");
     }
 
     private static LyricLibraryItem? FindExisting(List<LyricLibraryItem> library, LyricLibraryItem item)
@@ -165,7 +169,9 @@ public class LyricLibraryService
         }
         catch (Exception exception)
         {
-            throw new InvalidDataException($"歌词 XML 解析失败：{exception.Message}", exception);
+            throw LocalizedExceptionText.Create("Services.LyricLibrary.XmlParseFailed",
+                message => new InvalidDataException(message, exception),
+                new Func<string>(() => LocalizedExceptionText.Get(exception)));
         }
 
         var title = ReadElement(root, "name");
@@ -217,7 +223,7 @@ public class LyricLibraryService
         item.TranslatedLyricText = string.Join('\n', groups.Select(group => group.Skip(1).First().Line));
     }
 
-    private static void ValidateLyricText(string text, string name)
+    private static void ValidateLyricText(string text, string nameKey)
     {
         if (string.IsNullOrWhiteSpace(text))
         {
@@ -237,12 +243,14 @@ public class LyricLibraryService
 
             if (line.Contains('[') != line.Contains(']'))
             {
-                throw new InvalidDataException($"{name}存在不完整的时间轴标记。");
+                throw LocalizedExceptionText.Create("Services.LyricLibrary.IncompleteTimestamp",
+                    message => new InvalidDataException(message), new Func<string>(() => Localization.Get(nameKey)));
             }
 
             if (BROKEN_TIMELINE_PATTERN.IsMatch(line) && !TIMELINE_PATTERN.IsMatch(line))
             {
-                throw new InvalidDataException($"{name}存在非法时间轴格式。");
+                throw LocalizedExceptionText.Create("Services.LyricLibrary.InvalidTimestamp",
+                    message => new InvalidDataException(message), new Func<string>(() => Localization.Get(nameKey)));
             }
 
             var content = TIMELINE_PATTERN.Replace(line, "").Trim();
@@ -255,7 +263,8 @@ public class LyricLibraryService
 
         if (!hasContent)
         {
-            throw new InvalidDataException($"{name}没有有效歌词内容。");
+            throw LocalizedExceptionText.Create("Services.LyricLibrary.NoUsableContent",
+                message => new InvalidDataException(message), new Func<string>(() => Localization.Get(nameKey)));
         }
     }
 

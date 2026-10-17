@@ -1,4 +1,6 @@
 using System.Reflection;
+using System.Text.Json;
+using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Services;
 
 namespace Yohuke.DanmuNeo.Tests;
@@ -13,7 +15,11 @@ public class LivePlayerServiceTests
 
         Assert.Contains("<video id=\"player\" autoplay muted playsinline>", html);
         Assert.DoesNotContain("<video id=\"player\" controls", html);
-        Assert.Contains("点击开启声音", html);
+        var script = LivePlayerService.CreateLocalizationScript();
+        using var snapshot = JsonDocument.Parse(script["window.yohukeSetLivePlayerLanguage(".Length..^2]);
+        Assert.Equal(Localization.Get("Player.EnableSound"),
+            snapshot.RootElement.GetProperty("strings").GetProperty("Player.EnableSound").GetString());
+        Assert.Contains("text(\"Player.EnableSound\")", html);
         Assert.Contains("root.addEventListener(\"pointerdown\", unlockSoundByUserGesture);", html);
         Assert.Contains("window.yohukeSetLivePlayerAudio", html);
         Assert.Contains("requestedMuted || !soundUnlocked", html);
@@ -32,6 +38,10 @@ public class LivePlayerServiceTests
         Assert.Contains("lastDecodedFrames", html);
         Assert.Contains("mpegts.Events.MEDIA_INFO", html);
         Assert.Contains("mpegts.Events.STATISTICS_INFO", html);
-        Assert.Contains("直播画面未输出", html);
+        Assert.Contains("recoverFromStuck(\"Player.NoVideo\")", html);
+        var script = LivePlayerService.CreateLocalizationScript();
+        using var snapshot = JsonDocument.Parse(script["window.yohukeSetLivePlayerLanguage(".Length..^2]);
+        Assert.Equal(Localization.Get("Player.NoVideo"),
+            snapshot.RootElement.GetProperty("strings").GetProperty("Player.NoVideo").GetString());
     }
 }

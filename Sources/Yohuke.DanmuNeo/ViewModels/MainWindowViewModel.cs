@@ -1,8 +1,9 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Runtime.CompilerServices;
 using Avalonia.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Models.BrowserLogin;
 using Yohuke.DanmuNeo.Models.State;
 using Yohuke.DanmuNeo.Models.Workspace;
@@ -68,7 +69,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         IBilibiliUserNameService? userNameService = null,
         IBilibiliDanmuConfigService? danmuConfigService = null,
         IAppUpdateService? appUpdateService = null,
-        IAppLogService? log = null)
+        IAppLogService? log = null,
+        AppState? loadedState = null)
     {
         Log = log ?? new AppLogService();
         ownsLog = log is null;
@@ -86,8 +88,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         danmuSendService = new(danmuConfigService: this.danmuConfigService);
         ownedAvatarCacheService = avatarCacheService is null ? new(appDirectoryService) : null;
         this.avatarCacheService = avatarCacheService ?? ownedAvatarCacheService!;
-        State = stateService.Load();
+        State = loadedState ?? stateService.Load();
         Settings = State.Settings;
+        LanguageOptions = CreateLanguageOptions(Settings.Language);
         ShortcutBindingService.Normalize(Settings);
         Accounts = new(State.Accounts);
         ForwardAccountOptions = [];
@@ -108,6 +111,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         RefreshTreeSelection();
         RefreshForwardSourceRooms();
         RestartForwarding();
+        InitializeLocalizedText();
+        Localization.LanguageChanged += OnLanguageChanged;
     }
 
     /// <summary>
@@ -147,7 +152,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// <summary>
     /// 侧栏折叠按钮提示。
     /// </summary>
-    public string SidebarToggleToolTip => IsSidebarCollapsed ? "展开工作区侧栏" : "折叠工作区侧栏";
+    public string SidebarToggleToolTip => IsSidebarCollapsed ? Localization.Get("App.Sidebar.Expand") : Localization.Get("App.Sidebar.Collapse");
 
     /// <summary>
     /// 切换并保存工作区侧栏的折叠状态。
@@ -281,9 +286,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// </summary>
     public IReadOnlyList<ThemeModeOption> ThemeModeOptions { get; } =
     [
-        new(AppThemeMode.System, "系统"),
-        new(AppThemeMode.Light, "浅色"),
-        new(AppThemeMode.Dark, "深色")
+        new(AppThemeMode.System),
+        new(AppThemeMode.Light),
+        new(AppThemeMode.Dark)
     ];
 
     /// <summary>
@@ -291,13 +296,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// </summary>
     public IReadOnlyList<SettingsSectionOption> SettingsSectionOptions { get; } =
     [
-        new("global", "全局设置", "外观与发送"),
-        new("account", "账号登录", "B 站与音乐账号绑定"),
-        new("lyricLibrary", "歌词库", "本地与音乐 API 导入"),
-        new("marks", "标签组", "同传与歌词开闭标记"),
-        new("shieldReplacements", "替换库", "屏蔽词文本替换"),
-        new("shortcuts", "快捷键", "直播间操作绑定"),
-        new("misc", "杂项", "版本、目录与备份")
+        new("global", "App.Section.global.Name", "App.Section.global.Description"),
+        new("account", "App.Section.account.Name", "App.Section.account.Description"),
+        new("lyricLibrary", "App.Section.lyricLibrary.Name", "App.Section.lyricLibrary.Description"),
+        new("marks", "App.Section.marks.Name", "App.Section.marks.Description"),
+        new("shieldReplacements", "App.Section.shieldReplacements.Name", "App.Section.shieldReplacements.Description"),
+        new("shortcuts", "App.Section.shortcuts.Name", "App.Section.shortcuts.Description"),
+        new("misc", "App.Section.misc.Name", "App.Section.misc.Description")
     ];
 
     /// <summary>
@@ -417,8 +422,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
         catch (Exception exception)
         {
-            StatusMessage = $"保存同传样式预设失败：{exception.Message}";
-            LogErrorOnce("同传样式", StatusMessage, exception);
+            SetLocalizedProperty(nameof(StatusMessage), "App.Style.SaveFailed", new Func<string>(() => LocalizedExceptionText.Get(exception)));
+            LogErrorOnce(Localization.Get("App.Log.Style"), StatusMessage, exception);
         }
     }
 
@@ -454,7 +459,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty] private string deleteDialogDescription = "";
 
-    [ObservableProperty] private string deleteDialogPrimaryText = "删除";
+    [ObservableProperty] private string deleteDialogPrimaryText = Localization.Get("App.Dialog.Delete");
 
     [ObservableProperty] private string newWorkspaceName = "";
 
@@ -466,7 +471,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty] private string liveRoomSearchText = "";
 
-    [ObservableProperty] private string liveRoomSearchStatus = "输入主播昵称搜索，也可以手动添加";
+    [ObservableProperty] private string liveRoomSearchStatus = Localization.Get("App.Search.Hint");
 
     [ObservableProperty] [NotifyCanExecuteChangedFor(nameof(SearchLiveRoomsCommand), nameof(LoadMoreLiveRoomsCommand))]
     private bool isLiveRoomSearching;
@@ -542,7 +547,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// </summary>
     public string AppVersion => typeof(MainWindowViewModel).Assembly.GetName().Version is { } version
         ? version.ToString(version.Revision > 0 ? 4 : 3)
-        : "开发版";
+        : Localization.Get("App.Version.Development");
 
     /// <summary>
     /// 配置目录。
@@ -562,12 +567,15 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// <summary>
     /// QQ 音乐绑定状态。
     /// </summary>
-    public string QQMusicCookieStatus => Settings.QQMusicCookieStatus;
+    public string QQMusicCookieStatus => Localization.Get(string.IsNullOrWhiteSpace(Settings.QQMusicCookie)
+        ? "App.Cookie.NotBound" : "App.Cookie.Bound");
 
     /// <summary>
     /// QQ 音乐 Cookie 摘要。
     /// </summary>
-    public string QQMusicCookieSummary => Settings.QQMusicCookieSummary;
+    public string QQMusicCookieSummary => string.IsNullOrWhiteSpace(Settings.QQMusicCookie)
+        ? Localization.Get("App.Cookie.Empty")
+        : Localization.Format("App.Cookie.Summary", Settings.QQMusicCookie[^Math.Min(8, Settings.QQMusicCookie.Length)..]);
 
     /// <summary>
     /// 新增对话框是否正在创建工作区。
@@ -631,7 +639,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     public async Task AddWorkspaceAsync()
     {
         var name = string.IsNullOrWhiteSpace(NewWorkspaceName)
-            ? $"工作区 {Workspaces.Count + 1}"
+            ? Localization.Format("App.Default.Workspace", Workspaces.Count + 1)
             : NewWorkspaceName.Trim();
         var state = new WorkspaceState
         {
@@ -720,9 +728,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         NewRoomName = "";
         NewRoomId = "";
         NewRoomOwnerUid = "";
-        AddDialogTitle = "新建工作区";
-        AddDialogDescription = "给新的同传工作空间起一个容易识别的名称。";
-        AddDialogPrimaryText = "确定";
+        SetLocalizedProperty(nameof(AddDialogTitle), "App.Dialog.NewWorkspaceTitle");
+        SetLocalizedProperty(nameof(AddDialogDescription), "App.Dialog.NewWorkspaceDescription");
+        SetLocalizedProperty(nameof(AddDialogPrimaryText), "App.Dialog.Confirm");
         OnPropertyChanged(nameof(IsAddingWorkspace));
         OnPropertyChanged(nameof(IsAddingRoom));
         IsAddDialogOpen = true;
@@ -748,9 +756,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         NewRoomName = "";
         NewRoomId = "";
         NewRoomOwnerUid = "";
-        AddDialogTitle = $"添加直播间到 {targetWorkspace.Name}";
-        AddDialogDescription = "按主播昵称搜索并直接添加，或手动填写直播间信息。";
-        AddDialogPrimaryText = "手动添加";
+        SetLocalizedProperty(nameof(AddDialogTitle), "App.Dialog.AddRoomTitle", targetWorkspace.Name);
+        SetLocalizedProperty(nameof(AddDialogDescription), "App.Dialog.AddRoomDescription");
+        SetLocalizedProperty(nameof(AddDialogPrimaryText), "App.Dialog.AddRoomManually");
         OnPropertyChanged(nameof(IsAddingWorkspace));
         OnPropertyChanged(nameof(IsAddingRoom));
         OnPropertyChanged(nameof(AddDialogWorkspaceName));
@@ -817,8 +825,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         if (string.IsNullOrWhiteSpace(activeLiveRoomSearchKeyword))
         {
-            LiveRoomSearchStatus = "请输入主播昵称";
-            Log.Warning("直播间搜索", LiveRoomSearchStatus);
+            SetLocalizedProperty(nameof(LiveRoomSearchStatus), "App.Search.EnterName");
+            Log.Warning(Localization.Get("App.Log.RoomSearch"), LiveRoomSearchStatus);
             return;
         }
 
@@ -879,7 +887,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         var tokenSource = new CancellationTokenSource();
         liveRoomSearchTokenSource = tokenSource;
         IsLiveRoomSearching = true;
-        LiveRoomSearchStatus = "正在搜索主播…";
+        SetLocalizedProperty(nameof(LiveRoomSearchStatus), "App.Search.Searching");
 
         try
         {
@@ -903,10 +911,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
             liveRoomSearchPage = page;
             HasMoreLiveRoomSearchResults = resultPage.HasMore;
-            LiveRoomSearchStatus = LiveRoomSearchResults.Count == 0
-                ? "没有找到匹配的主播，可以尝试其他昵称或手动添加"
-                : $"已找到 {LiveRoomSearchResults.Count} 个直播间，点击添加即可加入工作区";
-            Log.Information($"直播间搜索 · {workspace.Name}", LiveRoomSearchStatus);
+            SetLocalizedProperty(nameof(LiveRoomSearchStatus), LiveRoomSearchResults.Count == 0
+                ? "App.Search.Empty" : "App.Search.Found", LiveRoomSearchResults.Count);
+            Log.Information(Localization.Format("App.Log.RoomSearchWorkspace", workspace.Name), LiveRoomSearchStatus);
         }
         catch (OperationCanceledException) when (tokenSource.IsCancellationRequested)
         {
@@ -915,8 +922,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         {
             if (IsCurrentLiveRoomSearch(tokenSource))
             {
-                LiveRoomSearchStatus = $"搜索失败：{exception.Message}";
-                LogErrorOnce($"直播间搜索 · {workspace.Name}", LiveRoomSearchStatus, exception);
+                SetLocalizedProperty(nameof(LiveRoomSearchStatus), "App.Search.Failed", new Func<string>(() => LocalizedExceptionText.Get(exception)));
+                LogErrorOnce(Localization.Format("App.Log.RoomSearchWorkspace", workspace.Name), LiveRoomSearchStatus, exception);
             }
         }
         finally
@@ -955,7 +962,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         HasMoreLiveRoomSearchResults = false;
         activeLiveRoomSearchKeyword = "";
         liveRoomSearchPage = 0;
-        LiveRoomSearchStatus = "输入主播昵称搜索，也可以手动添加";
+        SetLocalizedProperty(nameof(LiveRoomSearchStatus), "App.Search.Hint");
         SearchLiveRoomsCommand.NotifyCanExecuteChanged();
         AddSearchedRoomCommand.NotifyCanExecuteChanged();
     }
@@ -970,8 +977,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         if (!long.TryParse(roomId, out var parsedRoomId) || parsedRoomId <= 0)
         {
-            LiveRoomSearchStatus = "请输入有效的直播间 ID";
-            Log.Warning($"直播间 · {workspace.Name}", LiveRoomSearchStatus);
+            SetLocalizedProperty(nameof(LiveRoomSearchStatus), "App.Search.InvalidRoomId");
+            Log.Warning(Localization.Format("App.Log.RoomWorkspace", workspace.Name), LiveRoomSearchStatus);
             return;
         }
 
@@ -996,7 +1003,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             RefreshTreeSelection();
             RefreshForwardSourceRooms();
             await SaveAsync();
-            Log.Information($"直播间 · {workspace.Name}", $"已选择直播间：{room.Header} ({room.RoomId})");
+            Log.Information(Localization.Format("App.Log.RoomWorkspace", workspace.Name), Localization.Format("App.Room.Selected", room.Header, room.RoomId));
 
             if (session == addDialogSession)
             {
@@ -1008,11 +1015,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
         catch (Exception exception)
         {
-            LogErrorOnce($"直播间 · {workspace.Name}", "添加直播间失败", exception);
+            LogErrorOnce(Localization.Format("App.Log.RoomWorkspace", workspace.Name), Localization.Get("App.Room.AddFailed"), exception);
 
             if (session == addDialogSession)
             {
-                LiveRoomSearchStatus = $"添加直播间失败：{exception.Message}";
+                SetLocalizedProperty(nameof(LiveRoomSearchStatus), "App.Room.AddFailedDetail", new Func<string>(() => LocalizedExceptionText.Get(exception)));
             }
         }
         finally
@@ -1034,9 +1041,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         deleteDialogKind = "workspace";
         deleteDialogWorkspace = workspace;
         deleteDialogRoom = null;
-        DeleteDialogTitle = "删除工作区";
-        DeleteDialogDescription = $"确定删除“{workspace.Name}”吗？该工作区下的直播间配置会一并移除。";
-        DeleteDialogPrimaryText = "删除工作区";
+        SetLocalizedProperty(nameof(DeleteDialogTitle), "App.Dialog.DeleteWorkspace");
+        SetLocalizedProperty(nameof(DeleteDialogDescription), "App.Dialog.DeleteWorkspaceDescription", workspace.Name);
+        SetLocalizedProperty(nameof(DeleteDialogPrimaryText), "App.Dialog.DeleteWorkspace");
         IsConfirmDeleteDialogOpen = true;
     }
 
@@ -1053,9 +1060,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         deleteDialogKind = "room";
         deleteDialogWorkspace = Workspaces.FirstOrDefault(item => item.Rooms.Contains(room));
         deleteDialogRoom = room;
-        DeleteDialogTitle = "删除直播间";
-        DeleteDialogDescription = $"确定删除直播间“{room.Header}”吗？运行期间的弹幕和 SC 历史会从当前工作区移除。";
-        DeleteDialogPrimaryText = "删除直播间";
+        SetLocalizedProperty(nameof(DeleteDialogTitle), "App.Dialog.DeleteRoom");
+        SetLocalizedProperty(nameof(DeleteDialogDescription), "App.Dialog.DeleteRoomDescription", room.Header);
+        SetLocalizedProperty(nameof(DeleteDialogPrimaryText), "App.Dialog.DeleteRoom");
         IsConfirmDeleteDialogOpen = true;
     }
 
@@ -1191,7 +1198,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         if (!await room.LoadAvatarAsync(true))
         {
-            StatusMessage = "主播头像获取失败，请检查直播间 ID 或主播 UID";
+            SetLocalizedProperty(nameof(StatusMessage), "App.Avatar.Failed");
         }
     }
 
@@ -1268,8 +1275,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         CancelShortcutRecording();
         binding.IsRecording = true;
-        StatusMessage = $"按下新的快捷键：{binding.Name}";
-        Log.Information("快捷键", StatusMessage);
+        SetLocalizedProperty(nameof(StatusMessage), () => Localization.Format("App.Shortcut.Record", binding.Name));
+        Log.Information(Localization.Get("App.Log.Shortcut"), StatusMessage);
         OnPropertyChanged(nameof(IsRecordingShortcut));
     }
 
@@ -1285,8 +1292,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         binding.IsRecording = false;
         binding.SetGestureText("", false);
-        StatusMessage = $"已清除快捷键：{binding.Name}";
-        Log.Information("快捷键", StatusMessage);
+        SetLocalizedProperty(nameof(StatusMessage), () => Localization.Format("App.Shortcut.Cleared", binding.Name));
+        Log.Information(Localization.Get("App.Log.Shortcut"), StatusMessage);
         OnPropertyChanged(nameof(IsRecordingShortcut));
     }
 
@@ -1302,8 +1309,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         binding.IsRecording = false;
         binding.SetGestureText(binding.DefaultGestureText, true);
-        StatusMessage = $"已恢复默认快捷键：{binding.Name}";
-        Log.Information("快捷键", StatusMessage);
+        SetLocalizedProperty(nameof(StatusMessage), () => Localization.Format("App.Shortcut.Restored", binding.Name));
+        Log.Information(Localization.Get("App.Log.Shortcut"), StatusMessage);
         OnPropertyChanged(nameof(IsRecordingShortcut));
     }
 
@@ -1327,8 +1334,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         if (key == Key.Escape)
         {
             CancelShortcutRecording();
-            StatusMessage = "已取消快捷键录制";
-            Log.Information("快捷键", StatusMessage);
+            SetLocalizedProperty(nameof(StatusMessage), "App.Shortcut.Canceled");
+            Log.Information(Localization.Get("App.Log.Shortcut"), StatusMessage);
             return true;
         }
 
@@ -1340,15 +1347,15 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         if (!ShortcutBindingService.TryCreateGestureText(key, modifiers, out var gestureText))
         {
-            StatusMessage = "请按下包含主按键的快捷键";
-            Log.Warning("快捷键", StatusMessage);
+            SetLocalizedProperty(nameof(StatusMessage), "App.Shortcut.MainKeyRequired");
+            Log.Warning(Localization.Get("App.Log.Shortcut"), StatusMessage);
             return true;
         }
 
         binding.IsRecording = false;
         binding.SetGestureText(gestureText, true);
-        StatusMessage = $"已设置快捷键：{binding.Name} {gestureText}";
-        Log.Information("快捷键", StatusMessage);
+        SetLocalizedProperty(nameof(StatusMessage), () => Localization.Format("App.Shortcut.Set", binding.Name, gestureText));
+        Log.Information(Localization.Get("App.Log.Shortcut"), StatusMessage);
         OnPropertyChanged(nameof(IsRecordingShortcut));
         return true;
     }
@@ -1378,22 +1385,22 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         if (sourceWorkspace is null)
         {
-            StatusMessage = "未找到来源工作区";
-            Log.Warning("转发规则", StatusMessage);
+            SetLocalizedProperty(nameof(StatusMessage), "App.Forward.WorkspaceMissing");
+            Log.Warning(Localization.Get("App.Log.Forward"), StatusMessage);
             return;
         }
 
         if (targetRoom.Id == sourceRoom.Id)
         {
-            StatusMessage = "不能将直播间转发到自身";
-            Log.Warning("转发规则", StatusMessage);
+            SetLocalizedProperty(nameof(StatusMessage), "App.Forward.SelfTarget");
+            Log.Warning(Localization.Get("App.Log.Forward"), StatusMessage);
             return;
         }
 
         if (string.IsNullOrWhiteSpace(item.UserUid))
         {
-            StatusMessage = "弹幕缺少用户 UID";
-            Log.Warning("转发规则", StatusMessage);
+            SetLocalizedProperty(nameof(StatusMessage), "App.Forward.UidMissing");
+            Log.Warning(Localization.Get("App.Log.Forward"), StatusMessage);
             return;
         }
 
@@ -1406,8 +1413,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             ContentPattern = DanmuForwardRuleState.DEFAULT_CONTENT_PATTERN
         });
         RefreshForwardSourceRooms();
-        StatusMessage = $"已添加转发规则：{item.UserName} -> {targetRoom.Header}";
-        Log.Information("转发规则", StatusMessage);
+        SetLocalizedProperty(nameof(StatusMessage), "App.Forward.Added", item.UserName, targetRoom.Header);
+        Log.Information(Localization.Get("App.Log.Forward"), StatusMessage);
     }
 
     /// <summary>
@@ -1457,13 +1464,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 MusicLyricSearchResults.Add(result);
             }
 
-            StatusMessage = $"找到 {MusicLyricSearchResults.Count} 条歌词候选";
-            Log.Information("歌词搜索", StatusMessage);
+            SetLocalizedProperty(nameof(StatusMessage), "App.Lyric.SearchFound", MusicLyricSearchResults.Count);
+            Log.Information(Localization.Get("App.Log.LyricSearch"), StatusMessage);
         }
         catch (Exception exception)
         {
-            StatusMessage = $"音乐 API 搜索失败：{exception.Message}";
-            LogErrorOnce("歌词搜索", StatusMessage, exception);
+            SetLocalizedProperty(nameof(StatusMessage), "App.Lyric.SearchFailed", new Func<string>(() => LocalizedExceptionText.Get(exception)));
+            LogErrorOnce(Localization.Get("App.Log.LyricSearch"), StatusMessage, exception);
         }
         finally
         {
@@ -1512,7 +1519,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     {
         var account = new BilibiliAccount
         {
-            Name = $"账号 {Accounts.Count + 1}",
+            Name = Localization.Format("App.Default.Account", Accounts.Count + 1),
             IsGlobalDefault = Accounts.Count == 0
         };
         Accounts.Add(account);
@@ -1538,7 +1545,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         {
             targetAccount = new()
             {
-                Name = $"B站账号 {Accounts.Count + 1}",
+                Name = Localization.Format("App.Default.BilibiliAccount", Accounts.Count + 1),
                 IsGlobalDefault = Accounts.Count == 0
             };
             Accounts.Add(targetAccount);
@@ -1549,8 +1556,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         targetAccount.Cookie = result.Cookie;
         RefreshAccountLabels();
         await SaveAsync();
-        StatusMessage = result.Message;
-        Log.Information("B站登录", StatusMessage);
+        SetBrowserLoginStatus(result);
+        Log.Information(Localization.Get("App.Log.BilibiliLogin"), StatusMessage);
     }
 
     /// <summary>
@@ -1567,8 +1574,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(QQMusicCookieStatus));
         OnPropertyChanged(nameof(QQMusicCookieSummary));
         await SaveAsync();
-        StatusMessage = result.Message;
-        Log.Information("QQ音乐登录", StatusMessage);
+        SetBrowserLoginStatus(result);
+        Log.Information(Localization.Get("App.Log.QQMusicLogin"), StatusMessage);
     }
 
     /// <summary>
@@ -1709,7 +1716,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                         SymbolGroups.FirstOrDefault() ?? MarkSymbolService.CreateDefaultGroup(Settings);
         var group = new MarkSymbolGroup
         {
-            Name = $"符号组 {SymbolGroups.Count + 1}",
+            Name = Localization.Format("App.Default.SymbolGroup", SymbolGroups.Count + 1),
             TranslateOpenMark = baseGroup.TranslateOpenMark,
             TranslateCloseMark = baseGroup.TranslateCloseMark,
             LyricOpenMark = baseGroup.LyricOpenMark,
@@ -1857,8 +1864,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
         catch (Exception exception)
         {
-            StatusMessage = $"歌词保存失败：{exception.Message}";
-            LogErrorOnce("歌词库", StatusMessage, exception);
+            SetLocalizedProperty(nameof(StatusMessage), "App.Lyric.SaveFailed", new Func<string>(() => LocalizedExceptionText.Get(exception)));
+            LogErrorOnce(Localization.Get("App.Log.LyricLibrary"), StatusMessage, exception);
         }
     }
 
@@ -1877,8 +1884,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
         catch (Exception exception)
         {
-            StatusMessage = $"歌词导入失败：{exception.Message}";
-            LogErrorOnce("歌词导入", StatusMessage, exception);
+            SetLocalizedProperty(nameof(StatusMessage), "App.Lyric.ImportFailed", new Func<string>(() => LocalizedExceptionText.Get(exception)));
+            LogErrorOnce(Localization.Get("App.Log.LyricImport"), StatusMessage, exception);
             return false;
         }
     }
@@ -1897,8 +1904,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
         catch (Exception exception)
         {
-            StatusMessage = $"歌词导入失败：{exception.Message}";
-            LogErrorOnce("歌词导入", StatusMessage, exception);
+            SetLocalizedProperty(nameof(StatusMessage), "App.Lyric.ImportFailed", new Func<string>(() => LocalizedExceptionText.Get(exception)));
+            LogErrorOnce(Localization.Get("App.Log.LyricImport"), StatusMessage, exception);
             return false;
         }
     }
@@ -1927,8 +1934,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
         catch (Exception exception)
         {
-            StatusMessage = $"歌词导入失败：{exception.Message}";
-            LogErrorOnce("歌词导入", StatusMessage, exception);
+            SetLocalizedProperty(nameof(StatusMessage), "App.Lyric.ImportFailed", new Func<string>(() => LocalizedExceptionText.Get(exception)));
+            LogErrorOnce(Localization.Get("App.Log.LyricImport"), StatusMessage, exception);
         }
     }
 
@@ -1991,7 +1998,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// </summary>
     public void OpenConfigDirectory()
     {
-        OpenDirectory(ConfigDirectory, "配置目录打开失败");
+        OpenDirectory(ConfigDirectory, Localization.Get("App.Directory.ConfigFailed"));
     }
 
     /// <summary>
@@ -1999,7 +2006,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// </summary>
     public void OpenCacheDirectory()
     {
-        OpenDirectory(CacheDirectory, "缓存目录打开失败");
+        OpenDirectory(CacheDirectory, Localization.Get("App.Directory.CacheFailed"));
     }
 
     /// <summary>
@@ -2026,13 +2033,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
             RefreshCacheSize();
             await SaveAsync();
-            StatusMessage = "缓存已清理";
-            Log.Information("缓存", StatusMessage);
+            SetLocalizedProperty(nameof(StatusMessage), "App.Cache.Cleared");
+            Log.Information(Localization.Get("App.Log.Cache"), StatusMessage);
         }
         catch (Exception exception)
         {
-            StatusMessage = $"缓存清理失败：{exception.Message}";
-            LogErrorOnce("缓存", StatusMessage, exception);
+            SetLocalizedProperty(nameof(StatusMessage), "App.Cache.ClearFailed", new Func<string>(() => LocalizedExceptionText.Get(exception)));
+            LogErrorOnce(Localization.Get("App.Log.Cache"), StatusMessage, exception);
             throw;
         }
     }
@@ -2046,14 +2053,14 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         {
             var outputDirectory = Path.Combine(ConfigDirectory, "Exports");
             LastBackupPath = await appBackupService.ExportBackupZipAsync(outputDirectory);
-            StatusMessage = $"已导出备份：{LastBackupPath}";
-            Log.Information("配置备份", StatusMessage);
-            OpenDirectory(outputDirectory, "备份目录打开失败");
+            SetLocalizedProperty(nameof(StatusMessage), "App.Backup.Exported", LastBackupPath);
+            Log.Information(Localization.Get("App.Log.Backup"), StatusMessage);
+            OpenDirectory(outputDirectory, Localization.Get("App.Directory.BackupFailed"));
         }
         catch (Exception exception)
         {
-            StatusMessage = $"导出备份失败：{exception.Message}";
-            LogErrorOnce("配置备份", StatusMessage, exception);
+            SetLocalizedProperty(nameof(StatusMessage), "App.Backup.ExportFailed", new Func<string>(() => LocalizedExceptionText.Get(exception)));
+            LogErrorOnce(Localization.Get("App.Log.Backup"), StatusMessage, exception);
         }
     }
 
@@ -2074,13 +2081,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             Settings.WorkspaceToolColumnWidth =
                 AppStateService.ClampWorkspaceColumnWidth(Settings.WorkspaceToolColumnWidth);
             await stateService.SaveAsync(State);
-            StatusMessage = $"已保存 {DateTime.Now:HH:mm:ss}";
-            Log.Information("配置保存", StatusMessage);
+            SetLocalizedProperty(nameof(StatusMessage), "App.Config.Saved", DateTime.Now);
+            Log.Information(Localization.Get("App.Log.ConfigSave"), StatusMessage);
         }
         catch (Exception exception)
         {
-            StatusMessage = $"配置保存失败：{exception.Message}";
-            LogErrorOnce("配置保存", StatusMessage, exception);
+            SetLocalizedProperty(nameof(StatusMessage), "App.Config.SaveFailed", new Func<string>(() => LocalizedExceptionText.Get(exception)));
+            LogErrorOnce(Localization.Get("App.Log.ConfigSave"), StatusMessage, exception);
             throw;
         }
         finally
@@ -2110,13 +2117,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         try
         {
             await workspaceShareService.ExportAsync(workspace.State, Settings, filePath);
-            StatusMessage = "工作区已导出";
-            Log.Information($"工作区 · {workspace.Name}", StatusMessage);
+            SetLocalizedProperty(nameof(StatusMessage), "App.Workspace.Exported");
+            Log.Information(Localization.Format("App.Log.Workspace", workspace.Name), StatusMessage);
         }
         catch (Exception exception)
         {
-            StatusMessage = $"工作区导出失败：{exception.Message}";
-            LogErrorOnce($"工作区 · {workspace.Name}", StatusMessage, exception);
+            SetLocalizedProperty(nameof(StatusMessage), "App.Workspace.ExportFailed", new Func<string>(() => LocalizedExceptionText.Get(exception)));
+            LogErrorOnce(Localization.Format("App.Log.Workspace", workspace.Name), StatusMessage, exception);
             throw;
         }
     }
@@ -2134,13 +2141,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             Workspaces.Add(workspace);
             SelectedWorkspace = workspace;
             await SaveAsync();
-            StatusMessage = "工作区已导入";
-            Log.Information($"工作区 · {workspace.Name}", StatusMessage);
+            SetLocalizedProperty(nameof(StatusMessage), "App.Workspace.Imported");
+            Log.Information(Localization.Format("App.Log.Workspace", workspace.Name), StatusMessage);
         }
         catch (Exception exception)
         {
-            StatusMessage = $"工作区导入失败：{exception.Message}";
-            LogErrorOnce("工作区导入", StatusMessage, exception);
+            SetLocalizedProperty(nameof(StatusMessage), "App.Workspace.ImportFailed", new Func<string>(() => LocalizedExceptionText.Get(exception)));
+            LogErrorOnce(Localization.Get("App.Log.WorkspaceImport"), StatusMessage, exception);
             throw;
         }
     }
@@ -2212,6 +2219,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
 
         isDisposed = true;
+        Localization.LanguageChanged -= OnLanguageChanged;
         DisposeUpdateCheck();
         ResetLiveRoomSearch();
         foreach (var workspace in Workspaces)
@@ -2320,10 +2328,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     {
         if (string.IsNullOrWhiteSpace(accountId))
         {
-            return "使用全局账号";
+            return Localization.Get("App.Account.Global");
         }
 
-        return Accounts.FirstOrDefault(account => account.Id == accountId)?.Name ?? "账号不存在";
+        return Accounts.FirstOrDefault(account => account.Id == accountId)?.Name ?? Localization.Get("App.Account.Missing");
     }
 
     private async Task MoveWorkspaceAsync(WorkspaceViewModel? workspace, int offset)
@@ -2559,8 +2567,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
 
         RefreshFilteredLyricLibrary();
-        StatusMessage = "歌词已写入本地歌词库";
-        Log.Information("歌词库", StatusMessage, savedItem.Title);
+        SetLocalizedProperty(nameof(StatusMessage), "App.Lyric.Saved");
+        Log.Information(Localization.Get("App.Log.LyricLibrary"), StatusMessage, savedItem.Title);
         return savedItem;
     }
 
@@ -2576,8 +2584,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         lyricLibraryService.Touch(item);
         room.LoadLyric(item);
         RefreshFilteredLyricLibrary();
-        StatusMessage = "歌词已加载到当前直播间";
-        Log.Information($"歌词 · {SelectedWorkspace!.Name} · {room.Header} ({room.RoomId})", StatusMessage,
+        SetLocalizedProperty(nameof(StatusMessage), "App.Lyric.Loaded");
+        Log.Information(Localization.Format("App.Log.LyricRoom", SelectedWorkspace!.Name, room.Header, room.RoomId), StatusMessage,
             item.Title);
     }
 
@@ -2599,8 +2607,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
         catch (Exception exception)
         {
-            StatusMessage = $"{errorPrefix}：{exception.Message}";
-            LogErrorOnce("目录", StatusMessage, exception);
+            SetLocalizedProperty(nameof(StatusMessage), "App.Directory.OpenFailed", errorPrefix, new Func<string>(() => LocalizedExceptionText.Get(exception)));
+            LogErrorOnce(Localization.Get("App.Log.Directory"), StatusMessage, exception);
         }
     }
 
@@ -2627,7 +2635,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
         catch (Exception exception)
         {
-            LogErrorOnce("设置保存", "设置保存失败", exception);
+            LogErrorOnce(Localization.Get("App.Log.SettingsSave"), Localization.Get("App.Settings.SaveFailed"), exception);
         }
     }
 

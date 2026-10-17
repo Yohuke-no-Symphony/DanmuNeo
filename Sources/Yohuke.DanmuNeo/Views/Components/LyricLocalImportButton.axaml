@@ -4,13 +4,13 @@
              x:CompileBindings="False"
              x:Name="Root">
     <Button Classes.iconButton="{Binding #Root.IsCompact}"
-            ToolTip.Tip="导入本地歌词"
-            AutomationProperties.Name="导入本地歌词"
+            ToolTip.Tip="{Loc Key=UI.LyricLocalImportButton.ImportLocalLyrics}"
+            AutomationProperties.Name="{Loc Key=UI.LyricLocalImportButton.ImportLocalLyrics}"
             Click="ImportLocalLyricFile_OnClick">
         <StackPanel Orientation="Horizontal"
                     Spacing="6">
             <LucideIcon Kind="FileInput"/>
-            <TextBlock Text="导入本地歌词"
+            <TextBlock Text="{Loc Key=UI.LyricLocalImportButton.ImportLocalLyrics}"
                        IsVisible="{Binding !IsCompact, ElementName=Root}"/>
         </StackPanel>
     </Button>

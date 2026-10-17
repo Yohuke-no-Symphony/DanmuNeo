@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.Input;
+using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Layouts;
 using Yohuke.DanmuNeo.Services;
 using Yohuke.DanmuNeo.ViewModels.Items;
@@ -17,6 +18,7 @@ internal sealed class LayoutPresetManagerViewModel : ViewModelBase, IDisposable
     private ImmutableArray<string> selectedIds = [];
     private string name = string.Empty;
     private string? error;
+    private Exception? errorSource;
     private bool isBusy;
     private bool disposed;
 
@@ -34,6 +36,7 @@ internal sealed class LayoutPresetManagerViewModel : ViewModelBase, IDisposable
         controller.Changed += OnControllerChanged;
         controller.PersistenceFailed += OnPersistenceFailed;
         Refresh();
+        Localization.LanguageChanged += OnLanguageChanged;
     }
 
     internal event EventHandler? ChoicesRefreshing;
@@ -70,6 +73,11 @@ internal sealed class LayoutPresetManagerViewModel : ViewModelBase, IDisposable
         get => error;
         private set
         {
+            if (value is null)
+            {
+                errorSource = null;
+            }
+
             if (SetProperty(ref error, value))
             {
                 OnPropertyChanged(nameof(HasError));
@@ -100,6 +108,7 @@ internal sealed class LayoutPresetManagerViewModel : ViewModelBase, IDisposable
         }
 
         disposed = true;
+        Localization.LanguageChanged -= OnLanguageChanged;
         controller.Changed -= OnControllerChanged;
         controller.PersistenceFailed -= OnPersistenceFailed;
         cancellation.Cancel();
@@ -117,7 +126,7 @@ internal sealed class LayoutPresetManagerViewModel : ViewModelBase, IDisposable
     {
         if (CanEdit && SelectedIds.Length == 1 && Selected is { } row)
         {
-            Execute(() => controller.ApplyPreset(row.Id), $"已应用布局：{row.Name}");
+            Execute(() => controller.ApplyPreset(row.Id), Localization.Format("Layout.Applied", row.Name));
         }
     }
 
@@ -132,11 +141,11 @@ internal sealed class LayoutPresetManagerViewModel : ViewModelBase, IDisposable
         {
             if (!controller.Rename(row.Id, Name))
             {
-                throw new ArgumentException("找不到指定的自定义布局。");
+                throw LayoutValidationFailure.CreateException("Layout.CustomPresetMissing");
             }
 
             Name = Selected?.Name ?? string.Empty;
-        }, "布局已重命名");
+        }, Localization.Get("Layout.Renamed"));
     }
 
     private void SaveAs()
@@ -150,7 +159,7 @@ internal sealed class LayoutPresetManagerViewModel : ViewModelBase, IDisposable
         {
             var id = controller.SaveAs(Name);
             SetSelection(id, [id]);
-        }, "当前布局已另存为预设");
+        }, Localization.Get("Layout.SavedAs"));
     }
 
     private async Task DeleteAsync()
@@ -181,9 +190,9 @@ internal sealed class LayoutPresetManagerViewModel : ViewModelBase, IDisposable
                 {
                     if (!controller.Delete(ids))
                     {
-                        throw new ArgumentException("所选布局已不存在，或包含不可删除的内置布局。");
+                        throw LayoutValidationFailure.CreateException("Layout.DeleteSelectionInvalid");
                     }
-                }, $"已删除 {ids.Length} 个布局预设");
+                }, Localization.Format("Layout.DeletedCount", ids.Length));
             }
         }
         catch (OperationCanceledException) when (disposed)
@@ -191,8 +200,8 @@ internal sealed class LayoutPresetManagerViewModel : ViewModelBase, IDisposable
         }
         catch (Exception exception)
         {
-            Error = exception.Message;
-            log?.Error("布局管理", "删除布局确认失败", exception);
+            ReportError(exception);
+            log?.Error(Localization.Get("Window.ManageLayouts.Title"), Localization.Get("Layout.DeleteConfirmationFailed"), exception);
         }
         finally
         {
@@ -211,12 +220,12 @@ internal sealed class LayoutPresetManagerViewModel : ViewModelBase, IDisposable
         {
             action();
             Error = null;
-            log?.Information("布局管理", successMessage);
+            log?.Information(Localization.Get("Window.ManageLayouts.Title"), successMessage);
         }
         catch (Exception exception) when (exception is ArgumentException or InvalidDataException or IOException or UnauthorizedAccessException)
         {
-            Error = exception.Message;
-            log?.Error("布局管理", "布局操作失败", exception);
+            ReportError(exception);
+            log?.Error(Localization.Get("Window.ManageLayouts.Title"), Localization.Get("Layout.OperationFailed"), exception);
         }
     }
 
@@ -250,6 +259,7 @@ internal sealed class LayoutPresetManagerViewModel : ViewModelBase, IDisposable
     {
         var draftName = Name;
         var previousError = Error;
+        var previousErrorSource = errorSource;
         var previousId = Selected?.Id;
         var ids = SelectedIds;
         var selectedId = previousId ?? controller.CurrentPresetId;
@@ -282,6 +292,7 @@ internal sealed class LayoutPresetManagerViewModel : ViewModelBase, IDisposable
             {
                 Name = draftName;
                 Error = previousError;
+                errorSource = previousErrorSource;
             }
         }
         finally
@@ -295,8 +306,27 @@ internal sealed class LayoutPresetManagerViewModel : ViewModelBase, IDisposable
         Refresh();
     }
 
+    private void OnLanguageChanged(object? sender, EventArgs e)
+    {
+        foreach (var row in Presets)
+        {
+            row.RefreshLocalization();
+        }
+
+        if (errorSource is not null)
+        {
+            Error = LayoutValidationFailure.GetDisplayMessage(errorSource);
+        }
+    }
+
     private void OnPersistenceFailed(Exception exception)
     {
-        Error = exception.Message;
+        ReportError(exception);
+    }
+
+    private void ReportError(Exception exception)
+    {
+        errorSource = exception;
+        Error = LayoutValidationFailure.GetDisplayMessage(exception);
     }
 }

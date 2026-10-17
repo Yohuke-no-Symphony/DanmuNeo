@@ -1,3 +1,4 @@
+using Yohuke.DanmuNeo.I18n;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -144,7 +145,7 @@ public sealed partial class LogPanelView : UserControl, IDisposable
         }
         catch (Exception error)
         {
-            log?.Error("日志", "复制日志失败。", error);
+            log?.Error(Localization.Get("UI.LogPanelView.LogSource"), Localization.Get("UI.LogPanelView.CopyFailed"), error);
         }
     }
 }

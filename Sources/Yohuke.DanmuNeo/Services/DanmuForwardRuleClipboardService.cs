@@ -1,3 +1,4 @@
+using Yohuke.DanmuNeo.I18n;
 using System.Text.Json;
 using Yohuke.DanmuNeo.Models.State;
 using Yohuke.DanmuNeo.Models.Workspace;
@@ -40,7 +41,8 @@ public static class DanmuForwardRuleClipboardService
     {
         if (rules is null)
         {
-            throw new InvalidDataException("没有可复制的转发规则。");
+            throw LocalizedExceptionText.Create("Services.ForwardRuleClipboard.NoRulesToCopy",
+                message => new InvalidDataException(message));
         }
 
         var package = new DanmuForwardRuleClipboardPackage();
@@ -50,12 +52,14 @@ public static class DanmuForwardRuleClipboardService
         {
             if (rule is null)
             {
-                throw new InvalidDataException("转发规则包含空条目，无法复制。");
+                throw LocalizedExceptionText.Create("Services.ForwardRuleClipboard.NullRule",
+                    message => new InvalidDataException(message));
             }
 
             if (package.Rules.Count >= MAX_RULE_COUNT)
             {
-                throw new InvalidDataException($"一次最多复制 {MAX_RULE_COUNT} 条转发规则。");
+                throw LocalizedExceptionText.Create("Services.ForwardRuleClipboard.CopyLimit",
+                    message => new InvalidDataException(message), MAX_RULE_COUNT);
             }
 
             var entry = new DanmuForwardRuleClipboardEntry
@@ -73,7 +77,8 @@ public static class DanmuForwardRuleClipboardService
 
             if (configurationLength > MAX_TEXT_LENGTH)
             {
-                throw new InvalidDataException("转发规则内容过大，请减少复制的规则数量或内容。");
+                throw LocalizedExceptionText.Create("Services.ForwardRuleClipboard.CopyTooLarge",
+                    message => new InvalidDataException(message));
             }
 
             package.Rules.Add(entry);
@@ -81,14 +86,16 @@ public static class DanmuForwardRuleClipboardService
 
         if (package.Rules.Count == 0)
         {
-            throw new InvalidDataException("没有可复制的转发规则。");
+            throw LocalizedExceptionText.Create("Services.ForwardRuleClipboard.NoRulesToCopy",
+                message => new InvalidDataException(message));
         }
 
         var text = JsonSerializer.Serialize(package, JSON_OPTIONS);
 
         if (text.Length > MAX_TEXT_LENGTH)
         {
-            throw new InvalidDataException("转发规则内容过大，请减少复制的规则数量或内容。");
+            throw LocalizedExceptionText.Create("Services.ForwardRuleClipboard.CopyTooLarge",
+                message => new InvalidDataException(message));
         }
 
         return text;
@@ -102,24 +109,28 @@ public static class DanmuForwardRuleClipboardService
     {
         if (string.IsNullOrWhiteSpace(text))
         {
-            throw new InvalidDataException("剪贴板中没有转发规则文本。");
+            throw LocalizedExceptionText.Create("Services.ForwardRuleClipboard.ClipboardEmpty",
+                message => new InvalidDataException(message));
         }
 
         if (text.Length > MAX_TEXT_LENGTH)
         {
-            throw new InvalidDataException("剪贴板中的转发规则内容过大。");
+            throw LocalizedExceptionText.Create("Services.ForwardRuleClipboard.ClipboardTooLarge",
+                message => new InvalidDataException(message));
         }
 
         try
         {
             using var document = JsonDocument.Parse(text, new() { MaxDepth = MAX_JSON_DEPTH });
             var root = document.RootElement;
-            ValidateObjectFields(root, PACKAGE_FIELDS, "转发规则配置包");
-            var format = ReadString(root, nameof(DanmuForwardRuleClipboardPackage.Format), "转发规则配置包");
+            Func<string> packageContext = () => Localization.Get("Services.ForwardRuleClipboard.PackageContext");
+            ValidateObjectFields(root, PACKAGE_FIELDS, packageContext);
+            var format = ReadString(root, nameof(DanmuForwardRuleClipboardPackage.Format), packageContext);
 
             if (format != DanmuForwardRuleClipboardPackage.FORMAT)
             {
-                throw new InvalidDataException("剪贴板内容不是支持的转发规则格式。");
+                throw LocalizedExceptionText.Create("Services.ForwardRuleClipboard.UnsupportedFormat",
+                    message => new InvalidDataException(message));
             }
 
             var version = root.GetProperty(nameof(DanmuForwardRuleClipboardPackage.Version));
@@ -127,26 +138,30 @@ public static class DanmuForwardRuleClipboardService
             if (version.ValueKind != JsonValueKind.Number || !version.TryGetInt32(out var versionNumber) ||
                 versionNumber != DanmuForwardRuleClipboardPackage.CURRENT_VERSION)
             {
-                throw new InvalidDataException("不支持此转发规则格式版本。");
+                throw LocalizedExceptionText.Create("Services.ForwardRuleClipboard.UnsupportedVersion",
+                    message => new InvalidDataException(message));
             }
 
             var rules = root.GetProperty(nameof(DanmuForwardRuleClipboardPackage.Rules));
 
             if (rules.ValueKind != JsonValueKind.Array || rules.GetArrayLength() == 0)
             {
-                throw new InvalidDataException("转发规则列表必须是非空数组。");
+                throw LocalizedExceptionText.Create("Services.ForwardRuleClipboard.NonemptyArrayRequired",
+                    message => new InvalidDataException(message));
             }
 
             if (rules.GetArrayLength() > MAX_RULE_COUNT)
             {
-                throw new InvalidDataException($"一次最多粘贴 {MAX_RULE_COUNT} 条转发规则。");
+                throw LocalizedExceptionText.Create("Services.ForwardRuleClipboard.PasteLimit",
+                    message => new InvalidDataException(message), MAX_RULE_COUNT);
             }
 
             var entries = new List<DanmuForwardRuleClipboardEntry>(rules.GetArrayLength());
 
             foreach (var rule in rules.EnumerateArray())
             {
-                var context = $"第 {entries.Count + 1} 条转发规则";
+                var ruleNumber = entries.Count + 1;
+                Func<string> context = () => Localization.Format("Services.ForwardRuleClipboard.RuleContext", ruleNumber);
                 ValidateObjectFields(rule, ENTRY_FIELDS, context);
                 entries.Add(new()
                 {
@@ -171,7 +186,8 @@ public static class DanmuForwardRuleClipboardService
         }
         catch (JsonException exception)
         {
-            throw new InvalidDataException("剪贴板中的转发规则文本不是有效的 JSON 配置。", exception);
+            throw LocalizedExceptionText.Create("Services.ForwardRuleClipboard.InvalidJson",
+                message => new InvalidDataException(message, exception));
         }
     }
 
@@ -180,11 +196,12 @@ public static class DanmuForwardRuleClipboardService
         return text ?? "";
     }
 
-    private static void ValidateObjectFields(JsonElement value, IReadOnlySet<string> fields, string context)
+    private static void ValidateObjectFields(JsonElement value, IReadOnlySet<string> fields, Func<string> context)
     {
         if (value.ValueKind != JsonValueKind.Object)
         {
-            throw new InvalidDataException($"{context}必须是完整对象，不能是空条目或其他类型。");
+            throw LocalizedExceptionText.Create("Services.ForwardRuleClipboard.ObjectRequired",
+                message => new InvalidDataException(message), context);
         }
 
         var found = new HashSet<string>(StringComparer.Ordinal);
@@ -193,22 +210,25 @@ public static class DanmuForwardRuleClipboardService
         {
             if (!fields.Contains(property.Name))
             {
-                throw new InvalidDataException($"{context}包含不支持的字段。");
+                throw LocalizedExceptionText.Create("Services.ForwardRuleClipboard.UnsupportedField",
+                    message => new InvalidDataException(message), context);
             }
 
             if (!found.Add(property.Name))
             {
-                throw new InvalidDataException($"{context}包含重复字段。");
+                throw LocalizedExceptionText.Create("Services.ForwardRuleClipboard.DuplicateField",
+                    message => new InvalidDataException(message), context);
             }
         }
 
         if (found.Count != fields.Count)
         {
-            throw new InvalidDataException($"{context}缺少必要字段。");
+            throw LocalizedExceptionText.Create("Services.ForwardRuleClipboard.MissingField",
+                message => new InvalidDataException(message), context);
         }
     }
 
-    private static string ReadString(JsonElement value, string name, string context)
+    private static string ReadString(JsonElement value, string name, Func<string> context)
     {
         var property = value.GetProperty(name);
 
@@ -216,7 +236,8 @@ public static class DanmuForwardRuleClipboardService
         {
             JsonValueKind.String => property.GetString()!,
             JsonValueKind.Null => "",
-            _ => throw new InvalidDataException($"{context}的 {name} 必须是字符串或 null。")
+            _ => throw LocalizedExceptionText.Create("Services.ForwardRuleClipboard.StringRequired",
+                message => new InvalidDataException(message), context, name)
         };
     }
 }

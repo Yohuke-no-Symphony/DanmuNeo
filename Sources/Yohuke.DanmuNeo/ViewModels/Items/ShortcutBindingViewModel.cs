@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Models.State;
 using Yohuke.DanmuNeo.Services;
 
@@ -104,7 +105,18 @@ public partial class ShortcutBindingViewModel : ObservableObject
     /// <summary>
     /// 冲突提示。
     /// </summary>
-    public string ConflictText => IsConflicted ? "与其他快捷键冲突" : "";
+    public string ConflictText => IsConflicted ? Localization.Get("Shortcut.Conflict") : "";
+
+    /// <summary>
+    /// 在现有绑定上刷新语言，不修改快捷键或录制状态。
+    /// </summary>
+    public void RefreshLocalization()
+    {
+        OnPropertyChanged(nameof(Name));
+        OnPropertyChanged(nameof(DefaultGestureText));
+        OnPropertyChanged(nameof(DisplayGestureText));
+        OnPropertyChanged(nameof(ConflictText));
+    }
 
     /// <summary>
     /// 设置快捷键文本。

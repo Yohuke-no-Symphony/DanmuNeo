@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using Yohuke.DanmuNeo.I18n;
 
 namespace Yohuke.DanmuNeo.Models.State;
 
@@ -49,14 +50,21 @@ public partial class BilibiliAccount : ObservableObject
     /// <summary>
     /// Cookie 绑定状态。
     /// </summary>
-    public string CookieStatus => string.IsNullOrWhiteSpace(Cookie) ? "未绑定" : "已绑定";
+    public string CookieStatus => Localization.Get(string.IsNullOrWhiteSpace(Cookie)
+        ? "App.Cookie.NotBound" : "App.Cookie.Bound");
 
     /// <summary>
     /// Cookie 摘要。
     /// </summary>
     public string CookieSummary => string.IsNullOrWhiteSpace(Cookie)
-        ? "尚未配置 Cookie"
-        : $"Cookie 尾段 {Cookie[^Math.Min(8, Cookie.Length)..]}";
+        ? Localization.Get("App.Cookie.EmptyAccount")
+        : Localization.Format("App.Cookie.Summary", Cookie[^Math.Min(8, Cookie.Length)..]);
+
+    internal void RefreshLocalization()
+    {
+        OnPropertyChanged(nameof(CookieStatus));
+        OnPropertyChanged(nameof(CookieSummary));
+    }
 
     /// <summary>
     /// 是否为全局默认账号。

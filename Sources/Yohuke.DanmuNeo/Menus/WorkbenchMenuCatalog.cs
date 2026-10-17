@@ -1,6 +1,7 @@
 using Avalonia.Input;
 using CommunityToolkit.Mvvm.Input;
 using Lucide.Avalonia;
+using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Layouts;
 
 namespace Yohuke.DanmuNeo.Menus;
@@ -42,6 +43,7 @@ internal sealed class WorkbenchMenuCatalog : IDisposable
         }
 
         layouts.Changed += OnLayoutChanged;
+        Localization.LanguageChanged += OnLanguageChanged;
     }
 
     internal event Action? Changed;
@@ -70,48 +72,37 @@ internal sealed class WorkbenchMenuCatalog : IDisposable
                     layoutCommands.Add(preset.Id, command);
                 }
 
-                layoutEntries.Add(new($"layout:{preset.Id}", preset.Name, GetLayoutIcon(preset.Id), command,
+                layoutEntries.Add(new($"layout:{preset.Id}", WorkspaceLayoutPresets.GetDisplayName(preset.Id, preset.Name), GetLayoutIcon(preset.Id), command,
                     layouts.CurrentPresetId == preset.Id, true));
             }
 
             layoutEntries.AddRange([
                 new("separator:layout-actions", "", IsSeparator: true),
-                new("layout-save", "保存当前布局", LucideIconKind.Save, saveLayout),
-                new("layout-save-as", "另存为布局…", LucideIconKind.SaveAll, saveAsLayout),
-                new("layout-manage", "管理布局…", LucideIconKind.SlidersHorizontal, manageLayouts),
-                new("layout-default", "恢复默认布局", LucideIconKind.RotateCcw, restoreDefault)
+                new("layout-save", Localization.Get("Layout.SaveCurrent"), LucideIconKind.Save, saveLayout),
+                new("layout-save-as", Localization.Get("Layout.SaveAsMenu"), LucideIconKind.SaveAll, saveAsLayout),
+                new("layout-manage", Localization.Get("Layout.ManageMenu"), LucideIconKind.SlidersHorizontal, manageLayouts),
+                new("layout-default", Localization.Get("Layout.RestoreDefault"), LucideIconKind.RotateCcw, restoreDefault)
             ]);
             return
             [
-                new("application", "应用", Children:
-                [new("settings", "设置…", LucideIconKind.Settings, SettingsCommand, Gesture: new(Key.OemComma,
+                new("application", Localization.Get("Workbench.Menu.Application"), Children:
+                [new("settings", Localization.Get("Workbench.Menu.Settings"), LucideIconKind.Settings, SettingsCommand, Gesture: new(Key.OemComma,
                     OperatingSystem.IsMacOS() ? KeyModifiers.Meta : KeyModifiers.Control))]),
-                new("views", "视图", Children: WorkbenchPanelIds.All.Select(id =>
+                new("views", Localization.Get("Workbench.Menu.Views"), Children: WorkbenchPanelIds.All.Select(id =>
                     new WorkbenchMenuEntry($"panel:{id}",
                         id == WorkbenchPanelIds.LOG ? layouts.PanelAdapters[id].Title : GetPanelTitle(id),
                         GetPanelIcon(id), panelCommands[id])).ToArray()),
-                new("layouts", "布局", Children: layoutEntries),
-                new("help", "帮助", Children:
-                [new("about", "关于", LucideIconKind.Info, about), new("update", "检查更新", LucideIconKind.Download, update)])
+                new("layouts", Localization.Get("Workbench.Menu.Layouts"), Children: layoutEntries),
+                new("help", Localization.Get("Workbench.Menu.Help"), Children:
+                [new("about", Localization.Get("Workbench.Menu.About"), LucideIconKind.Info, about),
+                    new("update", Localization.Get("Workbench.Menu.CheckUpdates"), LucideIconKind.Download, update)])
             ];
         }
     }
 
     internal static string GetPanelTitle(string id)
     {
-        return id switch
-        {
-            WorkbenchPanelIds.WORKSPACE => "工作区",
-            WorkbenchPanelIds.LIVE_PLAYER => "追帧",
-            WorkbenchPanelIds.COMPOSER => "输入框",
-            WorkbenchPanelIds.SUPER_CHAT => "SC",
-            WorkbenchPanelIds.DANMU => "弹幕",
-            WorkbenchPanelIds.HISTORY => "历史",
-            WorkbenchPanelIds.LYRICS => "歌词",
-            WorkbenchPanelIds.FORWARDING => "转发",
-            WorkbenchPanelIds.LOG => "日志",
-            _ => throw new ArgumentOutOfRangeException(nameof(id))
-        };
+        return WorkbenchDockPanel.GetLocalizedTitle(id);
     }
 
     private static LucideIconKind GetPanelIcon(string id)
@@ -157,9 +148,15 @@ internal sealed class WorkbenchMenuCatalog : IDisposable
     public void Dispose()
     {
         layouts.Changed -= OnLayoutChanged;
+        Localization.LanguageChanged -= OnLanguageChanged;
     }
 
     private void OnLayoutChanged(object? sender, EventArgs e)
+    {
+        Refresh();
+    }
+
+    private void OnLanguageChanged(object? sender, EventArgs e)
     {
         Refresh();
     }

@@ -1,3 +1,5 @@
+using Yohuke.DanmuNeo.I18n;
+
 namespace Yohuke.DanmuNeo.Models.State;
 
 /// <summary>
@@ -5,6 +7,9 @@ namespace Yohuke.DanmuNeo.Models.State;
 /// </summary>
 public class ShortcutActionDefinition
 {
+    private readonly string groupNameKey;
+    private readonly string nameKey;
+
     /// <summary>
     /// 初始化快捷键动作定义。
     /// </summary>
@@ -17,8 +22,8 @@ public class ShortcutActionDefinition
     {
         ActionKey = actionKey;
         GroupKey = groupKey;
-        GroupName = groupName;
-        Name = name;
+        groupNameKey = groupName;
+        nameKey = name;
         DefaultGestureText = defaultGestureText;
     }
 
@@ -35,12 +40,12 @@ public class ShortcutActionDefinition
     /// <summary>
     /// 分组名称。
     /// </summary>
-    public string GroupName { get; }
+    public string GroupName => Localization.Get(groupNameKey);
 
     /// <summary>
     /// 显示名称。
     /// </summary>
-    public string Name { get; }
+    public string Name => Localization.Get(nameKey);
 
     /// <summary>
     /// 默认快捷键文本。

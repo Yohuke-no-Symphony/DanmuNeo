@@ -1,3 +1,4 @@
+using Yohuke.DanmuNeo.I18n;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -19,7 +20,7 @@ public partial class MainWindowViewModel
 
     [ObservableProperty] private bool isUpdateDialogOpen;
     [ObservableProperty] private bool isCheckingForUpdates;
-    [ObservableProperty] private string updateCheckMessage = "发现新版本";
+    [ObservableProperty] private string updateCheckMessage = Localization.Get("App.Updates.Available");
 
     /// <summary>
     /// 是否在启动时自动检查应用更新。
@@ -97,7 +98,7 @@ public partial class MainWindowViewModel
         isManualUpdateCheck = manual;
         AvailableUpdate = null;
         IsCheckingForUpdates = true;
-        UpdateCheckMessage = "正在检查更新…";
+        SetLocalizedProperty(nameof(UpdateCheckMessage), "App.Updates.Checking");
         return updateCheckTask = CheckForUpdatesCoreAsync(tokenSource);
     }
 
@@ -121,8 +122,8 @@ public partial class MainWindowViewModel
                 }
 
                 AvailableUpdate = update;
-                UpdateCheckMessage = update is null ? "当前已是最新版本" : "发现新版本";
-                Log.Information("检查更新", UpdateCheckMessage, update?.Version.ToString());
+                SetLocalizedProperty(nameof(UpdateCheckMessage), update is null ? "App.Updates.Latest" : "App.Updates.Available");
+                Log.Information(Localization.Get("App.Updates.Source"), UpdateCheckMessage, update?.Version.ToString());
                 IsUpdateDialogOpen = isManualUpdateCheck || update is not null && CheckForUpdatesOnStartup;
             });
         }
@@ -138,11 +139,11 @@ public partial class MainWindowViewModel
                     return;
                 }
 
-                LogErrorOnce("检查更新", "检查更新失败，请检查网络后重试。", exception);
+                LogErrorOnce(Localization.Get("App.Updates.Source"), Localization.Get("App.Updates.Failed"), exception);
 
                 if (isManualUpdateCheck)
                 {
-                    UpdateCheckMessage = "检查更新失败，请检查网络后重试。";
+                    SetLocalizedProperty(nameof(UpdateCheckMessage), "App.Updates.Failed");
                     IsUpdateDialogOpen = true;
                 }
             });

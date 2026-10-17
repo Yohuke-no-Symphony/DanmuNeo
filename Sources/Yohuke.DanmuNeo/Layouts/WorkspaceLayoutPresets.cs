@@ -1,3 +1,5 @@
+using Yohuke.DanmuNeo.I18n;
+
 namespace Yohuke.DanmuNeo.Layouts;
 
 internal static class WorkspaceLayoutPresets
@@ -24,6 +26,19 @@ internal static class WorkspaceLayoutPresets
         };
     }
 
+    internal static string GetDisplayName(string id, string customName)
+    {
+        var key = id switch
+        {
+            DEFAULT => "Layout.Preset.Default",
+            TRANSLATION => "Layout.Preset.Translation",
+            LYRICS => "Layout.Preset.Lyrics",
+            FORWARDING => "Layout.Preset.Forwarding",
+            _ => null
+        };
+        return key is null ? customName : Localization.Get(key);
+    }
+
     internal static WorkspaceLayoutSnapshot Create(string presetId)
     {
         var mainPanelId = presetId switch
@@ -31,7 +46,7 @@ internal static class WorkspaceLayoutPresets
             DEFAULT or TRANSLATION => WorkbenchPanelIds.LIVE_PLAYER,
             LYRICS => WorkbenchPanelIds.LYRICS,
             FORWARDING => WorkbenchPanelIds.FORWARDING,
-            _ => throw new ArgumentException("未知的内置布局。", nameof(presetId))
+            _ => throw new ArgumentException(Localization.Get("Layout.UnknownBuiltIn"), nameof(presetId))
         };
         var right = presetId switch
         {

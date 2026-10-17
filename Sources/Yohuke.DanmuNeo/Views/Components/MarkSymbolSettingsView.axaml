@@ -11,9 +11,9 @@
                 <Grid ColumnDefinitions="*,Auto"
                       ColumnSpacing="8">
                     <StackPanel>
-                        <TextBlock Text="标签组"
+                        <TextBlock Text="{Loc Key=UI.MarkSymbolSettingsView.Title}"
                                    Classes="sectionTitle"/>
-                        <TextBlock Text="每个工作区可选择一个标签组，用于同传和歌词发送。"
+                        <TextBlock Text="{Loc Key=UI.MarkSymbolSettingsView.GroupsHint}"
                                    Classes="muted"/>
                     </StackPanel>
 	                    <Button Grid.Column="1"
@@ -21,7 +21,7 @@
 	                        <StackPanel Orientation="Horizontal"
 	                                    Spacing="6">
 	                            <LucideIcon Kind="FolderPlus"/>
-	                            <TextBlock Text="新增标签组"/>
+	                            <TextBlock Text="{Loc Key=UI.MarkSymbolSettingsView.AddGroup}"/>
 	                        </StackPanel>
 	                    </Button>
                 </Grid>
@@ -42,25 +42,25 @@
                                         <StackPanel Grid.Column="1"
                                                     Spacing="2">
                                             <TextBox Text="{Binding Name}"
-                                                     Watermark="标签组名称"/>
+                                                     Watermark="{Loc Key=UI.MarkSymbolSettingsView.GroupName}"/>
                                         </StackPanel>
 	                                        <Button Grid.Column="2"
 	                                                Classes="iconButton"
-	                                                ToolTip.Tip="上移"
+	                                                ToolTip.Tip="{Loc Key=UI.MarkSymbolSettingsView.MoveUp}"
 	                                                Command="{Binding #Root.MoveSymbolGroupUpCommand}"
 	                                                CommandParameter="{Binding}">
 	                                            <LucideIcon Kind="SquareArrowUp"/>
 	                                        </Button>
 	                                        <Button Grid.Column="3"
 	                                                Classes="iconButton"
-	                                                ToolTip.Tip="下移"
+	                                                ToolTip.Tip="{Loc Key=UI.MarkSymbolSettingsView.MoveDown}"
 	                                                Command="{Binding #Root.MoveSymbolGroupDownCommand}"
 	                                                CommandParameter="{Binding}">
 	                                            <LucideIcon Kind="SquareArrowDown"/>
 	                                        </Button>
 	                                        <Button Grid.Column="4"
 	                                                Classes="iconButton"
-	                                                ToolTip.Tip="删除"
+	                                                ToolTip.Tip="{Loc Key=UI.MarkSymbolSettingsView.Delete}"
 	                                                Command="{Binding #Root.DeleteSymbolGroupCommand}"
 	                                                CommandParameter="{Binding}">
 	                                            <LucideIcon Kind="Trash2"/>
@@ -72,30 +72,30 @@
                                           ColumnSpacing="8"
                                           IsVisible="{Binding IsExpanded}">
                                         <StackPanel Spacing="4">
-                                            <TextBlock Text="同传文本前自动添加"
+                                            <TextBlock Text="{Loc Key=UI.MarkSymbolSettingsView.TranslationPrefixHint}"
                                                        Classes="muted"/>
-                                            <TextBox Watermark="同传开"
+                                            <TextBox Watermark="{Loc Key=UI.MarkSymbolSettingsView.TranslationPrefix}"
                                                      Text="{Binding TranslateOpenMark}"/>
                                         </StackPanel>
                                         <StackPanel Grid.Column="1"
                                                     Spacing="4">
-                                            <TextBlock Text="同传文本后自动添加"
+                                            <TextBlock Text="{Loc Key=UI.MarkSymbolSettingsView.TranslationSuffixHint}"
                                                        Classes="muted"/>
-                                            <TextBox Watermark="同传闭"
+                                            <TextBox Watermark="{Loc Key=UI.MarkSymbolSettingsView.TranslationSuffix}"
                                                      Text="{Binding TranslateCloseMark}"/>
                                         </StackPanel>
                                         <StackPanel Grid.Column="2"
                                                     Spacing="4">
-                                            <TextBlock Text="歌词文本前自动添加"
+                                            <TextBlock Text="{Loc Key=UI.MarkSymbolSettingsView.LyricPrefixHint}"
                                                        Classes="muted"/>
-                                            <TextBox Watermark="歌词开"
+                                            <TextBox Watermark="{Loc Key=UI.MarkSymbolSettingsView.LyricPrefix}"
                                                      Text="{Binding LyricOpenMark}"/>
                                         </StackPanel>
                                         <StackPanel Grid.Column="3"
                                                     Spacing="4">
-                                            <TextBlock Text="歌词文本后自动添加"
+                                            <TextBlock Text="{Loc Key=UI.MarkSymbolSettingsView.LyricSuffixHint}"
                                                        Classes="muted"/>
-                                            <TextBox Watermark="歌词闭"
+                                            <TextBox Watermark="{Loc Key=UI.MarkSymbolSettingsView.LyricSuffix}"
                                                      Text="{Binding LyricCloseMark}"/>
                                         </StackPanel>
                                     </Grid>

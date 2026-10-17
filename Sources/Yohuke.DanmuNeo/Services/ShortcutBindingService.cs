@@ -1,3 +1,4 @@
+using Yohuke.DanmuNeo.I18n;
 using Avalonia.Input;
 using Yohuke.DanmuNeo.Models.State;
 
@@ -247,10 +248,10 @@ public static class ShortcutBindingService
     {
         if (string.IsNullOrWhiteSpace(text))
         {
-            return "未设置";
+            return Localization.Get("Services.Shortcut.NotSet");
         }
 
-        return TryNormalizeGestureText(text, out var gestureText) ? gestureText : "无效";
+        return TryNormalizeGestureText(text, out var gestureText) ? gestureText : Localization.Get("Services.Shortcut.Invalid");
     }
 
     private static ShortcutBindingState CreateDefaultBinding(ShortcutActionDefinition definition)

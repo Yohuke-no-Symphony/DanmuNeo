@@ -1,6 +1,8 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Automation;
+using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Layouts;
 using Yohuke.DanmuNeo.Windowing;
 
@@ -25,6 +27,7 @@ public partial class FloatingWindowPinButton : UserControl
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
+        Localization.LanguageChanged += OnLanguageChanged;
         window = TopLevel.GetTopLevel(this) as WorkbenchFloatingHostWindow;
         IsVisible = window is not null;
 
@@ -38,6 +41,7 @@ public partial class FloatingWindowPinButton : UserControl
     /// <inheritdoc />
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
+        Localization.LanguageChanged -= OnLanguageChanged;
         if (window is not null)
         {
             window.PropertyChanged -= OnWindowPropertyChanged;
@@ -77,10 +81,17 @@ public partial class FloatingWindowPinButton : UserControl
         WindowTopmostButton.Classes.Set("selected", independentlyTopmost);
         PinOutlineIcon.IsVisible = !independentlyTopmost;
         PinSolidIcon.IsVisible = independentlyTopmost;
-        ToolTip.SetTip(WindowTopmostButton, independentlyTopmost
-            ? "取消此窗口独立置顶"
+        var tip = Localization.Get(independentlyTopmost
+            ? "UI.FloatingWindowPinButton.UnpinIndependently"
             : window.Topmost
-                ? "独立置顶此窗口（当前跟随主窗口置顶）"
-                : "独立置顶此窗口");
+                ? "UI.FloatingWindowPinButton.PinWhileFollowingOwner"
+                : "UI.FloatingWindowPinButton.PinIndependently");
+        ToolTip.SetTip(WindowTopmostButton, tip);
+        AutomationProperties.SetName(WindowTopmostButton, tip);
+    }
+
+    private void OnLanguageChanged(object? sender, EventArgs e)
+    {
+        RefreshState();
     }
 }

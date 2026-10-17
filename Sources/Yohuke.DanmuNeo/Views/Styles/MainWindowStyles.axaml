@@ -867,7 +867,7 @@
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
         <Setter Property="VerticalAlignment" Value="Center" />
         <Setter Property="Cursor" Value="Hand" />
-        <Setter Property="ToolTip.Tip" Value="点击复制用户名" />
+        <Setter Property="ToolTip.Tip" Value="{Loc Key=UI.MainWindowStyles.CopyUserName}" />
     </Style>
 
     <Style Selector="TextBlock.danmuFeedUser">
@@ -996,7 +996,7 @@
     </Style>
 
     <Style Selector="Button.scFeedButton.guardPurchase">
-        <Setter Property="ToolTip.Tip" Value="点击复制用户名" />
+        <Setter Property="ToolTip.Tip" Value="{Loc Key=UI.MainWindowStyles.CopyUserName}" />
     </Style>
 
     <Style Selector="Button.scFeedButton.guardPurchase Grid.scFeedLayout">

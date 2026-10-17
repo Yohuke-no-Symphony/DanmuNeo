@@ -1,3 +1,4 @@
+using Yohuke.DanmuNeo.I18n;
 using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
@@ -41,7 +42,7 @@ public class WorkbenchRoomPanel : UserControl, IDisposable
     {
         if (Context is not null)
         {
-            throw new InvalidOperationException("工作台面板已经连接上下文。");
+            throw new InvalidOperationException(Localization.Get("UI.WorkbenchRoomPanel.ContextAlreadyInitialized"));
         }
 
         SetAndRaise(ContextProperty, ref this.context, context);

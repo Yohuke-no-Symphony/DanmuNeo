@@ -1,3 +1,4 @@
+using Yohuke.DanmuNeo.I18n;
 using System.Net;
 using Yohuke.DanmuNeo.Apis;
 using Yohuke.DanmuNeo.Models.BrowserLogin;
@@ -39,9 +40,9 @@ public class BrowserCookieLoginService
     {
         return platform switch
         {
-            BrowserLoginPlatform.Bilibili => "B 站",
-            BrowserLoginPlatform.QQMusic => "QQ 音乐",
-            _ => "未知平台"
+            BrowserLoginPlatform.Bilibili => Localization.Get("Services.BrowserLogin.Bilibili"),
+            BrowserLoginPlatform.QQMusic => Localization.Get("Services.BrowserLogin.QqMusic"),
+            _ => Localization.Get("Services.BrowserLogin.UnknownPlatform")
         };
     }
 
@@ -84,14 +85,16 @@ public class BrowserCookieLoginService
 
         if (string.IsNullOrWhiteSpace(sessData) || string.IsNullOrWhiteSpace(biliJct))
         {
-            throw new InvalidOperationException("没有在浏览器中读取到 B 站登录 Cookie，请确认已完成登录。");
+            throw LocalizedExceptionText.Create("Services.BrowserLogin.BilibiliCookiesMissing",
+                message => new InvalidOperationException(message));
         }
 
         return new()
         {
             Platform = BrowserLoginPlatform.Bilibili,
             Cookie = cookie,
-            Message = "已读取 B 站 Cookie"
+            Message = Localization.Get("Services.BrowserLogin.BilibiliCookiesRead"),
+            MessageKey = "Services.BrowserLogin.BilibiliCookiesRead"
         };
     }
 
@@ -108,14 +111,16 @@ public class BrowserCookieLoginService
 
         if (string.IsNullOrWhiteSpace(uin) || string.IsNullOrWhiteSpace(qmKeyst))
         {
-            throw new InvalidOperationException("没有在浏览器中读取到 QQ 音乐登录 Cookie，请确认已完成登录。");
+            throw LocalizedExceptionText.Create("Services.BrowserLogin.QqMusicCookiesMissing",
+                message => new InvalidOperationException(message));
         }
 
         return new()
         {
             Platform = BrowserLoginPlatform.QQMusic,
             Cookie = $"uin={uin};qm_keyst={qmKeyst}",
-            Message = "已读取 QQ 音乐 Cookie"
+            Message = Localization.Get("Services.BrowserLogin.QqMusicCookiesRead"),
+            MessageKey = "Services.BrowserLogin.QqMusicCookiesRead"
         };
     }
 

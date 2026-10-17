@@ -8,21 +8,21 @@
     <StackPanel Spacing="18">
         <Border Classes="panel" Padding="14">
             <StackPanel Spacing="10">
-                <TextBlock Text="工作区"
+                <TextBlock Text="{Loc Key=UI.WorkspaceSettingsView.Workspace}"
                            Classes="sectionTitle" />
                 <Grid ColumnDefinitions="*,Auto,Auto"
                       ColumnSpacing="8">
                     <TextBox x:Name="WorkspaceNameInput"
                              Text="{Binding SelectedWorkspace.Name}"
-                             Watermark="工作区名称" />
+                             Watermark="{Loc Key=UI.WorkspaceSettingsView.WorkspaceName}" />
                     <Button Grid.Column="1"
-                            ToolTip.Tip="导出分享"
+                            ToolTip.Tip="{Loc Key=UI.WorkspaceSettingsView.ExportShare}"
                             Classes="iconButton"
                             Click="ExportWorkspace_OnClick">
                         <LucideIcon Kind="FileDown" />
                     </Button>
                     <Button Grid.Column="2"
-                            ToolTip.Tip="删除工作区"
+                            ToolTip.Tip="{Loc Key=UI.WorkspaceSettingsView.DeleteWorkspace}"
                             Classes="iconButton"
                             Command="{Binding #Root.OpenDeleteWorkspaceDialogCommand}"
                             CommandParameter="{Binding SelectedWorkspace}">
@@ -36,7 +36,7 @@
 
         <Border Classes="panel" Padding="14">
             <StackPanel Spacing="10">
-                <TextBlock Text="账号覆盖"
+                <TextBlock Text="{Loc Key=UI.WorkspaceSettingsView.AccountOverride}"
                            Classes="sectionTitle" />
                 <TextBlock Text="{Binding SelectedWorkspace.AccountLabel}"
                            Classes="muted" />
@@ -46,7 +46,7 @@
                         <StackPanel Orientation="Horizontal"
                                     Spacing="6">
                             <LucideIcon Kind="Globe" />
-                            <TextBlock Text="使用全局账号" />
+                            <TextBlock Text="{Loc Key=UI.WorkspaceSettingsView.UseGlobalAccount}" />
                         </StackPanel>
                     </Button>
                     <ItemsControl ItemsSource="{Binding Accounts}">
@@ -70,9 +70,9 @@
 
         <Border Classes="panel" Padding="14">
             <StackPanel Spacing="10">
-                <TextBlock Text="标签组"
+                <TextBlock Text="{Loc Key=UI.WorkspaceSettingsView.SymbolGroup}"
                            Classes="sectionTitle" />
-                <TextBlock Text="当前工作区会记住这里选择的同传和歌词标签组。"
+                <TextBlock Text="{Loc Key=UI.WorkspaceSettingsView.SymbolGroupHint}"
                            Classes="muted" />
                 <ComboBox ItemsSource="{Binding SymbolGroups}"
                           SelectedItem="{Binding SelectedWorkspaceMarkGroup}">
@@ -87,7 +87,7 @@
 
         <Border Classes="panel" Padding="14">
             <StackPanel Spacing="10">
-                <TextBlock Text="直播间"
+                <TextBlock Text="{Loc Key=UI.WorkspaceSettingsView.Rooms}"
                            Classes="sectionTitle" />
                 <ItemsControl ItemsSource="{Binding SelectedWorkspace.Rooms}">
                     <ItemsControl.ItemTemplate>
@@ -96,18 +96,18 @@
                                   ColumnSpacing="8"
                                   Margin="0,4">
                                 <TextBox Text="{Binding RoomName, UpdateSourceTrigger=PropertyChanged}"
-                                         Watermark="直播间名称"
+                                         Watermark="{Loc Key=UI.WorkspaceSettingsView.RoomName}"
                                          LostFocus="RoomInfo_OnLostFocus" />
                                 <TextBox Grid.Column="1"
                                          Text="{Binding RoomId, UpdateSourceTrigger=PropertyChanged}"
-                                         Watermark="直播间 ID"
+                                         Watermark="{Loc Key=UI.WorkspaceSettingsView.RoomId}"
                                          LostFocus="RoomInfo_OnLostFocus" />
                                 <TextBox Grid.Column="2"
                                          Text="{Binding OwnerUid, UpdateSourceTrigger=PropertyChanged}"
-                                         Watermark="主播 UID"
+                                         Watermark="{Loc Key=UI.WorkspaceSettingsView.StreamerUid}"
                                          LostFocus="RoomInfo_OnLostFocus" />
                                 <Button Grid.Column="3"
-                                        ToolTip.Tip="删除直播间"
+                                        ToolTip.Tip="{Loc Key=UI.WorkspaceSettingsView.DeleteRoom}"
                                         Classes="iconButton"
                                         Command="{Binding #Root.OpenDeleteRoomDialogCommand}"
                                         CommandParameter="{Binding}">

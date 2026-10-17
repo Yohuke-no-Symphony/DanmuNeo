@@ -6,6 +6,11 @@ namespace Yohuke.DanmuNeo.Models.State;
 public class AppSettings
 {
     /// <summary>
+    /// 界面语言标识，system 表示跟随系统。
+    /// </summary>
+    public string Language { get; set; } = "system";
+
+    /// <summary>
     /// 在 macOS 主窗口中显示菜单，默认使用原生系统菜单。
     /// </summary>
     public bool UseWindowMenuOnMac { get; set; }

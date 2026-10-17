@@ -1,3 +1,4 @@
+using Yohuke.DanmuNeo.I18n;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -17,9 +18,9 @@ internal static class WorkspaceLayoutSerializer
     {
         ArgumentNullException.ThrowIfNull(file);
 
-        if (!WorkspaceLayoutValidator.TryValidate(file, out var error))
+        if (!WorkspaceLayoutValidator.TryValidate(file, out _, out var errorKey))
         {
-            throw new InvalidDataException(error);
+            throw LocalizedExceptionText.Create(errorKey, message => new InvalidDataException(message));
         }
 
         return JsonSerializer.Serialize(file, JSON_OPTIONS);
@@ -31,7 +32,7 @@ internal static class WorkspaceLayoutSerializer
 
         if (document.RootElement.ValueKind != JsonValueKind.Object)
         {
-            throw new InvalidDataException("布局文件必须是 JSON 对象。");
+            throw LocalizedExceptionText.Create("Layout.Validation.ObjectRequired", message => new InvalidDataException(message));
         }
 
         foreach (var property in document.RootElement.EnumerateObject())
@@ -40,7 +41,8 @@ internal static class WorkspaceLayoutSerializer
                 property.Value.ValueKind == JsonValueKind.Number &&
                 property.Value.TryGetInt32(out var version) && version > WorkspaceLayoutFile.CURRENT_VERSION)
             {
-                throw new NotSupportedException($"布局文件版本 {version} 高于当前支持的版本，已保留原文件。");
+                throw LocalizedExceptionText.Create("Layout.Validation.FutureVersion",
+                    message => new NotSupportedException(message), version);
             }
         }
 
@@ -48,14 +50,14 @@ internal static class WorkspaceLayoutSerializer
 
         if (file is null)
         {
-            throw new InvalidDataException("布局文件为空。");
+            throw LocalizedExceptionText.Create("Layout.Validation.EmptyFile", message => new InvalidDataException(message));
         }
 
         file = WorkspaceLayoutMigration.Upgrade(file);
 
-        if (!WorkspaceLayoutValidator.TryValidate(file, out var error))
+        if (!WorkspaceLayoutValidator.TryValidate(file, out _, out var errorKey))
         {
-            throw new InvalidDataException(error);
+            throw LocalizedExceptionText.Create(errorKey, message => new InvalidDataException(message));
         }
 
         return file;

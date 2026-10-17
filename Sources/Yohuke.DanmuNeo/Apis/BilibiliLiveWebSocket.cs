@@ -1,3 +1,4 @@
+using Yohuke.DanmuNeo.I18n;
 using System.Buffers;
 using System.Buffers.Binary;
 using System.Diagnostics;
@@ -134,8 +135,10 @@ public class BilibiliLiveWebSocket : BaseApi, ILiveDanmuSocket
     private async Task ConnectOnceAsync(Action onConnected, CancellationToken cancellationToken)
     {
         var danmuInfo = await GetDanmuInfoAsync(cancellationToken);
-        var data = danmuInfo.Data ?? throw new InvalidOperationException("没有获取到弹幕服务器数据。");
-        var host = data.HostList.FirstOrDefault() ?? throw new InvalidOperationException("没有可用的弹幕服务器。");
+        var data = danmuInfo.Data ?? throw LocalizedExceptionText.Create("Services.BilibiliWebSocket.ServerDataMissing",
+            message => new InvalidOperationException(message));
+        var host = data.HostList.FirstOrDefault() ?? throw LocalizedExceptionText.Create("Services.BilibiliWebSocket.ServerMissing",
+            message => new InvalidOperationException(message));
         var uri = CreateWebSocketUri(host);
 
         using var websocket = new ClientWebSocket();
@@ -166,7 +169,8 @@ public class BilibiliLiveWebSocket : BaseApi, ILiveDanmuSocket
 
             if (!connectionToken.IsCancellationRequested)
             {
-                throw new WebSocketException("直播弹幕连接已关闭。");
+                throw LocalizedExceptionText.Create("Services.BilibiliWebSocket.ConnectionClosed",
+                    message => new WebSocketException(message));
             }
         }
         finally
@@ -187,7 +191,8 @@ public class BilibiliLiveWebSocket : BaseApi, ILiveDanmuSocket
 
         if (!cancellationToken.IsCancellationRequested)
         {
-            throw new WebSocketException("直播弹幕心跳已停止。");
+            throw LocalizedExceptionText.Create("Services.BilibiliWebSocket.HeartbeatStopped",
+                message => new WebSocketException(message));
         }
     }
 
@@ -202,7 +207,8 @@ public class BilibiliLiveWebSocket : BaseApi, ILiveDanmuSocket
 
             if (packet.Length == 0)
             {
-                throw new WebSocketException("直播弹幕服务器已关闭连接。");
+                throw LocalizedExceptionText.Create("Services.BilibiliWebSocket.ServerClosed",
+                    message => new WebSocketException(message));
             }
 
             onPacketReceived();
@@ -211,7 +217,8 @@ public class BilibiliLiveWebSocket : BaseApi, ILiveDanmuSocket
 
         if (!cancellationToken.IsCancellationRequested)
         {
-            throw new WebSocketException("直播弹幕接收已停止。");
+            throw LocalizedExceptionText.Create("Services.BilibiliWebSocket.ReceivingStopped",
+                message => new WebSocketException(message));
         }
     }
 
@@ -228,7 +235,8 @@ public class BilibiliLiveWebSocket : BaseApi, ILiveDanmuSocket
                 continue;
             }
 
-            throw new TimeoutException("直播弹幕连接长时间未收到心跳响应。");
+            throw LocalizedExceptionText.Create("Services.BilibiliWebSocket.HeartbeatTimeout",
+                message => new TimeoutException(message));
         }
     }
 
@@ -845,7 +853,8 @@ public class BilibiliLiveWebSocket : BaseApi, ILiveDanmuSocket
                 continue;
             }
 
-            throw new InvalidDataException("Brotli 弹幕包解压失败。");
+            throw LocalizedExceptionText.Create("Services.BilibiliWebSocket.DecompressionFailed",
+                message => new InvalidDataException(message));
         }
     }
 

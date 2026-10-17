@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Avalonia.Logging;
 using Avalonia.Threading;
 using Yohuke.DanmuNeo.Models.Logging;
+using Yohuke.DanmuNeo.I18n;
 
 namespace Yohuke.DanmuNeo.Services;
 
@@ -84,7 +85,8 @@ internal sealed class AppLogRuntimeBridge : IDisposable
         {
             if (!disposed)
             {
-                log.SetDiagnosticError("未处理异常", error);
+                log.SetDiagnosticError(Localization.IsInitialized
+                    ? Localization.Get("Services.Log.Unhandled") : "Unhandled exception", error);
             }
         }
     }

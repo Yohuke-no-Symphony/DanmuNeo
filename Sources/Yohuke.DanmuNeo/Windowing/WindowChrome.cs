@@ -1,3 +1,4 @@
+using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Views.Components;
 using Avalonia;
 using Avalonia.Controls;
@@ -67,7 +68,7 @@ internal static class WindowChrome
     {
         if (!double.IsFinite(size.Width) || !double.IsFinite(size.Height) || size.Width <= 0 || size.Height <= 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(size), "客户区尺寸必须是有限正值。");
+            throw new ArgumentOutOfRangeException(nameof(size), Localization.Get("Window.Chrome.InvalidClientSize"));
         }
     }
 }

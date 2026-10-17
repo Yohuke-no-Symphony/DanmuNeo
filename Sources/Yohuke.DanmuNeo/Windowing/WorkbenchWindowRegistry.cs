@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Yohuke.DanmuNeo.I18n;
 
 namespace Yohuke.DanmuNeo.Windowing;
 
@@ -8,6 +9,7 @@ internal sealed class WorkbenchWindowRegistry : IDisposable
     private readonly Window mainWindow;
     private readonly HashSet<Window> businessWindows = [];
     private readonly Dictionary<string, WorkbenchAuxiliaryWindow> auxiliaryWindows = [];
+    private readonly Dictionary<string, WorkbenchLocalizedBindings> localizedBindings = [];
     private readonly List<Window> modalWindows = [];
     private bool isDisposed;
     private bool shutdownPending;
@@ -17,6 +19,7 @@ internal sealed class WorkbenchWindowRegistry : IDisposable
         this.mainWindow = mainWindow;
         ActiveWindow = mainWindow;
         mainWindow.PropertyChanged += OnMainWindowPropertyChanged;
+        Localization.LanguageChanged += OnLanguageChanged;
     }
 
     internal event Action<Window>? BusinessWindowAdded;
@@ -114,6 +117,47 @@ internal sealed class WorkbenchWindowRegistry : IDisposable
         return window;
     }
 
+    internal Window OpenLocalizedAuxiliary(
+        string key,
+        string titleKey,
+        Func<WorkbenchLocalizedBindings, Control> createContent,
+        bool modal = false,
+        Func<Task>? beforeClose = null,
+        Window? owner = null,
+        double width = 640,
+        double height = 480,
+        WorkbenchAuxiliarySizing sizing = WorkbenchAuxiliarySizing.Resizable)
+    {
+        ObjectDisposedException.ThrowIf(isDisposed, this);
+
+        if (auxiliaryWindows.TryGetValue(key, out var existing))
+        {
+            existing.Activate();
+            return existing;
+        }
+
+        var bindings = new WorkbenchLocalizedBindings();
+
+        try
+        {
+            var window = (WorkbenchAuxiliaryWindow)OpenAuxiliary(key, Localization.Get(titleKey),
+                () => createContent(bindings), modal, beforeClose, owner, width, height, sizing);
+            window.SetLocalizedTitle(titleKey);
+            localizedBindings.Add(key, bindings);
+            window.Closed += (_, _) =>
+            {
+                bindings.Dispose();
+                localizedBindings.Remove(key);
+            };
+            return window;
+        }
+        catch
+        {
+            bindings.Dispose();
+            throw;
+        }
+    }
+
     internal Window? FindAuxiliary(string key)
     {
         return auxiliaryWindows.GetValueOrDefault(key);
@@ -134,6 +178,7 @@ internal sealed class WorkbenchWindowRegistry : IDisposable
 
         isDisposed = true;
         mainWindow.PropertyChanged -= OnMainWindowPropertyChanged;
+        Localization.LanguageChanged -= OnLanguageChanged;
 
         foreach (var window in auxiliaryWindows.Values.Reverse().ToArray())
         {
@@ -143,6 +188,21 @@ internal sealed class WorkbenchWindowRegistry : IDisposable
         foreach (var window in businessWindows.ToArray())
         {
             UnregisterBusinessWindow(window);
+        }
+
+        foreach (var bindings in localizedBindings.Values)
+        {
+            bindings.Dispose();
+        }
+
+        localizedBindings.Clear();
+    }
+
+    private void OnLanguageChanged(object? sender, EventArgs e)
+    {
+        foreach (var window in auxiliaryWindows.Values)
+        {
+            window.RefreshLocalization();
         }
     }
 

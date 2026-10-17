@@ -19,7 +19,7 @@
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
                 <TextBlock x:Name="ApplicationTitleText"
-                           Text="夜半同传"
+                           Text="{Loc Key=UI.TitleBarView.AppName}"
                            Margin="14,0,0,0"
                            VerticalAlignment="Center"
                            FontWeight="SemiBold"
@@ -80,14 +80,14 @@
                         VerticalAlignment="Center">
                 <Button x:Name="DebugToolsButton"
                         Classes="iconButton"
-                        ToolTip.Tip="弹幕与 SC 样式测试"
+                        ToolTip.Tip="{Loc Key=UI.TitleBarView.StylePreview}"
                         IsVisible="False"
                         Click="DebugTools_OnClick">
                     <LucideIcon Kind="Bug" />
                 </Button>
                 <Button x:Name="PinButton"
                         Classes="iconButton"
-                        ToolTip.Tip="窗口置顶"
+                        ToolTip.Tip="{Loc Key=UI.TitleBarView.PinWindow}"
                         Click="Pin_OnClick">
                     <Grid>
                         <LucideIcon x:Name="PinOutlineIcon"

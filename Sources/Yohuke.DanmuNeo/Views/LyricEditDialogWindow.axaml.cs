@@ -1,3 +1,4 @@
+using Yohuke.DanmuNeo.I18n;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -36,6 +37,7 @@ public partial class LyricEditDialogWindow : Window
         DataContext = new LyricEditDialogViewModel(item);
         AddHandler(KeyDownEvent, LyricEditDialogWindow_OnPreviewKeyDown, RoutingStrategies.Tunnel);
         Opened += LyricEditDialogWindow_OnOpened;
+        Closed += (_, _) => (DataContext as LyricEditDialogViewModel)?.Dispose();
     }
 
     private void LyricEditDialogWindow_OnOpened(object? sender, EventArgs e)
@@ -62,8 +64,9 @@ public partial class LyricEditDialogWindow : Window
             }
             catch (Exception exception)
             {
-                viewModel.ErrorText = exception.Message;
-                StartupLog.Append("歌词内容校验失败", Models.Logging.AppLogLevel.WARNING, "歌词编辑", exception);
+                viewModel.SetLocalizedError("UI.LyricEditDialogWindow.ValidationFailed",
+                    new Func<string>(() => LocalizedExceptionText.Get(exception)));
+                StartupLog.Append(Localization.Get("UI.LyricEditDialogWindow.ValidationLogFailed"), Models.Logging.AppLogLevel.WARNING, Localization.Get("UI.LyricEditDialogWindow.LogSource"), exception);
                 return;
             }
 
@@ -92,7 +95,7 @@ public partial class LyricEditDialogWindow : Window
             return;
         }
 
-        StartupLog.Append($"Ignored macOS special key in lyric editor key={e.Key}");
+        StartupLog.Append(Localization.Format("UI.LyricEditDialogWindow.IgnoredSpecialKey", e.Key));
         e.Handled = true;
     }
 

@@ -16,7 +16,7 @@
                       ColumnSpacing="8">
                     <StackPanel Spacing="2"
                                 VerticalAlignment="Center">
-                        <TextBlock Text="设置"
+                        <TextBlock Text="{Loc Key=UI.SettingsDialogView.Title}"
                                    FontSize="20"
                                    FontWeight="SemiBold" />
                         <TextBlock Text="{Binding SelectedSettingsSection.Description}"
@@ -28,7 +28,7 @@
                         <StackPanel Orientation="Horizontal"
                                     Spacing="6">
                             <LucideIcon Kind="Save" />
-                            <TextBlock Text="保存" />
+                            <TextBlock Text="{Loc Key=UI.SettingsDialogView.Save}" />
                         </StackPanel>
                     </Button>
                 </Grid>

@@ -6,6 +6,7 @@ using Avalonia.Threading;
 using Dock.Avalonia.Controls;
 using Dock.Model.Controls;
 using Dock.Model.Core;
+using Yohuke.DanmuNeo.I18n;
 
 namespace Yohuke.DanmuNeo.Layouts;
 
@@ -58,7 +59,7 @@ internal sealed class WorkbenchLayoutController : IAsyncDisposable
             panelViews.Values.Any(view => view is null) ||
             panelViews.Values.Distinct(ReferenceEqualityComparer.Instance).Count() != WorkbenchPanelIds.All.Count)
         {
-            throw new ArgumentException("必须为八个稳定面板 ID 分别提供唯一的视图实例。", nameof(panelViews));
+            throw new ArgumentException(Localization.Get("Layout.UniquePanelViewsRequired"), nameof(panelViews));
         }
 
         var file = WorkspaceLayoutSerializer.Copy(initialLayout);
@@ -79,6 +80,7 @@ internal sealed class WorkbenchLayoutController : IAsyncDisposable
         constraints.Attach(Host);
         owner.Opened += OnOwnerOpened;
         ApplySnapshot(file.CurrentLayout, false);
+        Localization.LanguageChanged += OnLanguageChanged;
     }
 
     internal event EventHandler? Changed;
@@ -170,7 +172,8 @@ internal sealed class WorkbenchLayoutController : IAsyncDisposable
     internal void ApplyPreset(string presetId)
     {
         EnsureUsable();
-        var preset = FindPreset(presetId) ?? throw new ArgumentException("找不到指定的布局预设。", nameof(presetId));
+        var preset = FindPreset(presetId) ?? throw LocalizedExceptionText.Create("Layout.PresetMissing",
+            message => new ArgumentException(message, nameof(presetId)));
         CurrentPresetId = preset.Id;
         ApplySnapshot(preset.Layout, true);
         PersistAndNotify();
@@ -312,9 +315,9 @@ internal sealed class WorkbenchLayoutController : IAsyncDisposable
                 FocusedPanelId = focusedPanelId
             };
 
-            if (!WorkspaceLayoutValidator.TryValidate(snapshot, out var error))
+            if (!WorkspaceLayoutValidator.TryValidate(snapshot, out _, out var errorKey))
             {
-                throw new InvalidDataException(error);
+                throw LocalizedExceptionText.Create(errorKey, message => new InvalidDataException(message));
             }
 
             return snapshot;
@@ -376,6 +379,7 @@ internal sealed class WorkbenchLayoutController : IAsyncDisposable
         try
         {
             owner.Opened -= OnOwnerOpened;
+            Localization.LanguageChanged -= OnLanguageChanged;
             persistence.SaveFailed -= OnSaveFailed;
             Unwatch();
             applying = true;
@@ -401,9 +405,9 @@ internal sealed class WorkbenchLayoutController : IAsyncDisposable
 
     private void ApplySnapshot(WorkspaceLayoutSnapshot snapshot, bool migrate)
     {
-        if (!WorkspaceLayoutValidator.TryValidate(snapshot, out var error))
+        if (!WorkspaceLayoutValidator.TryValidate(snapshot, out _, out var errorKey))
         {
-            throw new InvalidDataException(error);
+            throw LocalizedExceptionText.Create(errorKey, message => new InvalidDataException(message));
         }
 
         if (migrate)
@@ -618,10 +622,20 @@ internal sealed class WorkbenchLayoutController : IAsyncDisposable
 
             var title = (floatingRoot.FocusedDockable as WorkbenchDockPanel)?.Title
                 ?? WorkbenchDockSnapshotCodec.Enumerate(floatingRoot).OfType<WorkbenchDockPanel>().FirstOrDefault()?.Title
-                ?? "工作台";
-            host.Title = title + " — DanmuNeo";
+                ?? Localization.Get("Workbench.Title");
+            host.Title = Localization.Format("Workbench.FloatingTitle", title);
             host.Window.Title = host.Title;
         }
+    }
+
+    private void OnLanguageChanged(object? sender, EventArgs e)
+    {
+        foreach (var panel in panels.Values)
+        {
+            panel.Title = WorkbenchDockPanel.GetLocalizedTitle(panel.Id);
+        }
+
+        RefreshFloatingTitles();
     }
 
     private void Activate(WorkbenchDockPanel panel)
@@ -915,9 +929,9 @@ internal sealed class WorkbenchLayoutController : IAsyncDisposable
                 CurrentPresetId = currentId,
                 CurrentLayout = Capture(),
                 UserPresets = presets
-            }, out var error))
+            }, out _, out var errorKey))
         {
-            throw new ArgumentException(error, "name");
+            throw LayoutValidationFailure.CreateException(errorKey, "name");
         }
     }
 
@@ -935,7 +949,7 @@ internal sealed class WorkbenchLayoutController : IAsyncDisposable
 
     private WorkbenchDockPanel GetPanel(string id)
     {
-        return panels.TryGetValue(id, out var panel) ? panel : throw new ArgumentException("未知的工作台面板 ID。", nameof(id));
+        return panels.TryGetValue(id, out var panel) ? panel : throw new ArgumentException(Localization.Get("Layout.UnknownPanelId"), nameof(id));
     }
 
     private void OnSaveFailed(Exception exception)

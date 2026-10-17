@@ -5,25 +5,25 @@
         Height="760"
         MinWidth="860"
         MinHeight="620"
-        Title="浏览器登录">
+        Title="{Loc Key=UI.BrowserCookieLoginWindow.Title}">
     <Grid Classes="rootSurface"
           RowDefinitions="Auto,*">
         <Border Classes="browserLoginToolbar">
             <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto"
                   ColumnSpacing="8">
-	                <Button ToolTip.Tip="后退"
+	                <Button ToolTip.Tip="{Loc Key=UI.BrowserCookieLoginWindow.Back}"
 	                        Classes="iconButton"
 	                        Click="Back_OnClick">
 	                    <LucideIcon Kind="CircleArrowLeft"/>
 	                </Button>
 	                <Button Grid.Column="1"
-	                        ToolTip.Tip="前进"
+	                        ToolTip.Tip="{Loc Key=UI.BrowserCookieLoginWindow.Forward}"
 	                        Classes="iconButton"
 	                        Click="Forward_OnClick">
 	                    <LucideIcon Kind="CircleArrowRight"/>
 	                </Button>
 	                <Button Grid.Column="2"
-	                        ToolTip.Tip="刷新"
+	                        ToolTip.Tip="{Loc Key=UI.BrowserCookieLoginWindow.Refresh}"
 	                        Classes="iconButton"
 	                        Click="Refresh_OnClick">
 	                    <LucideIcon Kind="RefreshCw"/>
@@ -37,7 +37,7 @@
                                Classes="muted"/>
                 </StackPanel>
 	                <Button Grid.Column="4"
-	                        Content="取消"
+	                        Content="{Loc Key=UI.BrowserCookieLoginWindow.Cancel}"
 	                        Click="Cancel_OnClick"/>
 	                <Button Grid.Column="5"
 	                        x:Name="CaptureButton"
@@ -46,7 +46,7 @@
 	                    <StackPanel Orientation="Horizontal"
 	                                Spacing="6">
 	                        <LucideIcon Kind="Cookie"/>
-	                        <TextBlock Text="完成并抓取 Cookie"/>
+	                        <TextBlock Text="{Loc Key=UI.BrowserCookieLoginWindow.CaptureCookies}"/>
 	                    </StackPanel>
 	                </Button>
             </Grid>
@@ -57,7 +57,7 @@
             <Border x:Name="WebViewHost"
                     Classes="browserLoginPlaceholder">
                 <TextBlock x:Name="WebViewPlaceholderText"
-                           Text="正在准备内嵌浏览器..."
+                           Text="{Loc Key=UI.BrowserCookieLoginWindow.PreparingBrowser}"
                            Classes="muted"
                            HorizontalAlignment="Center"
                            VerticalAlignment="Center"/>

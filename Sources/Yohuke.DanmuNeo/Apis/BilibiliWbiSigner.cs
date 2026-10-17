@@ -1,3 +1,4 @@
+using Yohuke.DanmuNeo.I18n;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
@@ -91,7 +92,8 @@ public class BilibiliWbiSigner : BaseApi
                 "https://api.bilibili.com/x/web-interface/nav",
                 headers: CreateDefaultHeaders(),
                 cancellationToken: cancellationToken);
-            var image = response.Data?.WbiImage ?? throw new InvalidOperationException("没有获取到 B 站 WBI 图片键。");
+            var image = response.Data?.WbiImage ?? throw LocalizedExceptionText.Create("Services.BilibiliWbi.ImageKeysMissing",
+                message => new InvalidOperationException(message));
             imgKey = ExtractKey(image.ImgUrl);
             subKey = ExtractKey(image.SubUrl);
             nextRefreshTime = DateTimeOffset.UtcNow.AddDays(1);

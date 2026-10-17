@@ -80,6 +80,8 @@ internal sealed class WorkbenchMenuProjection : IDisposable
                 };
                 windowMenu?.Items.Add(windowGroup);
                 NativeMenu.Items.Add(nativeGroup);
+                windowItems.Add(group.Id, windowGroup);
+                nativeItems.Add(group.Id, nativeGroup);
 
                 foreach (var item in group.Children ?? [])
                 {
@@ -111,6 +113,12 @@ internal sealed class WorkbenchMenuProjection : IDisposable
                     nativeItems.Add(item.Id, nativeItem);
                 }
             }
+        }
+
+        foreach (var group in entries)
+        {
+            windowItems[group.Id].Header = group.Header;
+            nativeItems[group.Id].Header = group.Header;
         }
 
         foreach (var item in entries.SelectMany(group => group.Children ?? []).Where(item => !item.IsSeparator))

@@ -5,6 +5,7 @@ using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
+using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Services;
 using Yohuke.DanmuNeo.ViewModels.Items;
 using Yohuke.DanmuNeo.Windowing;
@@ -21,6 +22,8 @@ public partial class ForwardingPanelView : WorkbenchRoomPanel
     private bool isPanelDisposed;
     private bool isPasting;
     private WorkbenchContext? observedContext;
+    private string clipboardStatusKey = "";
+    private object[] clipboardStatusArguments = [];
 
     /// <summary>
     /// 创建并连接转发面板。
@@ -62,8 +65,17 @@ public partial class ForwardingPanelView : WorkbenchRoomPanel
     }
 
     /// <inheritdoc/>
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        Localization.LanguageChanged += OnLanguageChanged;
+        RefreshClipboardStatus();
+    }
+
+    /// <inheritdoc/>
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
+        Localization.LanguageChanged -= OnLanguageChanged;
         CancelRuleGesture();
         base.OnDetachedFromVisualTree(e);
     }
@@ -72,6 +84,7 @@ public partial class ForwardingPanelView : WorkbenchRoomPanel
     protected override void DisposePanel()
     {
         isPanelDisposed = true;
+        Localization.LanguageChanged -= OnLanguageChanged;
 
         if (observedContext is not null)
         {
@@ -168,7 +181,7 @@ public partial class ForwardingPanelView : WorkbenchRoomPanel
         {
             if (TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard)
             {
-                ShowClipboardStatus("当前无法访问剪贴板。", true);
+                ShowClipboardStatus("UI.ForwardingPanelView.ClipboardUnavailable", true);
                 return;
             }
 
@@ -176,15 +189,15 @@ public partial class ForwardingPanelView : WorkbenchRoomPanel
 
             if (!isPanelDisposed && Context.IsCurrent(selection))
             {
-                ShowClipboardStatus($"已复制 {rules.Count} 条规则");
+                ShowClipboardStatus("UI.ForwardingPanelView.RulesCopied", false, rules.Count);
             }
         }
         catch (Exception exception)
         {
-            Context.Application.LogErrorOnce($"转发规则 / 房间 {selection!.RoomId}", "复制转发规则失败", exception);
+            Context.Application.LogErrorOnce(Localization.Format("UI.ForwardingPanelView.LogSource", selection!.RoomId), Localization.Get("UI.ForwardingPanelView.CopyLogFailed"), exception);
             if (!isPanelDisposed && Context.IsCurrent(selection))
             {
-                ShowClipboardStatus($"复制失败：{exception.Message}", true);
+                ShowClipboardStatus("UI.ForwardingPanelView.CopyFailed", true, new Func<string>(() => LocalizedExceptionText.Get(exception)));
             }
         }
     }
@@ -205,7 +218,7 @@ public partial class ForwardingPanelView : WorkbenchRoomPanel
         {
             if (TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard)
             {
-                ShowClipboardStatus("当前无法访问剪贴板。", true);
+                ShowClipboardStatus("UI.ForwardingPanelView.ClipboardUnavailable", true);
                 return;
             }
 
@@ -221,15 +234,15 @@ public partial class ForwardingPanelView : WorkbenchRoomPanel
 
             if (!isPanelDisposed && Context.IsCurrent(selection))
             {
-                ShowClipboardStatus($"已粘贴 {added.Count} 条规则，默认未启用");
+                ShowClipboardStatus("UI.ForwardingPanelView.RulesPasted", false, added.Count);
             }
         }
         catch (Exception exception)
         {
-            Context.Application.LogErrorOnce($"转发规则 / 房间 {selection!.RoomId}", "粘贴转发规则失败", exception);
+            Context.Application.LogErrorOnce(Localization.Format("UI.ForwardingPanelView.LogSource", selection!.RoomId), Localization.Get("UI.ForwardingPanelView.PasteLogFailed"), exception);
             if (!isPanelDisposed && Context.IsCurrent(selection))
             {
-                ShowClipboardStatus($"粘贴失败：{exception.Message}", true);
+                ShowClipboardStatus("UI.ForwardingPanelView.PasteFailed", true, new Func<string>(() => LocalizedExceptionText.Get(exception)));
             }
         }
         finally
@@ -243,11 +256,26 @@ public partial class ForwardingPanelView : WorkbenchRoomPanel
         }
     }
 
-    private void ShowClipboardStatus(string text, bool isError = false)
+    private void ShowClipboardStatus(string key, bool isError = false, params object[] arguments)
     {
-        ForwardClipboardStatus.Text = text;
-        ForwardClipboardStatus.IsVisible = text.Length > 0;
+        clipboardStatusKey = key;
+        clipboardStatusArguments = arguments;
+        RefreshClipboardStatus();
         ForwardClipboardStatus.Classes.Set("error", isError);
+    }
+
+    private void OnLanguageChanged(object? sender, EventArgs e)
+    {
+        RefreshClipboardStatus();
+    }
+
+    private void RefreshClipboardStatus()
+    {
+        ForwardClipboardStatus.Text = clipboardStatusKey.Length == 0
+            ? ""
+            : Localization.Format(clipboardStatusKey, clipboardStatusArguments.Select(argument =>
+                argument is Func<string> provider ? provider() : argument).ToArray());
+        ForwardClipboardStatus.IsVisible = clipboardStatusKey.Length > 0;
     }
 
     private void ForwardUidInput_OnSizeChanged(object? sender, SizeChangedEventArgs e)

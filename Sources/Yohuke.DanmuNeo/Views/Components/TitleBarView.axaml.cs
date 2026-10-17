@@ -1,5 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Automation;
+using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Windowing;
 
 namespace Yohuke.DanmuNeo.Views.Components;
@@ -9,6 +11,8 @@ namespace Yohuke.DanmuNeo.Views.Components;
 /// </summary>
 public partial class TitleBarView : UserControl, IWindowTitleBar
 {
+    private Window? observedWindow;
+
     /// <summary>
     /// 标题行中的窗口菜单内容。
     /// </summary>
@@ -54,6 +58,35 @@ public partial class TitleBarView : UserControl, IWindowTitleBar
         set => SetValue(CaptionInsetsProperty, value);
     }
 
+    /// <inheritdoc />
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        observedWindow = TopLevel.GetTopLevel(this) as Window;
+        Localization.LanguageChanged += OnLanguageChanged;
+
+        if (observedWindow is not null)
+        {
+            observedWindow.PropertyChanged += OnWindowPropertyChanged;
+        }
+
+        RefreshPinState();
+    }
+
+    /// <inheritdoc />
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        Localization.LanguageChanged -= OnLanguageChanged;
+
+        if (observedWindow is not null)
+        {
+            observedWindow.PropertyChanged -= OnWindowPropertyChanged;
+            observedWindow = null;
+        }
+
+        base.OnDetachedFromVisualTree(e);
+    }
+
     Control IWindowTitleBar.View => this;
 
     bool IWindowTitleBar.IsDragRegion(Point windowPoint)
@@ -94,9 +127,30 @@ public partial class TitleBarView : UserControl, IWindowTitleBar
         }
 
         window.Topmost = !window.Topmost;
-        PinButton.Classes.Set("selected", window.Topmost);
-        PinOutlineIcon.IsVisible = !window.Topmost;
-        PinSolidIcon.IsVisible = window.Topmost;
-        ToolTip.SetTip(PinButton, window.Topmost ? "取消窗口置顶" : "窗口置顶");
+        RefreshPinState();
+    }
+
+    private void OnWindowPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
+    {
+        if (e.Property == WindowBase.TopmostProperty)
+        {
+            RefreshPinState();
+        }
+    }
+
+    private void OnLanguageChanged(object? sender, EventArgs e)
+    {
+        RefreshPinState();
+    }
+
+    private void RefreshPinState()
+    {
+        var isTopmost = observedWindow?.Topmost == true;
+        PinButton.Classes.Set("selected", isTopmost);
+        PinOutlineIcon.IsVisible = !isTopmost;
+        PinSolidIcon.IsVisible = isTopmost;
+        var tip = Localization.Get(isTopmost ? "UI.TitleBarView.UnpinWindow" : "UI.TitleBarView.PinWindow");
+        ToolTip.SetTip(PinButton, tip);
+        AutomationProperties.SetName(PinButton, tip);
     }
 }

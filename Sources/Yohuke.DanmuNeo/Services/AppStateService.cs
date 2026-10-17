@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Models.State;
 
 using Yohuke.DanmuNeo.Models.Logging;
@@ -272,7 +273,7 @@ public class AppStateService
             RestoreBackup(path, backupFilePath);
             StartupLog.Append(
                 $"Recovered state file from backup file={Path.GetFileName(path)} backup={Path.GetFileName(backupFilePath)}",
-                AppLogLevel.WARNING, "配置恢复");
+                AppLogLevel.WARNING, GetDiagnosticText("Services.State.RecoverySource", "Configuration recovery"));
             return value;
         }
 
@@ -297,7 +298,9 @@ public class AppStateService
         }
         catch (Exception exception)
         {
-            StartupLog.Append($"读取配置失败：{Path.GetFileName(path)}", AppLogLevel.ERROR, "配置", exception);
+            StartupLog.Append(
+                GetDiagnosticText("Services.State.ReadFailed", "Failed to read configuration: {0}", Path.GetFileName(path)),
+                AppLogLevel.ERROR, GetDiagnosticText("Services.State.Source", "Configuration"), exception);
             return false;
         }
     }
@@ -374,8 +377,15 @@ public class AppStateService
         catch (Exception exception)
         {
             StartupLog.Append(
-                $"保留损坏配置失败：{Path.GetFileName(path)}", AppLogLevel.ERROR, "配置", exception);
+                GetDiagnosticText("Services.State.PreserveCorruptFailed", "Failed to preserve corrupt configuration: {0}",
+                    Path.GetFileName(path)),
+                AppLogLevel.ERROR, GetDiagnosticText("Services.State.Source", "Configuration"), exception);
         }
+    }
+
+    private static string GetDiagnosticText(string key, string fallback, params object[] arguments)
+    {
+        return Localization.IsInitialized ? Localization.Format(key, arguments) : string.Format(fallback, arguments);
     }
 
     private void RestoreBackup(string path, string backupFilePath)
@@ -443,6 +453,15 @@ public class AppStateService
         state.Accounts ??= [];
         state.LyricLibrary ??= [];
         state.Workspaces ??= [];
+        state.Settings.Language = string.IsNullOrWhiteSpace(state.Settings.Language)
+            ? "system"
+            : state.Settings.Language.Trim();
+
+        if (string.Equals(state.Settings.Language, "system", StringComparison.OrdinalIgnoreCase))
+        {
+            state.Settings.Language = "system";
+        }
+
         state.Settings.SidebarWidth = ClampSidebarWidth(state.Settings.SidebarWidth);
         state.Settings.WindowWidth = ClampWindowWidth(state.Settings.WindowWidth);
         state.Settings.WindowHeight = ClampWindowHeight(state.Settings.WindowHeight);

@@ -1,3 +1,4 @@
+using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Models.Logging;
 
 namespace Yohuke.DanmuNeo.Services;
@@ -16,7 +17,7 @@ public static class StartupLog
     /// 追加启动日志。
     /// </summary>
     public static void Append(string message, AppLogLevel level = AppLogLevel.INFO,
-        string source = "启动", Exception? error = null)
+        string? source = null, Exception? error = null)
     {
         var safeMessage = AppLogSanitizer.Sanitize(message);
 
@@ -48,6 +49,7 @@ public static class StartupLog
         {
         }
 
-        Written?.Invoke(level, source, safeMessage, error);
+        var sourceName = source ?? (Localization.IsInitialized ? Localization.Get("Services.Log.Startup") : "Startup");
+        Written?.Invoke(level, sourceName, safeMessage, error);
     }
 }

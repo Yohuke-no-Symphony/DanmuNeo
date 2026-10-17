@@ -19,7 +19,7 @@
                          MinHeight="64"
                          VerticalContentAlignment="Top"
                          Text="{Binding InputDraft}"
-                         Watermark="输入同传内容"
+                         Watermark="{Loc Key=UI.DraftComposerPanelView.DraftWatermark}"
                          TextWrapping="Wrap"
                          AcceptsReturn="False"
                          KeyDown="InputDraft_OnKeyDown" />
@@ -48,7 +48,7 @@
                                ItemsAlignment="End" ItemSpacing="4" LineSpacing="4">
                         <ComboBox x:Name="DanmuColorSelector" Width="100"
                                   Classes="translateComposerConfigSelector"
-                                  PlaceholderText="颜色"
+                                  PlaceholderText="{Loc Key=UI.DraftComposerPanelView.Color}"
                                   ToolTip.Tip="{Binding DanmuConfigurationStatus}"
                                   IsEnabled="{Binding CanSelectDanmuColor}"
                                   ItemsSource="{Binding DanmuColorOptions}"
@@ -68,7 +68,7 @@
                         </ComboBox>
                         <ComboBox x:Name="DanmuModeSelector" Width="82"
                                   Classes="translateComposerConfigSelector"
-                                  PlaceholderText="位置"
+                                  PlaceholderText="{Loc Key=UI.DraftComposerPanelView.Position}"
                                   ToolTip.Tip="{Binding DanmuConfigurationStatus}"
                                   IsEnabled="{Binding CanSelectDanmuMode}"
                                   ItemsSource="{Binding DanmuModeOptions}"
@@ -82,12 +82,12 @@
                         </ComboBox>
                         <Button
                             Classes="translateComposerSendButton"
-                            ToolTip.Tip="发送同传"
+                            ToolTip.Tip="{Loc Key=UI.DraftComposerPanelView.SendTranslation}"
                             Command="{Binding SendDraftCommand}">
                             <StackPanel Orientation="Horizontal"
                                         Spacing="6">
                                 <LucideIcon Kind="Send" />
-                                <TextBlock Text="发送" />
+                                <TextBlock Text="{Loc Key=UI.DraftComposerPanelView.Send}" />
                             </StackPanel>
                         </Button>
                     </WrapPanel>

@@ -1,4 +1,6 @@
+using Yohuke.DanmuNeo.I18n;
 using Avalonia.Controls;
+using Avalonia.Data;
 using Yohuke.DanmuNeo.Services;
 using Yohuke.DanmuNeo.ViewModels;
 using Yohuke.DanmuNeo.Windowing;
@@ -117,8 +119,8 @@ public partial class MainWindow : Window
 
             if (viewModel is not null)
             {
-                viewModel.StatusMessage = $"无法完成退出保存：{exception.Message}";
-                viewModel.LogErrorOnce("退出", "无法完成退出保存", exception);
+                viewModel.SetLocalizedStatus("UI.MainWindow.ShutdownSaveFailed", new Func<string>(() => LocalizedExceptionText.Get(exception)));
+                viewModel.LogErrorOnce(Localization.Get("UI.MainWindow.ShutdownLogSource"), Localization.Get("UI.MainWindow.ShutdownLogFailed"), exception);
             }
         }
     }
@@ -137,14 +139,16 @@ public partial class MainWindow : Window
         }
         catch (Exception exception)
         {
-            viewModel.StatusMessage = $"无法恢复布局：{exception.Message}";
-            viewModel.LogErrorOnce("布局", "无法恢复工作台布局", exception);
-            DockHost.Content = new TextBlock
+            viewModel.SetLocalizedStatus("UI.MainWindow.LayoutRestoreFailed", new Func<string>(() => LocalizedExceptionText.Get(exception)));
+            viewModel.LogErrorOnce(Localization.Get("UI.MainWindow.LayoutLogSource"), Localization.Get("UI.MainWindow.LayoutLogFailed"), exception);
+            var errorText = new TextBlock
             {
-                Text = viewModel.StatusMessage,
                 Margin = new(24),
                 TextWrapping = Avalonia.Media.TextWrapping.Wrap
             };
+            errorText.Bind(TextBlock.TextProperty,
+                new Binding(nameof(MainWindowViewModel.StatusMessage)) { Source = viewModel });
+            DockHost.Content = errorText;
         }
     }
 }

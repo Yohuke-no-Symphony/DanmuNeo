@@ -15,7 +15,7 @@
                    Margin="8,4,8,0"
                    VerticalAlignment="Center">
             <ComboBox Height="{StaticResource WorkbenchControlHeight}" Width="160"
-                      PlaceholderText="清晰度"
+                      PlaceholderText="{Loc Key=UI.LivePlayerPanelView.Quality}"
                       VerticalAlignment="Center"
                       VerticalContentAlignment="Center"
                       ItemsSource="{Binding LiveQualityOptions}"
@@ -39,13 +39,13 @@
                                     IsVisible="{Binding IsLivePlayerVisible}" />
                     </Grid>
                 </Button>
-                <Button ToolTip.Tip="追帧"
+                <Button ToolTip.Tip="{Loc Key=UI.LivePlayerPanelView.ChaseLive}"
                         Classes="iconButton"
                         VerticalAlignment="Center"
                         Command="{Binding ChaseLiveCommand}">
                     <LucideIcon Kind="RefreshCw" />
                 </Button>
-                <Button ToolTip.Tip="静音"
+                <Button ToolTip.Tip="{Loc Key=UI.LivePlayerPanelView.Mute}"
                         Classes="iconButton"
                         Classes.selected="{Binding IsLivePlayerMuted}"
                         VerticalAlignment="Center"
@@ -63,7 +63,7 @@
                         Maximum="100"
                         Value="{Binding LivePlayerVolumePercent}"
                         VerticalAlignment="Center"
-                        ToolTip.Tip="音量">
+                        ToolTip.Tip="{Loc Key=UI.LivePlayerPanelView.Volume}">
                     <Slider.Resources>
                         <GridLength x:Key="SliderPreContentMargin">2</GridLength>
                         <GridLength x:Key="SliderPostContentMargin">2</GridLength>

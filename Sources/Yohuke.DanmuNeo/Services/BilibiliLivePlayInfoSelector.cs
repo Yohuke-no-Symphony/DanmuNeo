@@ -1,3 +1,4 @@
+using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Apis.Models.Bilibili;
 using Yohuke.DanmuNeo.Models.Workspace;
 
@@ -15,26 +16,32 @@ public static class BilibiliLivePlayInfoSelector
     {
         if (data is null)
         {
-            throw new InvalidOperationException("直播流响应为空");
+            throw LocalizedExceptionText.Create("Services.BilibiliLiveStream.EmptyResponse",
+                message => new InvalidOperationException(message));
         }
 
         if (data.LiveStatus != 1)
         {
-            throw new InvalidOperationException(data.LiveStatus == 2 ? "当前直播间轮播中" : "当前直播间未开播");
+            throw LocalizedExceptionText.Create(data.LiveStatus == 2
+                    ? "Services.BilibiliLiveStream.RoomReplaying"
+                    : "Services.BilibiliLiveStream.RoomOffline",
+                message => new InvalidOperationException(message));
         }
 
         var playUrl = data.PlayUrlInfo?.PlayUrl;
 
         if (playUrl is null)
         {
-            throw new InvalidOperationException("没有可用直播流");
+            throw LocalizedExceptionText.Create("Services.BilibiliLiveStream.StreamMissing",
+                message => new InvalidOperationException(message));
         }
 
         var source = FindPreferredSource(playUrl);
 
         if (source is null)
         {
-            throw new InvalidOperationException("当前直播流不支持 App 内播放");
+            throw LocalizedExceptionText.Create("Services.BilibiliLiveStream.UnsupportedStream",
+                message => new InvalidOperationException(message));
         }
 
         var (codec, urlInfo) = source.Value;
