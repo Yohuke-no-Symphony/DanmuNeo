@@ -96,108 +96,119 @@
                           IsChecked="{Binding PreventRepeatedLyricSend}"
                           ToolTip.Tip="退回已发送歌词时不重复发送"
                           VerticalAlignment="Center" />
-                <Grid ColumnDefinitions="Auto,Auto,52,Auto,Auto"
-                      ColumnSpacing="4">
-                    <TextBlock Text="倍速"
-                               Classes="muted"
-                               Margin="0,0,4,0"
-                               VerticalAlignment="Center" />
-                    <Button x:Name="LyricRateDecreaseButton"
-                            Grid.Column="1"
-                            ToolTip.Tip="倍率降低 0.1"
-                            AutomationProperties.Name="倍率降低 0.1"
-                            Classes="iconButton"
-                            Command="{Binding DecreaseLyricPlaybackRateCommand}">
-                        <LucideIcon Kind="Minus" />
-                    </Button>
-                    <TextBox x:Name="LyricPlaybackRateInput"
-                             Grid.Column="2"
-                             Classes="lyricRateInput"
-                             AutomationProperties.Name="歌词播放倍速"
-                             Text="{Binding LyricPlaybackRate, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
-                    <TextBlock Grid.Column="3"
-                               Text="×"
-                               Classes="muted"
-                               VerticalAlignment="Center" />
-                    <Button x:Name="LyricRateIncreaseButton"
-                            Grid.Column="4"
-                            ToolTip.Tip="倍率提高 0.1"
-                            AutomationProperties.Name="倍率提高 0.1"
-                            Classes="iconButton"
-                            Command="{Binding IncreaseLyricPlaybackRateCommand}">
-                        <LucideIcon Kind="Plus" />
-                    </Button>
-                </Grid>
             </WrapPanel>
 
-            <Grid x:Name="LyricSendActions"
-                  Grid.Row="2"
-                  ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto"
-                  ColumnSpacing="4">
-                <Button x:Name="LyricAutoSendButton"
-                        ToolTip.Tip="{Binding LyricAutoSendingToggleToolTip}"
-                        AutomationProperties.Name="{Binding LyricAutoSendingToggleToolTip}"
-                        Classes="lyricToolbarButton primaryButton"
-                        Padding="8,4"
-                        Command="{Binding ToggleAutoLyricCommand}">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <Grid>
-                            <LucideIcon Kind="Play"
-                                        IsVisible="{Binding IsLyricAutoSendingPaused}" />
-                            <LucideIcon Kind="Pause"
-                                        IsVisible="{Binding IsLyricAutoSending}" />
-                        </Grid>
-                        <Grid>
-                            <TextBlock Text="自动发送"
-                                       IsVisible="{Binding IsLyricAutoSendingPaused}" />
-                            <TextBlock Text="暂停发送"
-                                       IsVisible="{Binding IsLyricAutoSending}" />
-                        </Grid>
-                    </StackPanel>
-                </Button>
-                <Button x:Name="LyricStopButton"
-                        Grid.Column="1"
-                        ToolTip.Tip="停止发送并回到开头"
-                        AutomationProperties.Name="停止发送并回到开头"
-                        Classes="iconButton"
-                        Command="{Binding StopAutoLyricCommand}">
-                    <LucideIcon Kind="Square" />
-                </Button>
-                <Button x:Name="NextLyricButton"
-                        Grid.Column="2"
-                        ToolTip.Tip="跳到下一句并发送，保持当前播放状态"
-                        AutomationProperties.Name="下一句并发送"
-                        Classes="iconButton"
-                        Click="NextLyricButton_OnClick"
-                        Command="{Binding SeekNextLyricCommand}">
-                    <LucideIcon Kind="SkipForward" />
-                </Button>
-                <Button x:Name="NextLyricAndPlayButton"
-                        Grid.Column="3"
-                        ToolTip.Tip="发送下一句并开始播放"
-                        AutomationProperties.Name="发送下一句并开始播放"
-                        Classes="iconButton"
-                        Click="NextLyricButton_OnClick"
-                        Command="{Binding SeekNextAndPlayLyricCommand}">
-                    <LucideIcon Kind="ListVideo" />
-                </Button>
-                <Button x:Name="LyricRewindButton"
-                        Grid.Column="4"
-                        ToolTip.Tip="快退 0.5 秒"
-                        AutomationProperties.Name="快退 0.5 秒"
-                        Classes="iconButton"
-                        Command="{Binding RewindLyricCommand}">
-                    <LucideIcon Kind="Rewind" />
-                </Button>
-                <Button x:Name="LyricFastForwardButton"
-                        Grid.Column="5"
-                        ToolTip.Tip="快进 0.5 秒"
-                        AutomationProperties.Name="快进 0.5 秒"
-                        Classes="iconButton"
-                        Command="{Binding FastForwardLyricCommand}">
-                    <LucideIcon Kind="FastForward" />
-                </Button>
-            </Grid>
+            <WrapPanel x:Name="LyricPlaybackToolbar"
+                       Grid.Row="2"
+                       ItemSpacing="12"
+                       LineSpacing="8">
+                <Grid x:Name="LyricSendActions"
+                      ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto"
+                      ColumnSpacing="4">
+                    <Button x:Name="LyricAutoSendButton"
+                            ToolTip.Tip="{Binding LyricAutoSendingToggleToolTip}"
+                            AutomationProperties.Name="{Binding LyricAutoSendingToggleToolTip}"
+                            Classes="lyricToolbarButton primaryButton"
+                            Padding="8,4"
+                            Command="{Binding ToggleAutoLyricCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Grid>
+                                <LucideIcon Kind="Play"
+                                            IsVisible="{Binding IsLyricAutoSendingPaused}" />
+                                <LucideIcon Kind="Pause"
+                                            IsVisible="{Binding IsLyricAutoSending}" />
+                            </Grid>
+                            <Grid>
+                                <TextBlock Text="自动发送"
+                                           IsVisible="{Binding IsLyricAutoSendingPaused}" />
+                                <TextBlock Text="暂停发送"
+                                           IsVisible="{Binding IsLyricAutoSending}" />
+                            </Grid>
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="LyricStopButton"
+                            Grid.Column="1"
+                            ToolTip.Tip="停止发送并回到开头"
+                            AutomationProperties.Name="停止发送并回到开头"
+                            Classes="iconButton"
+                            Command="{Binding StopAutoLyricCommand}">
+                        <LucideIcon Kind="Square" />
+                    </Button>
+                    <Button x:Name="NextLyricButton"
+                            Grid.Column="2"
+                            ToolTip.Tip="跳到下一句并发送，保持当前播放状态"
+                            AutomationProperties.Name="下一句并发送"
+                            Classes="iconButton"
+                            Click="NextLyricButton_OnClick"
+                            Command="{Binding SeekNextLyricCommand}">
+                        <LucideIcon Kind="SkipForward" />
+                    </Button>
+                    <Button x:Name="NextLyricAndPlayButton"
+                            Grid.Column="3"
+                            ToolTip.Tip="发送下一句并开始播放"
+                            AutomationProperties.Name="发送下一句并开始播放"
+                            Classes="iconButton"
+                            Click="NextLyricButton_OnClick"
+                            Command="{Binding SeekNextAndPlayLyricCommand}">
+                        <LucideIcon Kind="ListVideo" />
+                    </Button>
+                    <Button x:Name="LyricRewindButton"
+                            Grid.Column="4"
+                            ToolTip.Tip="快退 0.5 秒"
+                            AutomationProperties.Name="快退 0.5 秒"
+                            Classes="iconButton"
+                            Command="{Binding RewindLyricCommand}">
+                        <LucideIcon Kind="Rewind" />
+                    </Button>
+                    <Button x:Name="LyricFastForwardButton"
+                            Grid.Column="5"
+                            ToolTip.Tip="快进 0.5 秒"
+                            AutomationProperties.Name="快进 0.5 秒"
+                            Classes="iconButton"
+                            Command="{Binding FastForwardLyricCommand}">
+                        <LucideIcon Kind="FastForward" />
+                    </Button>
+                </Grid>
+                <Grid x:Name="LyricPlaybackRateControls"
+                      ColumnDefinitions="Auto,Auto"
+                      ColumnSpacing="8">
+                    <Border x:Name="LyricPlaybackRateSeparator"
+                            Width="1"
+                            Height="20"
+                            Background="{DynamicResource AppBorderBrush}"
+                            VerticalAlignment="Center"
+                            IsHitTestVisible="False" />
+                    <Grid Grid.Column="1"
+                          ColumnDefinitions="Auto,52,Auto,Auto"
+                          ColumnSpacing="4">
+                        <Button x:Name="LyricRateDecreaseButton"
+                                ToolTip.Tip="倍率降低 0.1"
+                                AutomationProperties.Name="倍率降低 0.1"
+                                Classes="iconButton"
+                                Command="{Binding DecreaseLyricPlaybackRateCommand}">
+                            <LucideIcon Kind="Minus" />
+                        </Button>
+                        <TextBox x:Name="LyricPlaybackRateInput"
+                                 Grid.Column="1"
+                                 Classes="lyricRateInput"
+                                 ToolTip.Tip="歌词播放倍速"
+                                 AutomationProperties.Name="歌词播放倍速"
+                                 Text="{Binding LyricPlaybackRate, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
+                        <TextBlock Grid.Column="2"
+                                   Text="×"
+                                   Classes="muted"
+                                   VerticalAlignment="Center" />
+                        <Button x:Name="LyricRateIncreaseButton"
+                                Grid.Column="3"
+                                ToolTip.Tip="倍率提高 0.1"
+                                AutomationProperties.Name="倍率提高 0.1"
+                                Classes="iconButton"
+                                Command="{Binding IncreaseLyricPlaybackRateCommand}">
+                            <LucideIcon Kind="Plus" />
+                        </Button>
+                    </Grid>
+                </Grid>
+            </WrapPanel>
             <ListBox x:Name="LyricListBox"
                      Grid.Row="3"
                      Classes="lyricLineList"

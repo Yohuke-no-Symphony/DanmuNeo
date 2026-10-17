@@ -69,6 +69,23 @@ public class LyricsPanelToolbarTests
             Assert.True(listBounds.Height > 100 * scale);
 
             var actions = view.FindControl<Grid>("LyricSendActions")!;
+            var toolbar = view.FindControl<WrapPanel>("LyricPlaybackToolbar")!;
+            var rateControls = view.FindControl<Grid>("LyricPlaybackRateControls")!;
+            var separator = view.FindControl<Border>("LyricPlaybackRateSeparator")!;
+            Assert.Same(toolbar, actions.Parent);
+            Assert.Same(toolbar, rateControls.Parent);
+            Assert.True(separator.Bounds.Width < separator.Bounds.Height);
+
+            if (width >= 480)
+            {
+                Assert.Equal(actions.Bounds.Top, rateControls.Bounds.Top, 3);
+                Assert.True(rateControls.Bounds.Left > actions.Bounds.Right);
+            }
+            else
+            {
+                Assert.True(rateControls.Bounds.Top >= actions.Bounds.Bottom);
+            }
+
             var actionButtons = actions.Children.OfType<Button>().ToArray();
 
             foreach (var button in actionButtons.Skip(1))
