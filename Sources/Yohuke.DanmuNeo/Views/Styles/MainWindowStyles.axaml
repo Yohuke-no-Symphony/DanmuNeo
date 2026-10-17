@@ -133,7 +133,6 @@
         <Setter Property="Background" Value="{DynamicResource AppPrimaryBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource AppPrimaryTextBrush}" />
         <Setter Property="CornerRadius" Value="{StaticResource WorkbenchControlCornerRadius}" />
-        <Setter Property="Padding" Value="14,8" />
     </Style>
 
     <Style Selector="Button.primaryButton:pointerover">
