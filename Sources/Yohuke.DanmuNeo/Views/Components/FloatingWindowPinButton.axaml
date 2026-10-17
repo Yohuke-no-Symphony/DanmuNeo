@@ -1,0 +1,29 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Yohuke.DanmuNeo.Views.Components.FloatingWindowPinButton"
+             HorizontalAlignment="Right"
+             VerticalAlignment="Center"
+             IsVisible="False">
+    <UserControl.Styles>
+        <Style Selector="Button.selected">
+            <Setter Property="Background" Value="{DynamicResource AppSidebarSelectedBrush}" />
+        </Style>
+    </UserControl.Styles>
+    <Button x:Name="WindowTopmostButton"
+            Classes="dockChromeButton"
+            ToolTip.Tip="独立置顶此窗口"
+            AutomationProperties.Name="独立置顶此窗口"
+            Click="Pin_OnClick">
+        <Grid>
+            <LucideIcon x:Name="PinOutlineIcon"
+                        Kind="Pin"
+                        Size="14" />
+            <PathIcon x:Name="PinSolidIcon"
+                      Width="14"
+                      Height="14"
+                      Foreground="{DynamicResource AppPrimaryBrush}"
+                      Data="M16,12 L18,14 L18,16 L12.8,16 L12.8,22 L11.2,22 L11.2,16 L6,16 L6,14 L8,12 L8,4 L7,4 L7,2 L17,2 L17,4 L16,4 Z"
+                      IsVisible="False" />
+        </Grid>
+    </Button>
+</UserControl>

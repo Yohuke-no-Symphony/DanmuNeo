@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Controls;
 
 namespace Yohuke.DanmuNeo.Windowing;
@@ -15,6 +16,7 @@ internal sealed class WorkbenchWindowRegistry : IDisposable
     {
         this.mainWindow = mainWindow;
         ActiveWindow = mainWindow;
+        mainWindow.PropertyChanged += OnMainWindowPropertyChanged;
     }
 
     internal event Action<Window>? BusinessWindowAdded;
@@ -40,6 +42,12 @@ internal sealed class WorkbenchWindowRegistry : IDisposable
             return;
         }
 
+        if (!ReferenceEquals(window, mainWindow))
+        {
+            window.Topmost = GetEffectiveTopmost(window);
+            window.PropertyChanged += OnBusinessWindowPropertyChanged;
+        }
+
         window.Closed += BusinessWindowOnClosed;
         window.Activated += OnActivated;
         BusinessWindowAdded?.Invoke(window);
@@ -55,6 +63,7 @@ internal sealed class WorkbenchWindowRegistry : IDisposable
 
         window.Closed -= BusinessWindowOnClosed;
         window.Activated -= OnActivated;
+        window.PropertyChanged -= OnBusinessWindowPropertyChanged;
         BusinessWindowRemoved?.Invoke(window);
     }
 
@@ -77,10 +86,12 @@ internal sealed class WorkbenchWindowRegistry : IDisposable
             return existing;
         }
 
-        var window = new WorkbenchAuxiliaryWindow(owner ?? mainWindow, createContent(), width, height, sizing, beforeClose)
-        {
-            Title = title
-        };
+        var window =
+            new WorkbenchAuxiliaryWindow(owner ?? mainWindow, createContent(), width, height, sizing, beforeClose)
+            {
+                Title = title,
+                Topmost = GetEffectiveTopmost(owner ?? mainWindow)
+            };
         auxiliaryWindows.Add(key, window);
         window.Activated += OnActivated;
 
@@ -122,6 +133,7 @@ internal sealed class WorkbenchWindowRegistry : IDisposable
         }
 
         isDisposed = true;
+        mainWindow.PropertyChanged -= OnMainWindowPropertyChanged;
 
         foreach (var window in auxiliaryWindows.Values.Reverse().ToArray())
         {
@@ -139,6 +151,55 @@ internal sealed class WorkbenchWindowRegistry : IDisposable
         if (sender is Window window)
         {
             UnregisterBusinessWindow(window);
+        }
+    }
+
+    private void OnMainWindowPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs change)
+    {
+        if (change.Property != WindowBase.TopmostProperty)
+        {
+            return;
+        }
+
+        RefreshTopmost();
+    }
+
+    private void OnBusinessWindowPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs change)
+    {
+        if (change.Property == WorkbenchWindowTopmost.IsIndependentlyTopmostProperty)
+        {
+            RefreshTopmost();
+        }
+    }
+
+    private bool GetEffectiveTopmost(Window window)
+    {
+        if (mainWindow.Topmost)
+        {
+            return true;
+        }
+
+        if (ReferenceEquals(window, mainWindow))
+        {
+            return false;
+        }
+
+        if (businessWindows.Contains(window))
+        {
+            return WorkbenchWindowTopmost.GetIsIndependentlyTopmost(window);
+        }
+
+        return window.Owner is Window owner && GetEffectiveTopmost(owner);
+    }
+
+    private void RefreshTopmost()
+    {
+        foreach (var window in businessWindows.Concat(auxiliaryWindows.Values).ToArray())
+        {
+            if (!ReferenceEquals(window, mainWindow))
+            {
+                window.Topmost = GetEffectiveTopmost(window);
+            }
         }
     }
 
