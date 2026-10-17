@@ -96,11 +96,29 @@ public partial class TitleBarView : UserControl
 
     private void TitleBar_OnPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (TopLevel.GetTopLevel(this) is Window window &&
-            e.GetCurrentPoint(this).Properties.IsLeftButtonPressed && IsDragRegion(e.GetPosition(window)))
+        if (TopLevel.GetTopLevel(this) is not Window window ||
+            !e.GetCurrentPoint(this).Properties.IsLeftButtonPressed || !IsDragRegion(e.GetPosition(window)))
         {
-            window.BeginMoveDrag(e);
+            return;
         }
+
+        if (e.ClickCount % 2 == 0)
+        {
+            if (window.CanResize && window.CanMaximize)
+            {
+                window.WindowState = window.WindowState switch
+                {
+                    WindowState.Normal => WindowState.Maximized,
+                    WindowState.Maximized => WindowState.Normal,
+                    _ => window.WindowState
+                };
+            }
+
+            e.Handled = true;
+            return;
+        }
+
+        window.BeginMoveDrag(e);
     }
 
     private void Pin_OnClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)

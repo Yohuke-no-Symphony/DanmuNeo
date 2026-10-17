@@ -17,6 +17,139 @@ namespace Yohuke.DanmuNeo.Tests;
 public class WorkbenchTitleBarTests
 {
     /// <summary>
+    /// 标题区域的双击切换最大化与还原，连续点击按每两个点击切换一次。
+    /// </summary>
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task TitleBarDoubleClickTogglesMaximizedState(bool emptyArea)
+    {
+        using var context = new WorkspaceSidebarTestContext(240);
+        context.ViewModel.Settings.UseWindowMenuOnMac = true;
+        var main = new MainWindow { DataContext = context.ViewModel };
+
+        try
+        {
+            main.Show();
+            await main.Initialization;
+            var title = main.GetVisualDescendants().OfType<TitleBarView>().Single();
+            var name = title.GetVisualDescendants().OfType<TextBlock>().Single(text => text.Text == "夜半同传");
+            var menu = main.FindControl<Menu>("WindowMenu")!;
+            var buttons = title.FindControl<StackPanel>("WindowButtons")!;
+            var point = emptyArea
+                ? new Point((GetBounds(menu, main).Right + GetBounds(buttons, main).Left) / 2,
+                    GetBounds(title, main).Center.Y)
+                : GetBounds(name, main).Center;
+            Assert.True(title.IsDragRegion(point));
+
+            Click(main, point);
+            Assert.Equal(WindowState.Normal, main.WindowState);
+            Click(main, point);
+            Assert.Equal(WindowState.Maximized, main.WindowState);
+            Click(main, point);
+            Assert.Equal(WindowState.Maximized, main.WindowState);
+            Click(main, point);
+            Assert.Equal(WindowState.Normal, main.WindowState);
+        }
+        finally
+        {
+            await main.CloseWorkbenchAsync();
+        }
+    }
+
+    /// <summary>
+    /// 不允许最大化或调整尺寸时保持原状态，全屏窗口也不会被标题栏双击带出全屏。
+    /// </summary>
+    [AvaloniaTheory]
+    [InlineData(false, true, WindowState.Normal)]
+    [InlineData(true, false, WindowState.Normal)]
+    [InlineData(true, true, WindowState.FullScreen)]
+    public async Task TitleBarDoubleClickRespectsWindowCapabilitiesAndFullScreen(
+        bool canResize, bool canMaximize, WindowState state)
+    {
+        using var context = new WorkspaceSidebarTestContext(240);
+        var main = new MainWindow { DataContext = context.ViewModel };
+
+        try
+        {
+            main.Show();
+            await main.Initialization;
+            main.CanResize = canResize;
+            main.CanMaximize = canMaximize;
+            main.WindowState = state;
+            PumpLayout(main);
+            var title = main.GetVisualDescendants().OfType<TitleBarView>().Single();
+            var name = title.GetVisualDescendants().OfType<TextBlock>().Single(text => text.Text == "夜半同传");
+            var point = GetBounds(name, main).Center;
+
+            Click(main, point);
+            Click(main, point);
+
+            Assert.Equal(state, main.WindowState);
+        }
+        finally
+        {
+            await main.CloseWorkbenchAsync();
+        }
+    }
+
+    /// <summary>
+    /// 菜单、置顶按钮、原生按钮保留区的双击和标题区域右击不触发窗口最大化。
+    /// </summary>
+    [AvaloniaFact]
+    public async Task DoubleClickOutsideDragRegionAndRightClickKeepWindowState()
+    {
+        using var context = new WorkspaceSidebarTestContext(240);
+        context.ViewModel.Settings.UseWindowMenuOnMac = true;
+        var main = new MainWindow { DataContext = context.ViewModel };
+
+        try
+        {
+            main.Show();
+            await main.Initialization;
+            var title = main.GetVisualDescendants().OfType<TitleBarView>().Single();
+            title.CaptionInsets = new(92, 0, 146, 0);
+            PumpLayout(main);
+            var pin = title.FindControl<Button>("PinButton")!;
+            var menu = main.FindControl<Menu>("WindowMenu")!;
+            var item = menu.Items.OfType<MenuItem>().First();
+            var bounds = GetBounds(title, main);
+            var points = new[]
+            {
+                GetBounds(pin, main).Center,
+                GetBounds(item, main).Center,
+                new Point(bounds.Left + 46, bounds.Center.Y),
+                new Point(bounds.Right - 73, bounds.Center.Y)
+            };
+
+            foreach (var point in points)
+            {
+                Assert.False(title.IsDragRegion(point));
+                Click(main, point);
+                Click(main, point);
+                Assert.Equal(WindowState.Normal, main.WindowState);
+                item.IsSubMenuOpen = false;
+                PumpLayout(main);
+            }
+
+            var name = title.GetVisualDescendants().OfType<TextBlock>().Single(text => text.Text == "夜半同传");
+            var titlePoint = GetBounds(name, main).Center;
+
+            for (var i = 0; i < 2; i++)
+            {
+                main.MouseDown(titlePoint, MouseButton.Right);
+                main.MouseUp(titlePoint, MouseButton.Right);
+            }
+
+            Assert.Equal(WindowState.Normal, main.WindowState);
+        }
+        finally
+        {
+            await main.CloseWorkbenchAsync();
+        }
+    }
+
+    /// <summary>
     /// 长标题、菜单及置顶操作避开原生按钮保留区，指针命中和标题高度变化保持一致。
     /// </summary>
     [AvaloniaTheory]
