@@ -6,16 +6,18 @@ internal sealed class WorkbenchMenuProjection : IDisposable
 {
     private readonly WorkbenchMenuCatalog catalog;
     private readonly Menu? windowMenu;
+    private readonly WorkbenchMenuIcons icons;
     private readonly Dictionary<string, MenuItem> windowItems = [];
     private readonly Dictionary<string, NativeMenuItem> nativeItems = [];
     private string[] order = [];
     private bool nativeMenuVisible = true;
     private bool disposed;
 
-    internal WorkbenchMenuProjection(WorkbenchMenuCatalog catalog, Menu? windowMenu = null)
+    internal WorkbenchMenuProjection(WorkbenchMenuCatalog catalog, WorkbenchMenuIcons icons, Menu? windowMenu = null)
     {
         this.catalog = catalog;
         this.windowMenu = windowMenu;
+        this.icons = icons;
         catalog.Changed += Refresh;
         Refresh();
     }
@@ -85,6 +87,7 @@ internal sealed class WorkbenchMenuProjection : IDisposable
                     var windowItem = new MenuItem
                     {
                         Header = item.Header,
+                        Icon = item.Icon is { } windowIcon ? WorkbenchMenuIcons.Create(windowIcon) : null,
                         Command = item.Command,
                         ToggleType = toggle,
                         InputGesture = item.Gesture
@@ -92,6 +95,7 @@ internal sealed class WorkbenchMenuProjection : IDisposable
                     var nativeItem = new NativeMenuItem(item.Header)
                     {
                         Command = item.Command,
+                        Icon = item.Icon is { } nativeIcon ? icons.GetNative(nativeIcon) : null,
                         ToggleType = item.IsCheckable ? NativeMenuItemToggleType.CheckBox : NativeMenuItemToggleType.None
                     };
                     windowGroup.Items.Add(windowItem);

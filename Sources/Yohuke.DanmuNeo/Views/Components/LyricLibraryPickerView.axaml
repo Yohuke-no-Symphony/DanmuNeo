@@ -7,10 +7,11 @@
              x:CompileBindings="True"
              x:Name="Root">
     <Border x:Name="DialogSurface"
-            Background="{DynamicResource AppCardBrush}">
+            Background="{DynamicResource AppCardBrush}"
+            Padding="{StaticResource WorkbenchPanelPadding}">
         <Grid RowDefinitions="Auto,*"
               RowSpacing="12">
-            <Grid ColumnDefinitions="*,Auto,Auto"
+            <Grid ColumnDefinitions="*,Auto"
                   RowDefinitions="Auto,Auto"
                   ColumnSpacing="8">
                 <TextBlock Text="歌词库"
@@ -20,15 +21,8 @@
                                                    IsCompact="True"
                                                    LoadToCurrentRoom="True"
                                                    VerticalAlignment="Center" />
-                <Button Grid.Column="2"
-                        Classes="iconButton"
-                        ToolTip.Tip="关闭"
-                        AutomationProperties.Name="关闭歌词库"
-                        Command="{Binding #Root.CloseCommand}">
-                    <LucideIcon Kind="X" />
-                </Button>
                 <TextBlock Grid.Row="1"
-                           Grid.ColumnSpan="3"
+                           Grid.ColumnSpan="2"
                            Text="选择后加载到当前直播间"
                            Classes="muted"
                            TextWrapping="Wrap"

@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
+using Lucide.Avalonia;
 using Yohuke.DanmuNeo.Layouts;
 using Yohuke.DanmuNeo.Menus;
 using Yohuke.DanmuNeo.ViewModels;
@@ -38,6 +39,83 @@ public class WorkbenchNativeMenuLifecycleTests
         finally
         {
             window.Close();
+        }
+    }
+
+    /// <summary>
+    /// 探针实际编码新菜单项的位图，能发现结构导出前已被提前释放的共享图标。
+    /// </summary>
+    [AvaloniaFact]
+    public void ExporterRejectsIconsDisposedBeforeQueuedExport()
+    {
+        var window = new Window();
+        using var exporter = new NativeMenuExporterProbe(window);
+        using var icons = new WorkbenchMenuIcons();
+
+        try
+        {
+            var root = new NativeMenu();
+            NativeMenu.SetMenu(window, root);
+            root.Items.Add(new NativeMenuItem("设置") { Icon = icons.GetNative(LucideIconKind.Settings) });
+            Assert.True(exporter.HasPendingChanges);
+            Assert.Equal(0, exporter.IconExportCount);
+            icons.Dispose();
+
+            Assert.NotNull(Record.Exception(exporter.ExportPendingChanges));
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>
+    /// 另存布局后立即关闭主窗，已排队的新菜单图标先完成导出，再释放整个会话的缓存。
+    /// </summary>
+    [AvaloniaFact]
+    public async Task PresetCreatedImmediatelyBeforeCloseExportsIconsBeforeCacheDisposal()
+    {
+        using var context = new MarkGroupCycleTestContext();
+        var main = new Window { Width = 1200, Height = 800 };
+        using var exporter = new NativeMenuExporterProbe(main);
+        var workbench = await OpenWorkbenchAsync(main, new(), context.ViewModel);
+
+        try
+        {
+            var root = Assert.IsType<NativeMenu>(exporter.Root);
+            var exportsBeforeSave = exporter.IconExportCount;
+            Assert.True(exportsBeforeSave > 0);
+            workbench.Layouts.SaveAs("关闭前新建布局");
+            var layouts = root.Items.OfType<NativeMenuItem>().Single(item => item.Header == "布局").Menu!;
+            var preset = layouts.Items.OfType<NativeMenuItem>().Single(item => item.Header == "关闭前新建布局");
+            var icon = Assert.IsAssignableFrom<Avalonia.Media.Imaging.Bitmap>(preset.Icon);
+            Assert.True(exporter.HasPendingChanges);
+            Assert.Equal(exportsBeforeSave, exporter.IconExportCount);
+
+            main.Close();
+
+            Assert.True(exporter.IsClosed);
+            Assert.False(main.IsVisible);
+            Assert.True(exporter.HasPendingChanges);
+            Assert.Equal(0, exporter.IconExportsAfterClose);
+            using var stream = new MemoryStream();
+            icon.Save(stream);
+            Assert.True(stream.Length > 0);
+
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.False(exporter.HasPendingChanges);
+            Assert.True(exporter.IconExportsAfterClose > 0);
+            Assert.True(exporter.IconExportCount > exportsBeforeSave);
+            Assert.Same(root, NativeMenu.GetMenu(main));
+            Assert.Equal(1, exporter.AssignmentCount);
+            Assert.NotNull(Record.Exception(() => icon.Save(stream)));
+        }
+        finally
+        {
+            await workbench.DisposeAsync();
+            main.Close();
+            Dispatcher.UIThread.RunJobs();
         }
     }
 
@@ -86,6 +164,11 @@ public class WorkbenchNativeMenuLifecycleTests
             await workbench.DisposeAsync();
             Assert.Same(root, NativeMenu.GetMenu(window));
             Assert.Equal(1, exporter.AssignmentCount);
+            var icon = Assert.IsAssignableFrom<Avalonia.Media.Imaging.Bitmap>(
+                root.Items.OfType<NativeMenuItem>().First().Menu!.Items.OfType<NativeMenuItem>().Single().Icon);
+            using var stream = new MemoryStream();
+            icon.Save(stream);
+            Assert.True(stream.Length > 0);
         }
         finally
         {
@@ -120,8 +203,10 @@ public class WorkbenchNativeMenuLifecycleTests
             var mainSettings = ((NativeMenuItem)mainRoot.Items[0]).Menu!.Items.OfType<NativeMenuItem>().Single();
             var floatingSettings = ((NativeMenuItem)floatingRoot.Items[0]).Menu!.Items.OfType<NativeMenuItem>().Single();
             Assert.Same(mainSettings.Command, floatingSettings.Command);
+            Assert.Same(mainSettings.Icon, floatingSettings.Icon);
 
             floating.Close();
+            Dispatcher.UIThread.RunJobs();
             Assert.True(floatingExporter.IsClosed);
             Assert.False(floating.IsVisible);
             Assert.Empty(workbench.Layouts.FloatingWindows);
@@ -134,6 +219,9 @@ public class WorkbenchNativeMenuLifecycleTests
             Assert.Equal(frozenObjects, EnumerateMenuObjects(floatingRoot));
             Assert.Equal(1, floatingExporter.AssignmentCount);
             Assert.Equal(1, mainExporter.AssignmentCount);
+            using var stream = new MemoryStream();
+            mainSettings.Icon!.Save(stream);
+            Assert.True(stream.Length > 0);
         }
         finally
         {
@@ -201,13 +289,16 @@ public class WorkbenchNativeMenuLifecycleTests
         root.Items.Add(systemItem);
         NativeMenu.SetMenu(application, root);
 
-        using (var applicationMenu = new WorkbenchApplicationMenu(application, catalog))
+        using var icons = new WorkbenchMenuIcons();
+
+        using (var applicationMenu = new WorkbenchApplicationMenu(application, catalog, icons))
         {
             exporter.ExportPendingChanges();
             Assert.Same(root, NativeMenu.GetMenu(application));
             Assert.Equal(2, root.Items.Count);
             var settings = Assert.IsType<NativeMenuItem>(root.Items[0]);
             Assert.Same(catalog.SettingsCommand, settings.Command);
+            Assert.NotNull(settings.Icon);
             Assert.Same(root, settings.Parent);
             Assert.Same(root, systemItem.Parent);
         }

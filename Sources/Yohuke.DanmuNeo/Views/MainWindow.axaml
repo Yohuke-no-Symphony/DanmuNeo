@@ -12,10 +12,13 @@
         ExtendClientAreaTitleBarHeightHint="42"
         Icon="/Assets/favicon.ico"
         Title="{Binding WindowTitle}">
-    <Grid Classes="rootSurface" RowDefinitions="42,Auto,Auto,*">
-        <components:TitleBarView />
-        <Menu x:Name="WindowMenu" Grid.Row="1" Classes="workbenchMenu" />
-        <Border Grid.Row="2" Padding="14,8" DataContext="{Binding SelectedWorkspace.SelectedRoom}">
+    <Grid Classes="rootSurface" RowDefinitions="42,Auto,*">
+        <components:TitleBarView>
+            <components:TitleBarView.MenuContent>
+                <Menu x:Name="WindowMenu" Classes="workbenchMenu" />
+            </components:TitleBarView.MenuContent>
+        </components:TitleBarView>
+        <Border Grid.Row="1" Padding="14,8" DataContext="{Binding SelectedWorkspace.SelectedRoom}">
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" x:DataType="items:LiveRoomTabViewModel">
                 <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                     <Border Classes="listenStatusLight"
@@ -39,7 +42,7 @@
                 </Button>
             </Grid>
         </Border>
-        <ContentControl x:Name="DockHost" Grid.Row="3" Margin="12,0,12,12">
+        <ContentControl x:Name="DockHost" Grid.Row="2" Margin="12,0,12,12">
             <TextBlock Text="正在恢复工作台布局…" HorizontalAlignment="Center" VerticalAlignment="Center" />
         </ContentControl>
     </Grid>

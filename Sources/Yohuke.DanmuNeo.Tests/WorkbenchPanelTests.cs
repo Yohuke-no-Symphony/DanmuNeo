@@ -19,6 +19,48 @@ namespace Yohuke.DanmuNeo.Tests;
 public class WorkbenchPanelTests
 {
     /// <summary>
+    /// 五个业务面板在窄、宽尺寸下只保留一层统一内容边距。
+    /// </summary>
+    [AvaloniaTheory]
+    [InlineData(WorkbenchPanelIds.DANMU)]
+    [InlineData(WorkbenchPanelIds.SUPER_CHAT)]
+    [InlineData(WorkbenchPanelIds.HISTORY)]
+    [InlineData(WorkbenchPanelIds.LYRICS)]
+    [InlineData(WorkbenchPanelIds.FORWARDING)]
+    public void BusinessPanelsKeepOneSharedContentInset(string panelId)
+    {
+        using var fixture = new LiveRoomFeedViewTestContext();
+        using var context = new WorkbenchContext(fixture.ViewModel);
+        using var panels = new WorkbenchPanelSet(context);
+        var panel = Assert.IsAssignableFrom<WorkbenchRoomPanel>(panels.Panels[panelId]);
+        var window = new Window { Width = 320, Height = 620, Content = panel };
+
+        try
+        {
+            window.Show();
+
+            foreach (var width in new[] { 320d, 640d })
+            {
+                window.Width = width;
+                Dispatcher.UIThread.RunJobs();
+                window.UpdateLayout();
+                var surface = Assert.IsType<Border>(panel.Content);
+                var content = Assert.IsType<Grid>(surface.Child);
+                var bounds = new Rect(content.TranslatePoint(default, panel)!.Value, content.Bounds.Size);
+                Assert.InRange(bounds.Left, 11.5, 12.5);
+                Assert.InRange(bounds.Top, 11.5, 12.5);
+                Assert.InRange(panel.Bounds.Width - bounds.Right, 11.5, 12.5);
+                Assert.InRange(panel.Bounds.Height - bounds.Bottom, 11.5, 12.5);
+                Assert.True(content.IsEffectivelyVisible && content.IsEnabled);
+            }
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>
     /// 直接更改房间选择时，所有面板复用实例并同步数据上下文。
     /// </summary>
     [AvaloniaFact]

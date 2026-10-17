@@ -18,6 +18,7 @@ internal sealed class WorkbenchSession : IAsyncDisposable
     private readonly WorkbenchAuxiliaryCoordinator auxiliary;
     private readonly WorkbenchShortcutRouter shortcuts;
     private readonly WorkbenchMenuCatalog menuCatalog;
+    private readonly WorkbenchMenuIcons menuIcons = new();
     private readonly Dictionary<Window, WorkbenchMenuProjection> menuProjections = [];
     private readonly WorkbenchApplicationMenu? applicationMenu;
     private readonly bool supportsNativeMenus;
@@ -56,9 +57,10 @@ internal sealed class WorkbenchSession : IAsyncDisposable
 
         if (supportsNativeMenus && Application.Current is { } current)
         {
-            applicationMenu = new(current, menuCatalog);
+            applicationMenu = new(current, menuCatalog, menuIcons);
         }
 
+        mainWindow.Closed += OnMainWindowClosed;
         application.PropertyChanged += OnApplicationChanged;
         Panels.LyricLibraryRequested += OpenLyricLibrary;
         UpdateMenuMode();
@@ -128,7 +130,7 @@ internal sealed class WorkbenchSession : IAsyncDisposable
     private void AttachWindow(Window window)
     {
         shortcuts.Attach(window);
-        var projection = new WorkbenchMenuProjection(menuCatalog, window == mainWindow ? windowMenu : null);
+        var projection = new WorkbenchMenuProjection(menuCatalog, menuIcons, window == mainWindow ? windowMenu : null);
         menuProjections.Add(window, projection);
         projection.SetNativeMenuVisible(supportsNativeMenus && !application.UseWindowMenuOnMac);
 
@@ -154,6 +156,12 @@ internal sealed class WorkbenchSession : IAsyncDisposable
         {
             Context.CurrentRoom?.StopLivePlayer();
         }
+    }
+
+    private void OnMainWindowClosed(object? sender, EventArgs e)
+    {
+        mainWindow.Closed -= OnMainWindowClosed;
+        Dispatcher.UIThread.Post(menuIcons.Dispose, DispatcherPriority.Background);
     }
 
     private void OnPersistenceFailed(Exception exception)

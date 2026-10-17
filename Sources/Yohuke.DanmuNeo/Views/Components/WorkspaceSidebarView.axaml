@@ -21,177 +21,165 @@
                 </MenuItem>
             </ContextMenu>
         </Border.ContextMenu>
-        <Grid RowDefinitions="Auto,*"
-              Margin="14,10,14,12">
-            <Button Classes="iconButton"
-                    HorizontalAlignment="Right"
-                    ToolTip.Tip="新建工作区"
-                    Command="{Binding #Root.OpenAddWorkspaceDialogCommand}">
-                <LucideIcon Kind="FolderPlus" />
-            </Button>
-
-            <ScrollViewer Grid.Row="1"
-                          Margin="0,16,0,16">
-                <ItemsControl Classes="workspaceTree scrollSafeContent"
-                              ItemsSource="{Binding Workspaces}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate DataType="items:WorkspaceViewModel">
-                            <StackPanel Spacing="4"
-                                        Margin="0,0,0,8">
-                                <Grid Classes="workspaceTreeRow">
-                                    <Grid.ContextMenu>
-                                        <ContextMenu DataContext="{Binding}">
-                                            <MenuItem Header="添加直播间"
-                                                      Click="OpenAddRoomDialog_OnClick">
-                                                <MenuItem.Icon>
-                                                    <LucideIcon Kind="Monitor" />
-                                                </MenuItem.Icon>
-                                            </MenuItem>
-                                            <MenuItem Header="工作区设置"
-                                                      Click="OpenWorkspaceSettings_OnClick">
-                                                <MenuItem.Icon>
-                                                    <LucideIcon Kind="Settings" />
-                                                </MenuItem.Icon>
-                                            </MenuItem>
-                                            <MenuItem Header="重命名"
-                                                      Click="OpenWorkspaceSettings_OnClick">
-                                                <MenuItem.Icon>
-                                                    <LucideIcon Kind="Pencil" />
-                                                </MenuItem.Icon>
-                                            </MenuItem>
-                                            <Separator />
-                                            <MenuItem Header="上移"
-                                                      Command="{Binding #Root.MoveWorkspaceUpCommand}"
-                                                      CommandParameter="{Binding}">
-                                                <MenuItem.Icon>
-                                                    <LucideIcon Kind="SquareArrowUp" />
-                                                </MenuItem.Icon>
-                                            </MenuItem>
-                                            <MenuItem Header="下移"
-                                                      Command="{Binding #Root.MoveWorkspaceDownCommand}"
-                                                      CommandParameter="{Binding}">
-                                                <MenuItem.Icon>
-                                                    <LucideIcon Kind="SquareArrowDown" />
-                                                </MenuItem.Icon>
-                                            </MenuItem>
-                                            <Separator />
-                                            <MenuItem Header="导出分享"
-                                                      Click="ExportWorkspace_OnClick">
-                                                <MenuItem.Icon>
-                                                    <LucideIcon Kind="FileDown" />
-                                                </MenuItem.Icon>
-                                            </MenuItem>
-                                            <MenuItem Header="导入工作区"
-                                                      Click="ImportWorkspace_OnClick">
-                                                <MenuItem.Icon>
-                                                    <LucideIcon Kind="Import" />
-                                                </MenuItem.Icon>
-                                            </MenuItem>
-                                            <Separator />
-                                            <MenuItem Header="删除"
-                                                      Click="DeleteWorkspace_OnClick">
-                                                <MenuItem.Icon>
-                                                    <LucideIcon Kind="Trash2" />
-                                                </MenuItem.Icon>
-                                            </MenuItem>
-                                        </ContextMenu>
-                                    </Grid.ContextMenu>
-                                    <Button Classes="treeWorkspaceButton"
-                                            Classes.selected="{Binding IsSelected}"
-                                            Command="{Binding #Root.SelectWorkspaceCommand}"
-                                            CommandParameter="{Binding}"
-                                            DoubleTapped="WorkspaceRow_OnDoubleTapped">
-                                        <Grid ColumnDefinitions="*,Auto"
-                                              ColumnSpacing="10">
-                                            <StackPanel Spacing="2">
-                                                <TextBlock Text="{Binding Name}"
-                                                           FontWeight="SemiBold"
-                                                           TextTrimming="CharacterEllipsis" />
-                                                <TextBlock Text="{Binding AccountLabel}"
-                                                           Classes="muted"
-                                                           TextTrimming="CharacterEllipsis" />
-                                            </StackPanel>
-                                            <TextBlock Grid.Column="1"
-                                                       Text="{Binding RoomCountText}"
+        <ScrollViewer Margin="14,10,14,12">
+            <ItemsControl Classes="workspaceTree scrollSafeContent"
+                          ItemsSource="{Binding Workspaces}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="items:WorkspaceViewModel">
+                        <StackPanel Spacing="4"
+                                    Margin="0,0,0,8">
+                            <Grid Classes="workspaceTreeRow">
+                                <Grid.ContextMenu>
+                                    <ContextMenu DataContext="{Binding}">
+                                        <MenuItem Header="添加直播间"
+                                                  Click="OpenAddRoomDialog_OnClick">
+                                            <MenuItem.Icon>
+                                                <LucideIcon Kind="Monitor" />
+                                            </MenuItem.Icon>
+                                        </MenuItem>
+                                        <MenuItem Header="工作区设置"
+                                                  Click="OpenWorkspaceSettings_OnClick">
+                                            <MenuItem.Icon>
+                                                <LucideIcon Kind="Settings" />
+                                            </MenuItem.Icon>
+                                        </MenuItem>
+                                        <MenuItem Header="重命名"
+                                                  Click="OpenWorkspaceSettings_OnClick">
+                                            <MenuItem.Icon>
+                                                <LucideIcon Kind="Pencil" />
+                                            </MenuItem.Icon>
+                                        </MenuItem>
+                                        <Separator />
+                                        <MenuItem Header="上移"
+                                                  Command="{Binding #Root.MoveWorkspaceUpCommand}"
+                                                  CommandParameter="{Binding}">
+                                            <MenuItem.Icon>
+                                                <LucideIcon Kind="SquareArrowUp" />
+                                            </MenuItem.Icon>
+                                        </MenuItem>
+                                        <MenuItem Header="下移"
+                                                  Command="{Binding #Root.MoveWorkspaceDownCommand}"
+                                                  CommandParameter="{Binding}">
+                                            <MenuItem.Icon>
+                                                <LucideIcon Kind="SquareArrowDown" />
+                                            </MenuItem.Icon>
+                                        </MenuItem>
+                                        <Separator />
+                                        <MenuItem Header="导出分享"
+                                                  Click="ExportWorkspace_OnClick">
+                                            <MenuItem.Icon>
+                                                <LucideIcon Kind="FileDown" />
+                                            </MenuItem.Icon>
+                                        </MenuItem>
+                                        <MenuItem Header="导入工作区"
+                                                  Click="ImportWorkspace_OnClick">
+                                            <MenuItem.Icon>
+                                                <LucideIcon Kind="Import" />
+                                            </MenuItem.Icon>
+                                        </MenuItem>
+                                        <Separator />
+                                        <MenuItem Header="删除"
+                                                  Click="DeleteWorkspace_OnClick">
+                                            <MenuItem.Icon>
+                                                <LucideIcon Kind="Trash2" />
+                                            </MenuItem.Icon>
+                                        </MenuItem>
+                                    </ContextMenu>
+                                </Grid.ContextMenu>
+                                <Button Classes="treeWorkspaceButton"
+                                        Classes.selected="{Binding IsSelected}"
+                                        Command="{Binding #Root.SelectWorkspaceCommand}"
+                                        CommandParameter="{Binding}"
+                                        DoubleTapped="WorkspaceRow_OnDoubleTapped">
+                                    <Grid ColumnDefinitions="*,Auto"
+                                          ColumnSpacing="10">
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="{Binding Name}"
+                                                       FontWeight="SemiBold"
+                                                       TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Text="{Binding AccountLabel}"
                                                        Classes="muted"
-                                                       VerticalAlignment="Center" />
-                                        </Grid>
-                                    </Button>
-                                </Grid>
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{Binding RoomCountText}"
+                                                   Classes="muted"
+                                                   VerticalAlignment="Center" />
+                                    </Grid>
+                                </Button>
+                            </Grid>
 
-                                <ItemsControl ItemsSource="{Binding Rooms}"
-                                              IsVisible="{Binding IsExpanded}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate DataType="items:LiveRoomTabViewModel">
-                                            <Button Classes="treeRoomButton"
-                                                    Command="{Binding #Root.SelectRoomCommand}"
-                                                    CommandParameter="{Binding}">
-                                                <Button.ContextMenu>
-                                                    <ContextMenu DataContext="{Binding}">
-                                                        <MenuItem Header="上移"
-                                                                  Command="{Binding #Root.MoveRoomUpCommand}"
-                                                                  CommandParameter="{Binding}">
-                                                            <MenuItem.Icon>
-                                                                <LucideIcon Kind="SquareArrowUp" />
-                                                            </MenuItem.Icon>
-                                                        </MenuItem>
-                                                        <MenuItem Header="下移"
-                                                                  Command="{Binding #Root.MoveRoomDownCommand}"
-                                                                  CommandParameter="{Binding}">
-                                                            <MenuItem.Icon>
-                                                                <LucideIcon Kind="SquareArrowDown" />
-                                                            </MenuItem.Icon>
-                                                        </MenuItem>
-                                                        <MenuItem Header="修改"
-                                                                  Click="EditRoomInfo_OnClick">
-                                                            <MenuItem.Icon>
-                                                                <LucideIcon Kind="Pencil" />
-                                                            </MenuItem.Icon>
-                                                        </MenuItem>
-                                                        <Separator />
-                                                        <MenuItem Header="删除"
-                                                                  Click="DeleteRoom_OnClick">
-                                                            <MenuItem.Icon>
-                                                                <LucideIcon Kind="Trash2" />
-                                                            </MenuItem.Icon>
-                                                        </MenuItem>
-                                                    </ContextMenu>
-                                                </Button.ContextMenu>
-                                                <Grid ColumnDefinitions="Auto,*,Auto,Auto"
-                                                      ColumnSpacing="8">
-                                                    <Border Classes="roomAvatarFrame"
-                                                            IsVisible="{Binding HasAvatar}">
-                                                        <Image Source="{Binding AvatarImage}"
-                                                               Stretch="UniformToFill" />
-                                                    </Border>
-                                                    <Border Classes="roomAvatarPlaceholder"
-                                                            Background="{Binding AvatarPlaceholderBrush}"
-                                                            IsVisible="{Binding HasNoAvatar}">
-                                                        <TextBlock Text="{Binding AvatarPlaceholderText}" />
-                                                    </Border>
-                                                    <TextBlock Grid.Column="1"
-                                                               Text="{Binding Header}"
-                                                               TextTrimming="CharacterEllipsis" />
-                                                    <TextBlock Grid.Column="2"
-                                                               Text="{Binding RoomId}"
-                                                               Classes="muted"
-                                                               VerticalAlignment="Center" />
-                                                    <Border Grid.Column="3"
-                                                            Classes="listenStatusLight"
-                                                            Classes.listening="{Binding IsListening}"
-                                                            Classes.idle="{Binding IsNotListening}"
-                                                            ToolTip.Tip="{Binding ConnectionStatus}" />
-                                                </Grid>
-                                            </Button>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </ScrollViewer>
-
-        </Grid>
+                            <ItemsControl ItemsSource="{Binding Rooms}"
+                                          IsVisible="{Binding IsExpanded}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="items:LiveRoomTabViewModel">
+                                        <Button Classes="treeRoomButton"
+                                                Command="{Binding #Root.SelectRoomCommand}"
+                                                CommandParameter="{Binding}">
+                                            <Button.ContextMenu>
+                                                <ContextMenu DataContext="{Binding}">
+                                                    <MenuItem Header="上移"
+                                                              Command="{Binding #Root.MoveRoomUpCommand}"
+                                                              CommandParameter="{Binding}">
+                                                        <MenuItem.Icon>
+                                                            <LucideIcon Kind="SquareArrowUp" />
+                                                        </MenuItem.Icon>
+                                                    </MenuItem>
+                                                    <MenuItem Header="下移"
+                                                              Command="{Binding #Root.MoveRoomDownCommand}"
+                                                              CommandParameter="{Binding}">
+                                                        <MenuItem.Icon>
+                                                            <LucideIcon Kind="SquareArrowDown" />
+                                                        </MenuItem.Icon>
+                                                    </MenuItem>
+                                                    <MenuItem Header="修改"
+                                                              Click="EditRoomInfo_OnClick">
+                                                        <MenuItem.Icon>
+                                                            <LucideIcon Kind="Pencil" />
+                                                        </MenuItem.Icon>
+                                                    </MenuItem>
+                                                    <Separator />
+                                                    <MenuItem Header="删除"
+                                                              Click="DeleteRoom_OnClick">
+                                                        <MenuItem.Icon>
+                                                            <LucideIcon Kind="Trash2" />
+                                                        </MenuItem.Icon>
+                                                    </MenuItem>
+                                                </ContextMenu>
+                                            </Button.ContextMenu>
+                                            <Grid ColumnDefinitions="Auto,*,Auto,Auto"
+                                                  ColumnSpacing="8">
+                                                <Border Classes="roomAvatarFrame"
+                                                        IsVisible="{Binding HasAvatar}">
+                                                    <Image Source="{Binding AvatarImage}"
+                                                           Stretch="UniformToFill" />
+                                                </Border>
+                                                <Border Classes="roomAvatarPlaceholder"
+                                                        Background="{Binding AvatarPlaceholderBrush}"
+                                                        IsVisible="{Binding HasNoAvatar}">
+                                                    <TextBlock Text="{Binding AvatarPlaceholderText}" />
+                                                </Border>
+                                                <TextBlock Grid.Column="1"
+                                                           Text="{Binding Header}"
+                                                           TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Grid.Column="2"
+                                                           Text="{Binding RoomId}"
+                                                           Classes="muted"
+                                                           VerticalAlignment="Center" />
+                                                <Border Grid.Column="3"
+                                                        Classes="listenStatusLight"
+                                                        Classes.listening="{Binding IsListening}"
+                                                        Classes.idle="{Binding IsNotListening}"
+                                                        ToolTip.Tip="{Binding ConnectionStatus}" />
+                                            </Grid>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
     </Border>
 </UserControl>

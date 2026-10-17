@@ -8,62 +8,64 @@
                                x:DataType="items:LiveRoomTabViewModel"
                                x:CompileBindings="True"
                                x:Name="Root">
-    <Grid Classes.compactDanmu="{Binding #Root.Context.Application.IsCompactDanmuDisplay}"
-          Classes.compactDanmuWrap="{Binding #Root.Context.Application.IsCompactDanmuWrap}"
-          Classes.compactSuperChatWrap="{Binding #Root.Context.Application.IsCompactSuperChatWrap}">
-        <ListBox
-            Classes="feedList"
-            ItemsSource="{Binding SuperChats}">
-            <ListBox.ItemTemplate>
-                <DataTemplate x:DataType="workspace:SuperChatItem">
-                    <Button Classes="scFeedButton"
-                            Classes.guardPurchase="{Binding IsGuardPurchase}"
-                            HorizontalAlignment="Stretch"
-                            HorizontalContentAlignment="Stretch"
-                            Click="SuperChat_OnClick">
-                        <Border Classes="scFeedCard"
-                                BorderThickness="2">
-                            <Border.BorderBrush>
-                                <SolidColorBrush Color="{Binding BorderColor}" />
-                            </Border.BorderBrush>
-                            <Grid Classes="scFeedLayout"
-                                  RowDefinitions="Auto,Auto">
-                                <Grid ColumnDefinitions="*,Auto"
-                                      ColumnSpacing="8">
-                                    <StackPanel Spacing="1">
-                                        <Button Classes="feedUserNameButton"
-                                                Click="FeedUserName_OnClick">
-                                            <TextBlock Text="{Binding UserName}"
-                                                       Classes="danmuFeedUser"
-                                                       TextTrimming="CharacterEllipsis" />
-                                        </Button>
-                                        <TextBlock Text="{Binding DisplayTime}"
-                                                   Classes="danmuFeedMeta" />
-                                    </StackPanel>
-                                    <TextBlock Grid.Column="1"
-                                               Text="{Binding BadgeText}"
-                                               Classes="scFeedPrice"
-                                               VerticalAlignment="Center">
-                                        <TextBlock.Foreground>
-                                            <SolidColorBrush Color="{Binding BorderColor}" />
-                                        </TextBlock.Foreground>
-                                    </TextBlock>
+    <Border Padding="{StaticResource WorkbenchPanelPadding}">
+        <Grid Classes.compactDanmu="{Binding #Root.Context.Application.IsCompactDanmuDisplay}"
+              Classes.compactDanmuWrap="{Binding #Root.Context.Application.IsCompactDanmuWrap}"
+              Classes.compactSuperChatWrap="{Binding #Root.Context.Application.IsCompactSuperChatWrap}">
+            <ListBox
+                Classes="feedList"
+                ItemsSource="{Binding SuperChats}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="workspace:SuperChatItem">
+                        <Button Classes="scFeedButton"
+                                Classes.guardPurchase="{Binding IsGuardPurchase}"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Stretch"
+                                Click="SuperChat_OnClick">
+                            <Border Classes="scFeedCard"
+                                    BorderThickness="2">
+                                <Border.BorderBrush>
+                                    <SolidColorBrush Color="{Binding BorderColor}" />
+                                </Border.BorderBrush>
+                                <Grid Classes="scFeedLayout"
+                                      RowDefinitions="Auto,Auto">
+                                    <Grid ColumnDefinitions="*,Auto"
+                                          ColumnSpacing="8">
+                                        <StackPanel Spacing="1">
+                                            <Button Classes="feedUserNameButton"
+                                                    Click="FeedUserName_OnClick">
+                                                <TextBlock Text="{Binding UserName}"
+                                                           Classes="danmuFeedUser"
+                                                           TextTrimming="CharacterEllipsis" />
+                                            </Button>
+                                            <TextBlock Text="{Binding DisplayTime}"
+                                                       Classes="danmuFeedMeta" />
+                                        </StackPanel>
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{Binding BadgeText}"
+                                                   Classes="scFeedPrice"
+                                                   VerticalAlignment="Center">
+                                            <TextBlock.Foreground>
+                                                <SolidColorBrush Color="{Binding BorderColor}" />
+                                            </TextBlock.Foreground>
+                                        </TextBlock>
+                                    </Grid>
+                                    <Grid Grid.Row="1"
+                                          Classes="scFeedContent"
+                                          IsVisible="{Binding CanInsertContent}">
+                                        <TextBlock Text="{Binding Content}"
+                                                   Classes="danmuFeedContent regularFeedContent"
+                                                   TextWrapping="Wrap" />
+                                        <components:HoverMarqueeTextBlock
+                                            Text="{Binding Content}"
+                                            Classes="compactFeedContent" />
+                                    </Grid>
                                 </Grid>
-                                <Grid Grid.Row="1"
-                                      Classes="scFeedContent"
-                                      IsVisible="{Binding CanInsertContent}">
-                                    <TextBlock Text="{Binding Content}"
-                                               Classes="danmuFeedContent regularFeedContent"
-                                               TextWrapping="Wrap" />
-                                    <components:HoverMarqueeTextBlock
-                                        Text="{Binding Content}"
-                                        Classes="compactFeedContent" />
-                                </Grid>
-                            </Grid>
-                        </Border>
-                    </Button>
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
-    </Grid>
+                            </Border>
+                        </Button>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Grid>
+    </Border>
 </components:WorkbenchRoomPanel>

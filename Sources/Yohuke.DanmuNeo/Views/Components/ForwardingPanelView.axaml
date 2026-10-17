@@ -8,117 +8,119 @@
                                x:DataType="items:LiveRoomTabViewModel"
                                x:CompileBindings="True"
                                x:Name="Root">
-    <Grid RowDefinitions="Auto,*"
-          RowSpacing="10"
-          Margin="0">
-        <Grid ColumnDefinitions="*,Auto"
-              ColumnSpacing="8">
-            <StackPanel>
-                <TextBlock Text="监听其它直播间并转发匹配弹幕"
-                           Classes="sectionTitle" />
-                <TextBlock Text="UID 和正则至少填写一个；都填写时需同时满足。命中后会自动套用开闭规则。"
-                           Classes="muted" />
-            </StackPanel>
-            <Button Grid.Column="1"
-                    Classes="iconButton"
-                    ToolTip.Tip="添加转发规则"
-                    Command="{Binding AddForwardRuleCommand}">
-                <LucideIcon Kind="Plus" />
-            </Button>
+    <Border Padding="{StaticResource WorkbenchPanelPadding}">
+        <Grid RowDefinitions="Auto,*"
+              RowSpacing="10"
+              Margin="0">
+            <Grid ColumnDefinitions="*,Auto"
+                  ColumnSpacing="8">
+                <StackPanel>
+                    <TextBlock Text="监听其它直播间并转发匹配弹幕"
+                               Classes="sectionTitle" />
+                    <TextBlock Text="UID 和正则至少填写一个；都填写时需同时满足。命中后会自动套用开闭规则。"
+                               Classes="muted" />
+                </StackPanel>
+                <Button Grid.Column="1"
+                        Classes="iconButton"
+                        ToolTip.Tip="添加转发规则"
+                        Command="{Binding AddForwardRuleCommand}">
+                    <LucideIcon Kind="Plus" />
+                </Button>
+            </Grid>
+            <ScrollViewer Grid.Row="1">
+                <ItemsControl Classes="scrollSafeContent"
+                              ItemsSource="{Binding ForwardRules}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="items:DanmuForwardRuleViewModel">
+                            <Border Classes="forwardRuleCard">
+                                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto"
+                                      RowSpacing="8">
+                                    <Grid ColumnDefinitions="Auto,*,Auto"
+                                          ColumnSpacing="8">
+                                        <CheckBox IsChecked="{Binding IsEnabled}"
+                                                  VerticalAlignment="Center" />
+                                        <ComboBox Grid.Column="1"
+                                                  HorizontalAlignment="Stretch"
+                                                  ItemsSource="{Binding SourceRoomOptions}"
+                                                  SelectedValue="{Binding SourceRoomKey}"
+                                                  SelectedValueBinding="{Binding Key}">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate
+                                                    x:DataType="workspace:ForwardSourceRoomOption">
+                                                    <TextBlock Text="{Binding DisplayName}"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+                                        <Button Grid.Column="2"
+                                                Classes="iconButton"
+                                                ToolTip.Tip="删除规则"
+                                                Command="{Binding #Root.Context.CurrentRoom.RemoveForwardRuleCommand}"
+                                                CommandParameter="{Binding}">
+                                            <LucideIcon Kind="Trash2" />
+                                        </Button>
+                                    </Grid>
+                                    <Grid Grid.Row="1"
+                                          ColumnDefinitions="*,Auto"
+                                          ColumnSpacing="8">
+                                        <TextBox Watermark="发送人 UID"
+                                                 Text="{Binding SenderUid}" />
+                                        <TextBlock Grid.Column="1"
+                                                   x:Name="ForwardSenderUserNameText"
+                                                   Classes="muted"
+                                                   Text="{Binding SenderUserNameDisplayText}"
+                                                   ToolTip.Tip="{Binding SenderUserNameDisplayText}"
+                                                   VerticalAlignment="Center"
+                                                   MaxWidth="120"
+                                                   TextTrimming="CharacterEllipsis" />
+                                    </Grid>
+                                    <Grid Grid.Row="2"
+                                          ColumnDefinitions="*">
+                                        <TextBox
+                                            Watermark="同传格式正则，例如 ^【.*】$"
+                                            Text="{Binding ContentPattern}" />
+                                    </Grid>
+                                    <Grid Grid.Row="3"
+                                          ColumnDefinitions="*">
+                                        <ComboBox
+                                            HorizontalAlignment="Stretch"
+                                            ToolTip.Tip="转发发送账号"
+                                            ItemsSource="{Binding AccountOptions}"
+                                            SelectedValue="{Binding AccountOverrideId}"
+                                            SelectedValueBinding="{Binding AccountId}">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate x:DataType="items:ForwardAccountOption">
+                                                    <TextBlock Text="{Binding DisplayName}"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+                                    </Grid>
+                                    <Grid Grid.Row="4"
+                                          ColumnDefinitions="*">
+                                        <ComboBox
+                                            HorizontalAlignment="Stretch"
+                                            ToolTip.Tip="转发开闭规则"
+                                            ItemsSource="{Binding SymbolGroups}"
+                                            SelectedValue="{Binding MarkSymbolGroupId}"
+                                            SelectedValueBinding="{Binding Id}">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate x:DataType="state:MarkSymbolGroup">
+                                                    <TextBlock Text="{Binding Name}"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+                                    </Grid>
+                                    <TextBlock Grid.Row="5"
+                                               Text="{Binding StatusText}"
+                                               Classes="muted" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
         </Grid>
-        <ScrollViewer Grid.Row="1">
-            <ItemsControl Classes="scrollSafeContent"
-                          ItemsSource="{Binding ForwardRules}">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="items:DanmuForwardRuleViewModel">
-                        <Border Classes="forwardRuleCard">
-                            <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto"
-                                  RowSpacing="8">
-                                <Grid ColumnDefinitions="Auto,*,Auto"
-                                      ColumnSpacing="8">
-                                    <CheckBox IsChecked="{Binding IsEnabled}"
-                                              VerticalAlignment="Center" />
-                                    <ComboBox Grid.Column="1"
-                                              HorizontalAlignment="Stretch"
-                                              ItemsSource="{Binding SourceRoomOptions}"
-                                              SelectedValue="{Binding SourceRoomKey}"
-                                              SelectedValueBinding="{Binding Key}">
-                                        <ComboBox.ItemTemplate>
-                                            <DataTemplate
-                                                x:DataType="workspace:ForwardSourceRoomOption">
-                                                <TextBlock Text="{Binding DisplayName}"
-                                                           TextTrimming="CharacterEllipsis" />
-                                            </DataTemplate>
-                                        </ComboBox.ItemTemplate>
-                                    </ComboBox>
-                                    <Button Grid.Column="2"
-                                            Classes="iconButton"
-                                            ToolTip.Tip="删除规则"
-                                            Command="{Binding #Root.Context.CurrentRoom.RemoveForwardRuleCommand}"
-                                            CommandParameter="{Binding}">
-                                        <LucideIcon Kind="Trash2" />
-                                    </Button>
-                                </Grid>
-                                <Grid Grid.Row="1"
-                                      ColumnDefinitions="*,Auto"
-                                      ColumnSpacing="8">
-                                    <TextBox Watermark="发送人 UID"
-                                             Text="{Binding SenderUid}" />
-                                    <TextBlock Grid.Column="1"
-                                               x:Name="ForwardSenderUserNameText"
-                                               Classes="muted"
-                                               Text="{Binding SenderUserNameDisplayText}"
-                                               ToolTip.Tip="{Binding SenderUserNameDisplayText}"
-                                               VerticalAlignment="Center"
-                                               MaxWidth="120"
-                                               TextTrimming="CharacterEllipsis" />
-                                </Grid>
-                                <Grid Grid.Row="2"
-                                      ColumnDefinitions="*">
-                                    <TextBox
-                                        Watermark="同传格式正则，例如 ^【.*】$"
-                                        Text="{Binding ContentPattern}" />
-                                </Grid>
-                                <Grid Grid.Row="3"
-                                      ColumnDefinitions="*">
-                                    <ComboBox
-                                        HorizontalAlignment="Stretch"
-                                        ToolTip.Tip="转发发送账号"
-                                        ItemsSource="{Binding AccountOptions}"
-                                        SelectedValue="{Binding AccountOverrideId}"
-                                        SelectedValueBinding="{Binding AccountId}">
-                                        <ComboBox.ItemTemplate>
-                                            <DataTemplate x:DataType="items:ForwardAccountOption">
-                                                <TextBlock Text="{Binding DisplayName}"
-                                                           TextTrimming="CharacterEllipsis" />
-                                            </DataTemplate>
-                                        </ComboBox.ItemTemplate>
-                                    </ComboBox>
-                                </Grid>
-                                <Grid Grid.Row="4"
-                                      ColumnDefinitions="*">
-                                    <ComboBox
-                                        HorizontalAlignment="Stretch"
-                                        ToolTip.Tip="转发开闭规则"
-                                        ItemsSource="{Binding SymbolGroups}"
-                                        SelectedValue="{Binding MarkSymbolGroupId}"
-                                        SelectedValueBinding="{Binding Id}">
-                                        <ComboBox.ItemTemplate>
-                                            <DataTemplate x:DataType="state:MarkSymbolGroup">
-                                                <TextBlock Text="{Binding Name}"
-                                                           TextTrimming="CharacterEllipsis" />
-                                            </DataTemplate>
-                                        </ComboBox.ItemTemplate>
-                                    </ComboBox>
-                                </Grid>
-                                <TextBlock Grid.Row="5"
-                                           Text="{Binding StatusText}"
-                                           Classes="muted" />
-                            </Grid>
-                        </Border>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-        </ScrollViewer>
-    </Grid>
+    </Border>
 </components:WorkbenchRoomPanel>

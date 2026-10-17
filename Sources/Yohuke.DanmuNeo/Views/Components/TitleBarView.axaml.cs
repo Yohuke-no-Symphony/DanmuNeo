@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.VisualTree;
@@ -9,6 +10,12 @@ namespace Yohuke.DanmuNeo.Views.Components;
 /// </summary>
 public partial class TitleBarView : UserControl
 {
+    /// <summary>
+    /// 标题行中的窗口菜单内容。
+    /// </summary>
+    public static readonly StyledProperty<Control?> MenuContentProperty =
+        AvaloniaProperty.Register<TitleBarView, Control?>(nameof(MenuContent));
+
 #if DEBUG
     private DanmuStylePreviewWindow? danmuStylePreviewWindow;
 #endif
@@ -22,6 +29,15 @@ public partial class TitleBarView : UserControl
 #if DEBUG
         DebugToolsButton.IsVisible = true;
 #endif
+    }
+
+    /// <summary>
+    /// 获取或设置标题行中的窗口菜单。
+    /// </summary>
+    public Control? MenuContent
+    {
+        get => GetValue(MenuContentProperty);
+        set => SetValue(MenuContentProperty, value);
     }
 
     private void DebugTools_OnClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
@@ -46,7 +62,9 @@ public partial class TitleBarView : UserControl
 
     private void TitleBar_OnPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (e.Source is Control source && (source is Button || source.FindAncestorOfType<Button>() is not null))
+        if (e.Source is Control source &&
+            (source is Button or Menu or MenuItem || source.FindAncestorOfType<Button>() is not null ||
+             source.FindAncestorOfType<Menu>() is not null || source.FindAncestorOfType<MenuItem>() is not null))
         {
             return;
         }

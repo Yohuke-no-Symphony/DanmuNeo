@@ -7,6 +7,7 @@
             <CornerRadius x:Key="WorkbenchPanelCornerRadius">10</CornerRadius>
             <CornerRadius x:Key="WorkbenchControlCornerRadius">6</CornerRadius>
             <Thickness x:Key="WorkbenchButtonPadding">12,6</Thickness>
+            <Thickness x:Key="WorkbenchPanelPadding">12</Thickness>
             <FontFamily x:Key="ContentControlThemeFontFamily">PingFang SC, Microsoft YaHei UI, Noto Sans CJK SC, Noto Sans SC, sans-serif</FontFamily>
             <SolidColorBrush x:Key="AppErrorBrush" Color="#EF4444" />
             <ResourceDictionary.ThemeDictionaries>

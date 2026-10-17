@@ -8,67 +8,69 @@
                                x:DataType="items:LiveRoomTabViewModel"
                                x:CompileBindings="True"
                                x:Name="Root">
-    <Grid Classes.compactDanmu="{Binding #Root.Context.Application.IsCompactDanmuDisplay}"
-          Classes.compactDanmuWrap="{Binding #Root.Context.Application.IsCompactDanmuWrap}"
-          Classes.compactSuperChatWrap="{Binding #Root.Context.Application.IsCompactSuperChatWrap}">
-        <ScrollViewer x:Name="DanmuScrollViewer"
-                      Margin="0">
-            <ItemsControl x:Name="DanmuItemsControl"
-                          Classes="scrollSafeContent danmuFeedList"
-                          ItemsSource="{Binding DanmuItems}">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="workspace:DanmuFeedItem">
-                        <Button Classes="danmuFeedButton"
-                                HorizontalAlignment="Stretch"
-                                HorizontalContentAlignment="Stretch"
-                                ContextRequested="Danmu_OnContextRequested"
-                                Click="Danmu_OnClick">
-                            <Grid Classes="danmuFeedLayout"
-                                  ColumnDefinitions="2*,3*"
-                                  RowDefinitions="Auto">
-                                <DockPanel Classes="danmuFeedIdentity"
-                                           VerticalAlignment="Center">
-                                    <Border Classes="danmuMedalBadge"
-                                            BorderBrush="{Binding MedalBorderBrush}"
-                                            IsVisible="{Binding HasMedal}"
-                                            ToolTip.Tip="{Binding MedalText}">
-                                        <Grid Classes="danmuMedalLayout"
-                                              ColumnDefinitions="*,Auto">
-                                            <TextBlock Text="{Binding MedalDisplayName}"
-                                                       Classes="danmuMedalText danmuMedalName"
-                                                       TextTrimming="CharacterEllipsis" />
-                                            <TextBlock Grid.Column="1"
-                                                       Text="{Binding MedalLevel}"
-                                                       Classes="danmuMedalText danmuMedalLevel"
-                                                       TextTrimming="CharacterEllipsis" />
-                                        </Grid>
-                                    </Border>
-                                    <TextBlock Text="{Binding DetailLine}"
-                                               Classes="danmuFeedMeta"
-                                               DockPanel.Dock="Right"
-                                               Margin="6,0,0,0"
-                                               TextTrimming="CharacterEllipsis" />
-                                    <Button Classes="feedUserNameButton"
-                                            Click="FeedUserName_OnClick">
-                                        <TextBlock Text="{Binding UserName}"
-                                                   Classes="danmuFeedUser"
+    <Border Padding="{StaticResource WorkbenchPanelPadding}">
+        <Grid Classes.compactDanmu="{Binding #Root.Context.Application.IsCompactDanmuDisplay}"
+              Classes.compactDanmuWrap="{Binding #Root.Context.Application.IsCompactDanmuWrap}"
+              Classes.compactSuperChatWrap="{Binding #Root.Context.Application.IsCompactSuperChatWrap}">
+            <ScrollViewer x:Name="DanmuScrollViewer"
+                          Margin="0">
+                <ItemsControl x:Name="DanmuItemsControl"
+                              Classes="scrollSafeContent danmuFeedList"
+                              ItemsSource="{Binding DanmuItems}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="workspace:DanmuFeedItem">
+                            <Button Classes="danmuFeedButton"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Stretch"
+                                    ContextRequested="Danmu_OnContextRequested"
+                                    Click="Danmu_OnClick">
+                                <Grid Classes="danmuFeedLayout"
+                                      ColumnDefinitions="2*,3*"
+                                      RowDefinitions="Auto">
+                                    <DockPanel Classes="danmuFeedIdentity"
+                                               VerticalAlignment="Center">
+                                        <Border Classes="danmuMedalBadge"
+                                                BorderBrush="{Binding MedalBorderBrush}"
+                                                IsVisible="{Binding HasMedal}"
+                                                ToolTip.Tip="{Binding MedalText}">
+                                            <Grid Classes="danmuMedalLayout"
+                                                  ColumnDefinitions="*,Auto">
+                                                <TextBlock Text="{Binding MedalDisplayName}"
+                                                           Classes="danmuMedalText danmuMedalName"
+                                                           TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Grid.Column="1"
+                                                           Text="{Binding MedalLevel}"
+                                                           Classes="danmuMedalText danmuMedalLevel"
+                                                           TextTrimming="CharacterEllipsis" />
+                                            </Grid>
+                                        </Border>
+                                        <TextBlock Text="{Binding DetailLine}"
+                                                   Classes="danmuFeedMeta"
+                                                   DockPanel.Dock="Right"
+                                                   Margin="6,0,0,0"
                                                    TextTrimming="CharacterEllipsis" />
-                                    </Button>
-                                </DockPanel>
-                                <components:EmoticonTextBlock Grid.Column="1"
-                                                              ContentText="{Binding Content}"
-                                                              Emoticons="{Binding Emoticons}"
-                                                              Classes="danmuFeedContent regularFeedContent"
-                                                              TextWrapping="Wrap" />
-                                <components:HoverMarqueeTextBlock Grid.Column="1"
-                                                                  Text="{Binding Content}"
+                                        <Button Classes="feedUserNameButton"
+                                                Click="FeedUserName_OnClick">
+                                            <TextBlock Text="{Binding UserName}"
+                                                       Classes="danmuFeedUser"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </Button>
+                                    </DockPanel>
+                                    <components:EmoticonTextBlock Grid.Column="1"
+                                                                  ContentText="{Binding Content}"
                                                                   Emoticons="{Binding Emoticons}"
-                                                                  Classes="compactFeedContent" />
-                            </Grid>
-                        </Button>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-        </ScrollViewer>
-    </Grid>
+                                                                  Classes="danmuFeedContent regularFeedContent"
+                                                                  TextWrapping="Wrap" />
+                                    <components:HoverMarqueeTextBlock Grid.Column="1"
+                                                                      Text="{Binding Content}"
+                                                                      Emoticons="{Binding Emoticons}"
+                                                                      Classes="compactFeedContent" />
+                                </Grid>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Grid>
+    </Border>
 </components:WorkbenchRoomPanel>

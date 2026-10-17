@@ -1,5 +1,6 @@
 using Avalonia.Input;
 using CommunityToolkit.Mvvm.Input;
+using Lucide.Avalonia;
 using Yohuke.DanmuNeo.Layouts;
 
 namespace Yohuke.DanmuNeo.Menus;
@@ -61,27 +62,26 @@ internal sealed class WorkbenchMenuCatalog : IDisposable
                     layoutCommands.Add(preset.Id, command);
                 }
 
-                layoutEntries.Add(new($"layout:{preset.Id}", preset.Name, command,
+                layoutEntries.Add(new($"layout:{preset.Id}", preset.Name, GetLayoutIcon(preset.Id), command,
                     layouts.CurrentPresetId == preset.Id, true));
             }
 
             layoutEntries.AddRange([
-                new("layout-save", "保存当前布局", saveLayout),
-                new("layout-save-as", "另存为布局…", saveAsLayout),
-                new("layout-manage", "管理布局…", manageLayouts),
-                new("layout-default", "恢复默认布局", restoreDefault)
+                new("layout-save", "保存当前布局", LucideIconKind.Save, saveLayout),
+                new("layout-save-as", "另存为布局…", LucideIconKind.SaveAll, saveAsLayout),
+                new("layout-manage", "管理布局…", LucideIconKind.SlidersHorizontal, manageLayouts),
+                new("layout-default", "恢复默认布局", LucideIconKind.RotateCcw, restoreDefault)
             ]);
             return
             [
                 new("application", "应用", Children:
-                [new("settings", "设置…", SettingsCommand, Gesture: new(Key.OemComma,
+                [new("settings", "设置…", LucideIconKind.Settings, SettingsCommand, Gesture: new(Key.OemComma,
                     OperatingSystem.IsMacOS() ? KeyModifiers.Meta : KeyModifiers.Control))]),
                 new("views", "视图", Children: WorkbenchPanelIds.All.Select(id =>
-                    new WorkbenchMenuEntry($"panel:{id}", GetPanelTitle(id), panelCommands[id],
-                        layouts.IsVisible(id), true)).ToArray()),
+                    new WorkbenchMenuEntry($"panel:{id}", GetPanelTitle(id), GetPanelIcon(id), panelCommands[id])).ToArray()),
                 new("layouts", "布局", Children: layoutEntries),
                 new("help", "帮助", Children:
-                [new("about", "关于", about), new("update", "检查更新", update)])
+                [new("about", "关于", LucideIconKind.Info, about), new("update", "检查更新", LucideIconKind.Download, update)])
             ];
         }
     }
@@ -99,6 +99,34 @@ internal sealed class WorkbenchMenuCatalog : IDisposable
             WorkbenchPanelIds.LYRICS => "歌词",
             WorkbenchPanelIds.FORWARDING => "转发",
             _ => throw new ArgumentOutOfRangeException(nameof(id))
+        };
+    }
+
+    private static LucideIconKind GetPanelIcon(string id)
+    {
+        return id switch
+        {
+            WorkbenchPanelIds.WORKSPACE => LucideIconKind.FolderTree,
+            WorkbenchPanelIds.LIVE_PLAYER => LucideIconKind.MonitorPlay,
+            WorkbenchPanelIds.COMPOSER => LucideIconKind.SquarePen,
+            WorkbenchPanelIds.SUPER_CHAT => LucideIconKind.BadgeDollarSign,
+            WorkbenchPanelIds.DANMU => LucideIconKind.MessagesSquare,
+            WorkbenchPanelIds.HISTORY => LucideIconKind.History,
+            WorkbenchPanelIds.LYRICS => LucideIconKind.Music,
+            WorkbenchPanelIds.FORWARDING => LucideIconKind.Forward,
+            _ => throw new ArgumentOutOfRangeException(nameof(id))
+        };
+    }
+
+    private static LucideIconKind GetLayoutIcon(string id)
+    {
+        return id switch
+        {
+            WorkspaceLayoutPresets.DEFAULT => LucideIconKind.PanelsTopLeft,
+            WorkspaceLayoutPresets.TRANSLATION => LucideIconKind.Columns3,
+            WorkspaceLayoutPresets.LYRICS => LucideIconKind.ListMusic,
+            WorkspaceLayoutPresets.FORWARDING => LucideIconKind.Share2,
+            _ => LucideIconKind.LayoutTemplate
         };
     }
 

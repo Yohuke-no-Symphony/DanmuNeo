@@ -6,6 +6,7 @@ using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using CommunityToolkit.Mvvm.Input;
+using Lucide.Avalonia;
 using Yohuke.DanmuNeo.Views;
 using Yohuke.DanmuNeo.Views.Components;
 using Yohuke.DanmuNeo.Windowing;
@@ -80,7 +81,7 @@ public class WorkbenchAuxiliaryLayoutTests
     }
 
     /// <summary>
-    /// 设置和歌词库窗口的根表面随客户区伸缩，不留下旧遮罩外边距。
+    /// 设置和歌词库窗口铺满客户区，保留主要操作并移除页内关闭按钮，歌词库使用统一内容边距。
     /// </summary>
     [AvaloniaTheory]
     [InlineData(false)]
@@ -111,11 +112,13 @@ public class WorkbenchAuxiliaryLayoutTests
             Assert.Equal(SizeToContent.Manual, dialog.SizeToContent);
             Assert.True(dialog.CanResize);
             AssertSurfaceFillsClientArea(dialog);
+            AssertDialogHeaderAndContentInset(dialog, lyricLibrary);
             SaveFrame(dialog, $"surface-{key}.png");
             dialog.Width = 900;
             dialog.Height = 680;
             PumpLayout(dialog);
             AssertSurfaceFillsClientArea(dialog);
+            AssertDialogHeaderAndContentInset(dialog, lyricLibrary);
             SaveFrame(dialog, $"surface-{key}-resized.png");
         }
         finally
@@ -501,6 +504,40 @@ public class WorkbenchAuxiliaryLayoutTests
         Assert.InRange(bounds.Top, -0.5, 0.5);
         Assert.True(Math.Abs(bounds.Width - window.ClientSize.Width) <= 0.5, diagnostics);
         Assert.True(Math.Abs(bounds.Height - window.ClientSize.Height) <= 0.5, diagnostics);
+    }
+
+    private static void AssertDialogHeaderAndContentInset(Window window, bool lyricLibrary)
+    {
+        var surface = window.GetVisualDescendants().OfType<Border>()
+            .Single(border => border.Name == "DialogSurface");
+        var content = Assert.IsType<Grid>(surface.Child);
+        Control header;
+
+        if (lyricLibrary)
+        {
+            header = content.Children.OfType<Grid>().First();
+            var bounds = new Rect(content.TranslatePoint(default, window)!.Value, content.Bounds.Size);
+            Assert.InRange(bounds.Left, 11.5, 12.5);
+            Assert.InRange(bounds.Top, 11.5, 12.5);
+            Assert.InRange(window.ClientSize.Width - bounds.Right, 11.5, 12.5);
+            Assert.InRange(window.ClientSize.Height - bounds.Bottom, 11.5, 12.5);
+            var import = header.GetVisualDescendants().OfType<LyricLocalImportButton>().Single();
+            Assert.True(import.IsCompact && import.LoadToCurrentRoom);
+            AssertFullyVisible(import, window);
+        }
+        else
+        {
+            header = content.Children.OfType<Border>()
+                .Single(border => border.Classes.Contains("settingsDialogHeader"));
+            var view = Assert.IsType<SettingsDialogView>(window.Content);
+            var save = Assert.Single(header.GetVisualDescendants().OfType<Button>(),
+                button => ReferenceEquals(button.Command, view.CloseSettingsCommand));
+            Assert.Contains(save.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "保存");
+            AssertFullyVisible(save, window);
+        }
+
+        Assert.DoesNotContain(header.GetVisualDescendants().OfType<LucideIcon>(),
+            icon => icon.Kind == LucideIconKind.X);
     }
 
     private static void PumpLayout(Window window)

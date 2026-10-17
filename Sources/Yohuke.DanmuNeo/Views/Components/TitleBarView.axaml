@@ -1,10 +1,14 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:viewModels="clr-namespace:Yohuke.DanmuNeo.ViewModels"
              x:Class="Yohuke.DanmuNeo.Views.Components.TitleBarView"
-             x:CompileBindings="False">
+             x:Name="Root"
+             x:DataType="viewModels:MainWindowViewModel"
+             x:CompileBindings="True">
     <Grid Classes="titleBar"
           PointerPressed="TitleBar_OnPointerPressed">
         <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="Auto" />
@@ -17,14 +21,25 @@
                        FontWeight="SemiBold"
                        FontSize="13" />
             <TextBlock Text="{Binding SelectedWorkspace.Name, FallbackValue=默认工作区}"
+                       MaxWidth="180"
+                       TextTrimming="CharacterEllipsis"
+                       ToolTip.Tip="{Binding SelectedWorkspace.Name}"
                        Classes="muted" />
         </StackPanel>
-        <TextBlock Grid.Column="1"
+        <ContentPresenter Grid.Column="1"
+                          Content="{Binding #Root.MenuContent}"
+                          IsVisible="{Binding #Root.MenuContent.IsVisible, FallbackValue=False}"
+                          Margin="12,0,0,0"
+                          VerticalAlignment="Center" />
+        <TextBlock Grid.Column="2"
                    Text="{Binding StatusMessage}"
                    Classes="muted"
-                   HorizontalAlignment="Center"
+                   Margin="8,0"
+                   TextTrimming="CharacterEllipsis"
+                   ToolTip.Tip="{Binding StatusMessage}"
+                   TextAlignment="Center"
                    VerticalAlignment="Center" />
-        <StackPanel Grid.Column="2"
+        <StackPanel x:Name="WindowButtons" Grid.Column="3"
                     Orientation="Horizontal"
                     Margin="0,0,8,0"
                     Spacing="4"

@@ -8,51 +8,53 @@
                                x:DataType="items:LiveRoomTabViewModel"
                                x:CompileBindings="True"
                                x:Name="Root">
-    <Grid RowDefinitions="Auto,*"
-          RowSpacing="10"
-          Margin="0">
-        <StackPanel Orientation="Horizontal"
-                    HorizontalAlignment="Right"
-                    Spacing="8">
-            <Button ToolTip.Tip="导出 Excel"
-                    Classes="iconButton"
-                    IsEnabled="{Binding HasTranslateHistory}"
-                    Click="ExportTranslateHistory_OnClick">
-                <LucideIcon Kind="Download" />
-            </Button>
-            <Button ToolTip.Tip="清空历史"
-                    Classes="iconButton"
-                    IsEnabled="{Binding HasTranslateHistory}"
-                    Command="{Binding ClearTranslateHistoryCommand}">
-                <LucideIcon Kind="Trash2" />
-            </Button>
-        </StackPanel>
-        <ScrollViewer Grid.Row="1">
-            <ItemsControl Classes="scrollSafeContent"
-                          ItemsSource="{Binding TranslateHistoryItems}">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="workspace:DanmuFeedItem">
-                        <Border Classes="historyRecordCard">
-                            <Grid RowDefinitions="Auto,Auto"
-                                  RowSpacing="4">
-                                <Grid ColumnDefinitions="*,Auto"
-                                      ColumnSpacing="8">
-                                    <TextBlock Text="{Binding DisplayTime}"
-                                               Classes="danmuFeedMeta" />
-                                    <TextBlock Grid.Column="1"
-                                               Text="{Binding Status}"
-                                               Classes="danmuFeedMeta"
-                                               TextTrimming="CharacterEllipsis" />
+    <Border Padding="{StaticResource WorkbenchPanelPadding}">
+        <Grid RowDefinitions="Auto,*"
+              RowSpacing="10"
+              Margin="0">
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        Spacing="8">
+                <Button ToolTip.Tip="导出 Excel"
+                        Classes="iconButton"
+                        IsEnabled="{Binding HasTranslateHistory}"
+                        Click="ExportTranslateHistory_OnClick">
+                    <LucideIcon Kind="Download" />
+                </Button>
+                <Button ToolTip.Tip="清空历史"
+                        Classes="iconButton"
+                        IsEnabled="{Binding HasTranslateHistory}"
+                        Command="{Binding ClearTranslateHistoryCommand}">
+                    <LucideIcon Kind="Trash2" />
+                </Button>
+            </StackPanel>
+            <ScrollViewer Grid.Row="1">
+                <ItemsControl Classes="scrollSafeContent"
+                              ItemsSource="{Binding TranslateHistoryItems}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="workspace:DanmuFeedItem">
+                            <Border Classes="historyRecordCard">
+                                <Grid RowDefinitions="Auto,Auto"
+                                      RowSpacing="4">
+                                    <Grid ColumnDefinitions="*,Auto"
+                                          ColumnSpacing="8">
+                                        <TextBlock Text="{Binding DisplayTime}"
+                                                   Classes="danmuFeedMeta" />
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{Binding Status}"
+                                                   Classes="danmuFeedMeta"
+                                                   TextTrimming="CharacterEllipsis" />
+                                    </Grid>
+                                    <TextBlock Grid.Row="1"
+                                               Text="{Binding Content}"
+                                               Classes="danmuFeedContent"
+                                               TextWrapping="Wrap" />
                                 </Grid>
-                                <TextBlock Grid.Row="1"
-                                           Text="{Binding Content}"
-                                           Classes="danmuFeedContent"
-                                           TextWrapping="Wrap" />
-                            </Grid>
-                        </Border>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-        </ScrollViewer>
-    </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Grid>
+    </Border>
 </components:WorkbenchRoomPanel>

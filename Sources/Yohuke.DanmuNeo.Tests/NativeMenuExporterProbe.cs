@@ -2,6 +2,7 @@ using System.Collections.Specialized;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Platform;
+using Avalonia.Threading;
 
 namespace Yohuke.DanmuNeo.Tests;
 
@@ -11,7 +12,9 @@ internal sealed class NativeMenuExporterProbe : ITopLevelNativeMenuExporter, IDi
     private readonly List<NativeMenu> observedMenus = [];
     private readonly List<NativeMenuItem> observedItems = [];
     private Dictionary<NativeMenuItem, NativeMenu> exportedSubmenus = [];
+    private HashSet<NativeMenuItem> exportedItems = [];
     private bool pending;
+    private bool disposed;
 
     internal NativeMenuExporterProbe(AvaloniaObject owner)
     {
@@ -32,6 +35,9 @@ internal sealed class NativeMenuExporterProbe : ITopLevelNativeMenuExporter, IDi
     internal NativeMenu? Root { get; private set; }
     internal int AssignmentCount { get; private set; }
     internal bool IsClosed { get; private set; }
+    internal bool HasPendingChanges => pending;
+    internal int IconExportCount { get; private set; }
+    internal int IconExportsAfterClose { get; private set; }
 
     /// <inheritdoc/>
     public bool IsNativeMenuExported => Root is not null;
@@ -52,7 +58,7 @@ internal sealed class NativeMenuExporterProbe : ITopLevelNativeMenuExporter, IDi
     /// </summary>
     public void SetNativeMenu(NativeMenu? menu)
     {
-        ObjectDisposedException.ThrowIf(IsClosed, this);
+        ObjectDisposedException.ThrowIf(disposed || IsClosed, this);
         var effectiveMenu = menu ?? new();
 
         if (Root is not null && !ReferenceEquals(Root, effectiveMenu))
@@ -68,7 +74,7 @@ internal sealed class NativeMenuExporterProbe : ITopLevelNativeMenuExporter, IDi
 
     internal void ExportPendingChanges()
     {
-        if (!pending || IsClosed || Root is null)
+        if (!pending || disposed || Root is null)
         {
             return;
         }
@@ -76,13 +82,17 @@ internal sealed class NativeMenuExporterProbe : ITopLevelNativeMenuExporter, IDi
         pending = false;
         UnsubscribeTree();
         var currentSubmenus = new Dictionary<NativeMenuItem, NativeMenu>();
-        ValidateMenu(Root, currentSubmenus, []);
+        var currentItems = new HashSet<NativeMenuItem>();
+        ValidateMenu(Root, currentSubmenus, currentItems, []);
         exportedSubmenus = currentSubmenus;
+        exportedItems = currentItems;
     }
 
     /// <inheritdoc/>
     public void Dispose()
     {
+        disposed = true;
+        pending = false;
         owner.PropertyChanged -= OnOwnerPropertyChanged;
 
         if (owner is Window window)
@@ -94,7 +104,7 @@ internal sealed class NativeMenuExporterProbe : ITopLevelNativeMenuExporter, IDi
     }
 
     private void ValidateMenu(NativeMenu menu, Dictionary<NativeMenuItem, NativeMenu> currentSubmenus,
-        HashSet<NativeMenu> visited)
+        HashSet<NativeMenuItem> currentItems, HashSet<NativeMenu> visited)
     {
         if (!visited.Add(menu))
         {
@@ -113,6 +123,12 @@ internal sealed class NativeMenuExporterProbe : ITopLevelNativeMenuExporter, IDi
 
             observedItems.Add(item);
             item.PropertyChanged += OnMenuItemPropertyChanged;
+            currentItems.Add(item);
+
+            if (!exportedItems.Contains(item))
+            {
+                ExportIcon(item);
+            }
 
             if (item.Menu is not { } submenu)
             {
@@ -130,7 +146,7 @@ internal sealed class NativeMenuExporterProbe : ITopLevelNativeMenuExporter, IDi
             }
 
             currentSubmenus.Add(item, submenu);
-            ValidateMenu(submenu, currentSubmenus, visited);
+            ValidateMenu(submenu, currentSubmenus, currentItems, visited);
         }
     }
 
@@ -145,7 +161,7 @@ internal sealed class NativeMenuExporterProbe : ITopLevelNativeMenuExporter, IDi
     private void OnMenuItemsChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         ObjectDisposedException.ThrowIf(IsClosed, this);
-        pending = true;
+        QueueChanges();
     }
 
     private void OnMenuItemPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
@@ -156,13 +172,47 @@ internal sealed class NativeMenuExporterProbe : ITopLevelNativeMenuExporter, IDi
         }
 
         ObjectDisposedException.ThrowIf(IsClosed, this);
-        pending = true;
+
+        if (e.Property == NativeMenuItem.IconProperty && sender is NativeMenuItem item)
+        {
+            ExportIcon(item);
+            return;
+        }
+
+        QueueChanges();
     }
 
     private void OnWindowClosed(object? sender, EventArgs e)
     {
-        ExportPendingChanges();
         IsClosed = true;
+    }
+
+    private void QueueChanges()
+    {
+        if (pending)
+        {
+            return;
+        }
+
+        pending = true;
+        Dispatcher.UIThread.Post(ExportPendingChanges, DispatcherPriority.Background);
+    }
+
+    private void ExportIcon(NativeMenuItem item)
+    {
+        if (item.Icon is not { } icon)
+        {
+            return;
+        }
+
+        using var stream = new MemoryStream();
+        icon.Save(stream);
+        IconExportCount++;
+
+        if (IsClosed)
+        {
+            IconExportsAfterClose++;
+        }
     }
 
     private void UnsubscribeTree()
