@@ -1,11 +1,10 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using CommunityToolkit.Mvvm.Input;
 using Yohuke.DanmuNeo.Models.State;
-using Yohuke.DanmuNeo.ViewModels.Items;
 using Yohuke.DanmuNeo.Views;
 using Yohuke.DanmuNeo.Views.Components;
 using Yohuke.DanmuNeo.Windowing;
@@ -18,17 +17,18 @@ namespace Yohuke.DanmuNeo.Tests;
 public class WorkbenchSettingsLayoutTests
 {
     /// <summary>
-    /// 默认及窄设置窗口中的主题卡片和发送选项均留在内容区内，换行后仍能切换主题。
+    /// 默认及窄设置窗口中的配色下拉和发送选项均留在内容区内，选择配色后即时应用并保存。
     /// </summary>
     [AvaloniaTheory]
-    [InlineData(1000, 2)]
-    [InlineData(760, 3)]
-    [InlineData(560, 3)]
-    [InlineData(440, 3)]
-    public async Task AppearanceCardsWrapWithoutHorizontalOverflow(double width, int expectedRows)
+    [InlineData(1000)]
+    [InlineData(760)]
+    [InlineData(560)]
+    [InlineData(440)]
+    public async Task ThemeSelectorFitsWithoutHorizontalOverflowAndAppliesSelection(double width)
     {
         using var fixture = new WorkspaceSidebarTestContext(240);
-        var previousTheme = Application.Current!.RequestedThemeVariant;
+        var application = Application.Current!;
+        var previousTheme = application.RequestedThemeVariant;
         var main = new MainWindow { DataContext = fixture.ViewModel };
 
         try
@@ -41,57 +41,45 @@ public class WorkbenchSettingsLayoutTests
             settings.Width = width;
             PumpLayout(settings);
             var global = settings.GetVisualDescendants().OfType<GlobalSettingsView>().Single();
-            var choices = global.FindControl<ItemsControl>("ThemeModeChoices")!;
-            var cards = choices.GetVisualDescendants().OfType<Button>()
-                .Where(button => button.Classes.Contains("themeCardButton")).ToArray();
-            Assert.Equal(3, cards.Length);
-            var bounds = cards.Select(card => new Rect(card.TranslatePoint(default, choices)!.Value, card.Bounds.Size))
-                .ToArray();
-            var rowPositions = bounds.Select(rect => Math.Round(rect.Center.Y)).Distinct().ToArray();
-            var wrap = choices.GetVisualDescendants().OfType<WrapPanel>().Single();
+            var choices = global.FindControl<ComboBox>("ThemeModeChoice");
+            Assert.NotNull(choices);
+            Assert.Equal(3, choices.Items.Count);
+            Assert.Same(fixture.ViewModel.SelectedThemeModeOption, choices.SelectedItem);
+            var bounds = new Rect(choices.TranslatePoint(default, settings)!.Value, choices.Bounds.Size);
             var diagnostics = $"settings.ClientSize={settings.ClientSize}; global.Bounds={global.Bounds}; " +
-                              $"choices.Bounds={choices.Bounds}; choices.DesiredSize={choices.DesiredSize}; " +
-                              $"wrap.Bounds={wrap.Bounds}; wrap.DesiredSize={wrap.DesiredSize}; " +
-                              string.Join("; ", cards.Select((card, index) =>
-                                  $"card[{index}].Bounds={bounds[index]}, DesiredSize={card.DesiredSize}, Width={card.Width}, MaxWidth={card.MaxWidth}"));
-            Assert.True(expectedRows == rowPositions.Length,
-                $"预期 {expectedRows} 行，实际 {rowPositions.Length} 行。{diagnostics}");
-
-            for (var index = 0; index < cards.Length; index++)
-            {
-                var card = cards[index];
-                var rect = bounds[index];
-                Assert.True(rect.Width > 0 && rect.Height > 0);
-                Assert.InRange(rect.Left, 0, choices.Bounds.Width);
-                Assert.InRange(rect.Right, rect.Left + 1, choices.Bounds.Width + 0.5);
-                Assert.InRange(rect.Bottom, rect.Top + 1, choices.Bounds.Height + 0.5);
-                var windowBounds = new Rect(card.TranslatePoint(default, settings)!.Value, card.Bounds.Size);
-                Assert.InRange(windowBounds.Left, 0, settings.ClientSize.Width);
-                Assert.InRange(windowBounds.Right, windowBounds.Left + 1, settings.ClientSize.Width + 0.5);
-
-                if (index > 0)
-                {
-                    var previous = bounds[index - 1];
-                    Assert.True(rect.Left >= previous.Right + 15.5 || rect.Top >= previous.Bottom + 15.5,
-                        "主题卡片同排与换行后均应保留间距，且不相互重叠。");
-                }
-            }
-
+                              $"choices.Bounds={bounds}; choices.DesiredSize={choices.DesiredSize}";
+            Assert.True(bounds.Width > 0 && bounds.Height > 0, diagnostics);
+            Assert.InRange(bounds.Left, 0, settings.ClientSize.Width);
+            Assert.InRange(bounds.Right, bounds.Left + 1, settings.ClientSize.Width + 0.5);
+            var language = global.FindControl<ComboBox>("InterfaceLanguageChoice")!;
+            Assert.Equal(language.Bounds.Width, choices.Bounds.Width);
             var scroll = global.GetVisualAncestors().OfType<ScrollViewer>().First();
             Assert.True(scroll.Extent.Width <= scroll.Viewport.Width + 0.5);
             AssertGlobalSendingOptionsFit(global, settings);
-            var dark = cards.Single(card => card.DataContext is ThemeModeOption { Value: AppThemeMode.Dark });
-            var select = Assert.IsAssignableFrom<IAsyncRelayCommand>(dark.Command);
-            await select.ExecuteAsync(dark.CommandParameter);
-            PumpLayout(settings);
-            Assert.Equal(AppThemeMode.Dark, fixture.ViewModel.Settings.ThemeMode);
-            Assert.Contains("selected", dark.Classes);
-            Assert.All(cards.Where(card => !ReferenceEquals(card, dark)), card => Assert.DoesNotContain("selected", card.Classes));
+
+            foreach (var mode in new[] { AppThemeMode.Light, AppThemeMode.System, AppThemeMode.Dark })
+            {
+                var option = fixture.ViewModel.ThemeModeOptions.Single(item => item.Value == mode);
+                choices.SelectedItem = option;
+                PumpLayout(settings);
+                Assert.Equal(mode, fixture.ViewModel.Settings.ThemeMode);
+                Assert.Same(option, fixture.ViewModel.SelectedThemeModeOption);
+                Assert.Same(option, choices.SelectedItem);
+                Assert.Equal(mode switch
+                {
+                    AppThemeMode.Light => ThemeVariant.Light,
+                    AppThemeMode.Dark => ThemeVariant.Dark,
+                    _ => ThemeVariant.Default
+                }, application.RequestedThemeVariant);
+            }
+
+            await fixture.ViewModel.CloseSettingsAsync();
+            Assert.Equal(AppThemeMode.Dark, fixture.StateService.Load().Settings.ThemeMode);
         }
         finally
         {
             await main.CloseWorkbenchAsync();
-            Application.Current!.RequestedThemeVariant = previousTheme;
+            application.RequestedThemeVariant = previousTheme;
         }
     }
 

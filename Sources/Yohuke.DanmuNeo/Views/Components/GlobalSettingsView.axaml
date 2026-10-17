@@ -1,7 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:items="clr-namespace:Yohuke.DanmuNeo.ViewModels.Items"
-             xmlns:state="clr-namespace:Yohuke.DanmuNeo.Models.State"
              x:Class="Yohuke.DanmuNeo.Views.Components.GlobalSettingsView"
              x:CompileBindings="False"
              x:Name="Root">
@@ -32,52 +31,22 @@
                         </ComboBox.ItemTemplate>
                     </ComboBox>
                 </StackPanel>
-                <ItemsControl x:Name="ThemeModeChoices"
-                              ItemsSource="{Binding ThemeModeOptions}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <WrapPanel Orientation="Horizontal"
-                                       ItemSpacing="16"
-                                       LineSpacing="16"/>
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate DataType="items:ThemeModeOption">
-                            <Button Classes="themeCardButton"
-                                    MaxWidth="{Binding #ThemeModeChoices.Bounds.Width}"
-                                    Classes.selected="{Binding IsSelected}"
-                                    Command="{Binding #Root.SelectThemeModeCommand}"
-                                    CommandParameter="{Binding}">
-                                <StackPanel Spacing="10">
-                                    <Border Classes="themePreview"
-                                            Classes.systemPreview="{Binding IsSystemPreview}"
-                                            Classes.lightPreview="{Binding IsLightPreview}"
-                                            Classes.darkPreview="{Binding IsDarkPreview}">
-                                        <Grid RowDefinitions="*,*"
-                                              ColumnDefinitions="*,*">
-                                            <Border Classes="themePreviewPane leftTop"/>
-                                            <Border Grid.Column="1"
-                                                    Classes="themePreviewPane rightTop"/>
-                                            <Border Grid.Row="1"
-                                                    Grid.ColumnSpan="2"
-                                                    Classes="themePreviewContent">
-                                                <StackPanel Spacing="6"
-                                                            Margin="12">
-                                                    <Border Classes="themePreviewLine wide"/>
-                                                    <Border Classes="themePreviewLine"/>
-                                                    <Border Classes="themePreviewLine short"/>
-                                                </StackPanel>
-                                            </Border>
-                                        </Grid>
-                                    </Border>
-                                    <TextBlock Text="{Binding Name}"
-                                               FontWeight="SemiBold"
-                                               HorizontalAlignment="Center"/>
-                                </StackPanel>
-                            </Button>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                <StackPanel Spacing="4">
+                    <TextBlock x:Name="ThemeModeLabel"
+                               Text="{Loc Key=Settings.Theme.Label}"
+                               Classes="muted"/>
+                    <ComboBox x:Name="ThemeModeChoice"
+                              ItemsSource="{Binding ThemeModeOptions}"
+                              SelectedItem="{Binding SelectedThemeModeOption, Mode=TwoWay}"
+                              HorizontalAlignment="Stretch"
+                              AutomationProperties.Name="{Loc Key=Settings.Theme.Label}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate DataType="items:ThemeModeOption">
+                                <TextBlock Text="{Binding Name}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </StackPanel>
                 <CheckBox Content="{Loc Key=Settings.Appearance.WindowMenuOnMac}"
                           IsVisible="{Binding IsMacOS}"
                           IsChecked="{Binding UseWindowMenuOnMac}" />

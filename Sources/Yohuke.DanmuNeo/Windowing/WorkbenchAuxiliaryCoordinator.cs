@@ -296,8 +296,10 @@ internal sealed class WorkbenchAuxiliaryCoordinator : IDisposable
                 {
                     application.CloseAddDialog();
                     return Task.CompletedTask;
-                }, width: 760,
-                sizing: WorkbenchAuxiliarySizing.ContentHeight);
+                }, width: 760, height: 600,
+                sizing: application.IsAddingRoom
+                    ? WorkbenchAuxiliarySizing.Resizable
+                    : WorkbenchAuxiliarySizing.ContentHeight);
         }
         else
         {

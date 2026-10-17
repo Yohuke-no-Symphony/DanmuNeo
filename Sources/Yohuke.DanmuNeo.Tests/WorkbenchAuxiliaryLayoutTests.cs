@@ -7,6 +7,7 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using CommunityToolkit.Mvvm.Input;
 using Lucide.Avalonia;
+using Yohuke.DanmuNeo.Models.Workspace;
 using Yohuke.DanmuNeo.Views;
 using Yohuke.DanmuNeo.Views.Components;
 using Yohuke.DanmuNeo.Windowing;
@@ -19,10 +20,10 @@ namespace Yohuke.DanmuNeo.Tests;
 public class WorkbenchAuxiliaryLayoutTests
 {
     /// <summary>
-    /// 新建工作区及直播间使用填满客户区的表面，窗口高度随表单展开和搜索结果调整。
+    /// 新建工作区自适应高度，主播搜索窗在表单展开及结果变化时保持尺寸，表面均填满客户区。
     /// </summary>
     [AvaloniaFact]
-    public async Task AddDialogsFillClientAreaAndFollowFormHeight()
+    public async Task AddDialogsFillClientAreaAndKeepRoomSearchHeightStable()
     {
         using var context = new WorkspaceSidebarTestContext(240);
         var main = new MainWindow { DataContext = context.ViewModel };
@@ -47,12 +48,14 @@ public class WorkbenchAuxiliaryLayoutTests
             var addRoom = Assert.IsAssignableFrom<Window>(workbench.Windows.FindAuxiliary("add"));
             PumpLayout(addRoom);
             var initialHeight = addRoom.ClientSize.Height;
+            Assert.Equal(SizeToContent.Manual, addRoom.SizeToContent);
+            Assert.True(addRoom.CanResize);
             AssertSurfaceFillsClientArea(addRoom);
             SaveFrame(addRoom, "surface-add-room.png");
             var expander = addRoom.GetVisualDescendants().OfType<Expander>().Single();
             expander.IsExpanded = true;
             PumpLayout(addRoom);
-            Assert.True(addRoom.ClientSize.Height > initialHeight + 60);
+            Assert.Equal(initialHeight, addRoom.ClientSize.Height);
 
             for (var index = 0; index < 12; index++)
             {
@@ -63,6 +66,7 @@ public class WorkbenchAuxiliaryLayoutTests
             }
 
             PumpLayout(addRoom);
+            Assert.Equal(initialHeight, addRoom.ClientSize.Height);
             AssertSurfaceFillsClientArea(addRoom);
             Assert.True(addRoom.ClientSize.Height <= addRoom.MaxHeight + 0.5);
             var results = addRoom.GetVisualDescendants().OfType<ItemsControl>()
@@ -73,6 +77,74 @@ public class WorkbenchAuxiliaryLayoutTests
             AssertFullyVisible(addRoom.GetVisualDescendants().OfType<Button>()
                 .Single(button => Equals(button.Content, "取消")), addRoom);
             SaveFrame(addRoom, "surface-add-room-expanded.png");
+        }
+        finally
+        {
+            await main.CloseWorkbenchAsync();
+        }
+    }
+
+    /// <summary>
+    /// 搜索中、加载结果、翻页、清空和手动展开均保持同一窗口的位置与尺寸，用户缩放后继续保持。
+    /// </summary>
+    [AvaloniaFact]
+    public async Task RoomSearchKeepsWindowBoundsThroughLoadingPagingAndReplacement()
+    {
+        using var context = new LiveRoomSearchTestContext();
+        var response = new TaskCompletionSource<LiveRoomSearchPage>();
+        context.SearchService.RespondAsync = (_, _) => response.Task;
+        var main = new MainWindow { DataContext = context.ViewModel };
+
+        try
+        {
+            main.Show();
+            await main.Initialization;
+            var workbench = Assert.IsType<WorkbenchSession>(main.Workbench);
+            context.ViewModel.OpenAddRoomDialog(context.ViewModel.SelectedWorkspace);
+            var dialog = Assert.IsAssignableFrom<Window>(workbench.Windows.FindAuxiliary("add"));
+            PumpLayout(dialog);
+            var size = dialog.ClientSize;
+            var position = dialog.Position;
+            context.ViewModel.LiveRoomSearchText = "主播";
+            var search = context.ViewModel.SearchLiveRoomsAsync();
+            AssertWindowBoundsStable(dialog, size, position);
+            response.SetResult(new()
+            {
+                Results = [.. Enumerable.Range(100, 12)
+                    .Select(room => LiveRoomSearchTestContext.CreateResult(room.ToString()))],
+                HasMore = true
+            });
+            await search;
+            AssertWindowBoundsStable(dialog, size, position);
+            Assert.Same(dialog, workbench.Windows.FindAuxiliary("add"));
+
+            var nextResponse = new TaskCompletionSource<LiveRoomSearchPage>();
+            context.SearchService.RespondAsync = (_, _) => nextResponse.Task;
+            var nextPage = context.ViewModel.LoadMoreLiveRoomsAsync();
+            AssertWindowBoundsStable(dialog, size, position);
+            nextResponse.SetResult(new() { Results = [LiveRoomSearchTestContext.CreateResult("200")] });
+            await nextPage;
+            Assert.Equal(13, context.ViewModel.LiveRoomSearchResults.Count);
+            AssertWindowBoundsStable(dialog, size, position);
+
+            var results = dialog.GetVisualDescendants().OfType<ItemsControl>()
+                .Single(control => control.Name == "LiveRoomSearchResultsControl");
+            var resultsScroll = results.GetVisualAncestors().OfType<ScrollViewer>().First();
+            Assert.True(resultsScroll.Extent.Height > resultsScroll.Viewport.Height);
+
+            dialog.Width = 680;
+            dialog.Height = 500;
+            PumpLayout(dialog);
+            size = dialog.ClientSize;
+            position = dialog.Position;
+            context.SearchService.RespondAsync = (_, _) => Task.FromResult(new LiveRoomSearchPage());
+            await context.ViewModel.SearchLiveRoomsAsync();
+            Assert.Empty(context.ViewModel.LiveRoomSearchResults);
+            AssertWindowBoundsStable(dialog, size, position);
+            dialog.GetVisualDescendants().OfType<Expander>().Single().IsExpanded = true;
+            AssertWindowBoundsStable(dialog, size, position);
+            AssertFullyVisible(dialog.GetVisualDescendants().OfType<Button>()
+                .Single(button => Equals(button.Content, "取消")), dialog);
         }
         finally
         {
@@ -547,6 +619,16 @@ public class WorkbenchAuxiliaryLayoutTests
     private static double GetTitleBarHeight(Window window)
     {
         return Assert.Single(window.GetVisualDescendants().OfType<WindowTitleBar>()).Bounds.Height;
+    }
+
+    private static void AssertWindowBoundsStable(Window window, Size size, PixelPoint position)
+    {
+        for (var index = 0; index < 4; index++)
+        {
+            PumpLayout(window);
+            Assert.Equal(size, window.ClientSize);
+            Assert.Equal(position, window.Position);
+        }
     }
 
     private static void PumpLayout(Window window)

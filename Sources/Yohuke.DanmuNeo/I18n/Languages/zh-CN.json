@@ -475,6 +475,7 @@
     "Settings.Language.System": "跟随系统",
     "Settings.Language.Unavailable": "语言包不可用：{0}",
     "Settings.Theme.Dark": "深色",
+    "Settings.Theme.Label": "配色方案",
     "Settings.Theme.Light": "浅色",
     "Settings.Theme.System": "系统",
     "Settings.Title": "设置",

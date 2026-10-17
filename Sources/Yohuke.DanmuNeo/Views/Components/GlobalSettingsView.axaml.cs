@@ -1,7 +1,4 @@
 using Avalonia.Controls;
-using CommunityToolkit.Mvvm.Input;
-using Yohuke.DanmuNeo.ViewModels;
-using Yohuke.DanmuNeo.ViewModels.Items;
 
 namespace Yohuke.DanmuNeo.Views.Components;
 
@@ -16,14 +13,5 @@ public partial class GlobalSettingsView : UserControl
     public GlobalSettingsView()
     {
         InitializeComponent();
-    }
-
-    [RelayCommand]
-    private async Task SelectThemeModeAsync(ThemeModeOption? option)
-    {
-        if (DataContext is MainWindowViewModel viewModel)
-        {
-            await viewModel.SelectThemeModeAsync(option);
-        }
     }
 }

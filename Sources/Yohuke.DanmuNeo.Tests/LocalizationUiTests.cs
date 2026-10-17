@@ -82,6 +82,11 @@ public sealed class LocalizationUiTests
             var originalSettings = File.ReadAllBytes(context.StateService.SettingsFilePath);
             var label = view.FindControl<TextBlock>("InterfaceLanguageLabel")!;
             var oldLabel = label.Text;
+            var themeLabel = view.FindControl<TextBlock>("ThemeModeLabel")!;
+            var oldThemeLabel = themeLabel.Text;
+            var theme = view.FindControl<ComboBox>("ThemeModeChoice")!;
+            var selectedTheme = model.SelectedThemeModeOption;
+            Assert.Same(selectedTheme, theme.SelectedItem);
             var input = view.FindControl<TextBox>("TimeoutSecondsInput")!;
             var timeout = model.Settings.TimeoutSeconds;
             input.Text = "unfinished-number";
@@ -93,6 +98,9 @@ public sealed class LocalizationUiTests
 
             Assert.NotEqual(oldLabel, label.Text);
             Assert.Equal(Localization.Get("Settings.Language.Label"), label.Text);
+            Assert.NotEqual(oldThemeLabel, themeLabel.Text);
+            Assert.Equal(Localization.Get("Settings.Theme.Label"), themeLabel.Text);
+            Assert.Same(selectedTheme, theme.SelectedItem);
             Assert.Equal(Localization.Get("Settings.Language.System"), model.LanguageOptions[0].LanguageName);
             Assert.Equal(Localization.Get("Settings.Theme.Light"),
                 model.ThemeModeOptions.Single(option => option.Value == AppThemeMode.Light).Name);
