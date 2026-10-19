@@ -55,8 +55,11 @@
                                     BorderThickness="0,0,0,1" Padding="0,10">
                                 <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto"
                                       ColumnSpacing="8" RowSpacing="4">
-                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8"
-                                          HorizontalAlignment="Left" VerticalAlignment="Center">
+                                    <Grid ColumnSpacing="8" VerticalAlignment="Center">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" MaxWidth="220" />
+                                        </Grid.ColumnDefinitions>
                                         <Ellipse Name="AccountValidity" Classes="accountValidity"
                                                  Classes.valid="{Binding IsValid}"
                                                  Classes.invalid="{Binding IsInvalid}"

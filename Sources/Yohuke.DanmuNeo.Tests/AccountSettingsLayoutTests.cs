@@ -59,10 +59,16 @@ public class AccountSettingsLayoutTests
             window.UpdateLayout();
             var editors = view.GetVisualDescendants().OfType<TextBox>().ToArray();
             Assert.Equal(3, editors.Length);
+            var nameWidth = editors[0].Bounds.Width;
+            if (width >= 520)
+            {
+                Assert.InRange(nameWidth, 219.5, 220.5);
+            }
             Assert.All(editors, editor =>
             {
                 Assert.Equal("AccountNameEditor", editor.Name);
                 Assert.InRange(editor.Bounds.Width, 1, 220);
+                Assert.InRange(editor.Bounds.Width, nameWidth - 0.5, nameWidth + 0.5);
                 Assert.InRange(editor.Bounds.Height, 31.5, 32.5);
                 Assert.DoesNotContain("SESSDATA", editor.Text);
                 var indicator = Assert.IsType<Grid>(editor.Parent).GetVisualChildren()
