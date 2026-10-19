@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -33,6 +34,9 @@ public class ModerationPanelTests
             Assert.Equal(2, fixture.Manager.Records.Count);
             var accounts = panel.FindControl<ComboBox>("ModerationAccount")!;
             Assert.NotNull(accounts);
+            Assert.False(accounts.IsEnabled);
+            panel.FindControl<ToggleButton>("ModerationFollowAccount")!.IsChecked = false;
+            Assert.True(accounts.IsEnabled);
             accounts.SelectedItem = fixture.Accounts[1];
             Dispatcher.UIThread.RunJobs();
             await fixture.Manager.RefreshTask;

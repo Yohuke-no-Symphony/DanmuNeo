@@ -16,8 +16,8 @@
         <Style Selector="ListBox.medalList ListBoxItem">
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
-            <Setter Property="MinHeight" Value="64" />
-            <Setter Property="Padding" Value="8" />
+            <Setter Property="MinHeight" Value="36" />
+            <Setter Property="Padding" Value="8,6" />
             <Setter Property="Margin" Value="0,2" />
             <Setter Property="CornerRadius" Value="{StaticResource WorkbenchControlCornerRadius}" />
             <Setter Property="Background" Value="Transparent" />
@@ -48,49 +48,64 @@
         </Style>
     </components:WorkbenchPanelView.Styles>
     <Border Padding="{StaticResource WorkbenchPanelPadding}">
-        <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" RowSpacing="8">
-            <CheckBox IsChecked="{Binding FollowCurrentAccount, Mode=TwoWay}">
-                <TextBlock Text="{Loc Key=Medals.FollowAccount}" TextWrapping="Wrap"/>
-            </CheckBox>
-            <ComboBox Grid.Row="1" x:Name="MedalAccountChoice"
-                      HorizontalAlignment="Stretch"
-                      IsEnabled="{Binding CanChooseAccount}"
-                      PlaceholderText="{Loc Key=Medals.ChooseAccount}"
-                      ItemsSource="{Binding Accounts}"
-                      SelectedItem="{Binding SelectedAccount, Mode=TwoWay}">
-                <ComboBox.ItemTemplate>
-                    <DataTemplate x:DataType="state:BilibiliAccount">
-                        <TextBlock Text="{Binding Name}"/>
-                    </DataTemplate>
-                </ComboBox.ItemTemplate>
-            </ComboBox>
-            <StackPanel Grid.Row="2" Spacing="6">
+        <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="8">
+            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                <ComboBox x:Name="MedalAccountChoice" MinWidth="0"
+                          HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                          IsEnabled="{Binding CanChooseAccount}"
+                          PlaceholderText="{Loc Key=Medals.ChooseAccount}"
+                          ItemsSource="{Binding Accounts}"
+                          SelectedItem="{Binding SelectedAccount, Mode=TwoWay}">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="state:BilibiliAccount">
+                            <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+                <ToggleButton x:Name="MedalFollowAccount" Grid.Column="1" Classes="iconButton"
+                              IsChecked="{Binding FollowCurrentAccount, Mode=TwoWay}"
+                              AutomationProperties.Name="{Loc Key=Workbench.FollowCurrentAccount}"
+                              ToolTip.Tip="{Loc Key=Workbench.FollowCurrentAccount}">
+                    <LucideIcon Kind="Link" />
+                </ToggleButton>
+                <Button x:Name="MedalRefresh" Grid.Column="2" Classes="iconButton"
+                        Command="{Binding RefreshCommand}" ToolTip.Tip="{Loc Key=Medals.Refresh}">
+                    <LucideIcon Kind="RefreshCw" />
+                </Button>
+            </Grid>
+            <StackPanel Grid.Row="1" Spacing="6">
                 <CheckBox IsEnabled="{Binding CanRefresh}"
                           IsChecked="{Binding AutoSwitchMedal, Mode=TwoWay}">
                     <TextBlock Text="{Loc Key=Medals.Automatic}" TextWrapping="Wrap"/>
                 </CheckBox>
                 <TextBlock Text="{Loc Key=Medals.AutomaticHint}" Classes="muted" TextWrapping="Wrap"/>
                 <WrapPanel Orientation="Horizontal" ItemSpacing="8" LineSpacing="6">
-                    <Button Content="{Loc Key=Medals.Refresh}" Command="{Binding RefreshCommand}"/>
-                    <Button Content="{Loc Key=Medals.Wear}" Command="{Binding WearSelectedCommand}"/>
-                    <Button Content="{Loc Key=Medals.TakeOff}" Command="{Binding TakeOffCommand}"/>
+                    <Button x:Name="MedalWear" Content="{Loc Key=Medals.Wear}" Command="{Binding WearSelectedCommand}"/>
+                    <Button x:Name="MedalTakeOff" Content="{Loc Key=Medals.TakeOff}" Command="{Binding TakeOffCommand}"/>
                 </WrapPanel>
             </StackPanel>
-            <ListBox Grid.Row="3" x:Name="MedalList" Classes="medalList"
+            <ListBox Grid.Row="2" x:Name="MedalList" Classes="medalList" Grid.IsSharedSizeScope="True"
                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                      ItemsSource="{Binding Medals}"
                      SelectedItem="{Binding SelectedMedal, Mode=TwoWay}">
                 <ListBox.ItemTemplate>
                     <DataTemplate x:DataType="workspace:AccountMedal">
-                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,22" ColumnSpacing="12" RowSpacing="4">
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="1.2*" />
+                                <ColumnDefinition Width="Auto" SharedSizeGroup="MedalLevel" />
+                                <ColumnDefinition Width="1.8*" />
+                                <ColumnDefinition Width="Auto" SharedSizeGroup="MedalState" />
+                            </Grid.ColumnDefinitions>
                             <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
+                                       VerticalAlignment="Center"
                                        TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}" />
                             <TextBlock Grid.Column="1" Text="{Binding Level, StringFormat='Lv.{0}'}"
                                        HorizontalAlignment="Right" VerticalAlignment="Center" Classes="muted" />
-                            <TextBlock Grid.Row="1" Text="{Binding TargetName}" VerticalAlignment="Center"
+                            <TextBlock Grid.Column="2" Text="{Binding TargetName}" VerticalAlignment="Center"
                                        FontSize="{DynamicResource AppFontSizeCaption}" Classes="muted"
                                        TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding TargetName}" />
-                            <Border Grid.Row="1" Grid.Column="1" Classes="medalWearingBadge"
+                            <Border Grid.Column="3" Classes="medalWearingBadge"
                                     IsVisible="{Binding IsWearing}">
                                 <StackPanel Orientation="Horizontal" Spacing="4">
                                     <LucideIcon Kind="Check" Size="12" VerticalAlignment="Center"
@@ -103,7 +118,7 @@
                     </DataTemplate>
                 </ListBox.ItemTemplate>
             </ListBox>
-            <TextBlock Grid.Row="4" Text="{Binding StatusText}" Classes="muted" TextWrapping="Wrap"/>
+            <TextBlock Grid.Row="3" Text="{Binding StatusText}" Classes="muted" TextWrapping="Wrap"/>
         </Grid>
     </Border>
 </components:WorkbenchPanelView>

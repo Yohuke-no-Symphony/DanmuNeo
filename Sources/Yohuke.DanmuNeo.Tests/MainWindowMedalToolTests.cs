@@ -12,6 +12,31 @@ namespace Yohuke.DanmuNeo.Tests;
 [Collection(AvaloniaDispatcherTestCollection.NAME)]
 public class MainWindowMedalToolTests
 {
+    /// <summary>实际删除账号后，跟随模式解析替代账号，固定模式清空并可重新开启跟随。</summary>
+    [AvaloniaTheory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task AccountRemovalUsesFallbackOnlyWhenFollowing(bool followsCurrent)
+    {
+        using var fixture = new LiveRoomFeedViewTestContext();
+        var application = fixture.ViewModel;
+        var original = application.Accounts.Single();
+        await application.AddAccountAsync();
+        var fallback = application.Accounts.Single(account => account != original);
+        application.AccountMedals.FollowCurrentAccount = followsCurrent;
+        application.ModerationManager.FollowCurrentAccount = followsCurrent;
+
+        await application.DeleteAccountAsync(original);
+
+        Assert.Same(followsCurrent ? fallback : null, application.AccountMedals.SelectedAccount);
+        Assert.Same(followsCurrent ? fallback : null, application.ModerationManager.SelectedAccount);
+        application.AccountMedals.FollowCurrentAccount = true;
+        application.ModerationManager.FollowCurrentAccount = true;
+        Assert.Same(fallback, application.AccountMedals.SelectedAccount);
+        Assert.Same(fallback, application.ModerationManager.SelectedAccount);
+        Assert.Equal(0, fixture.ModerationService.PermissionRequestCount);
+    }
+
     /// <summary>构造不联网；显示后才自动处理，后台房间修改不能驱动换牌。</summary>
     [AvaloniaFact]
     public async Task OnlyStartedActiveRoomAndResolvedAccountDriveAutomaticSwitching()
@@ -38,6 +63,7 @@ public class MainWindowMedalToolTests
             Assert.Equal(0, medals.OwnerReadCount);
             Assert.Equal(0, medals.ReadCount);
             Assert.Same(first, application.AccountMedals.SelectedAccount);
+            Assert.Same(first, application.ModerationManager.SelectedAccount);
 
             await application.StartToolsAsync();
             await application.PendingMedalSwitch;
@@ -53,16 +79,20 @@ public class MainWindowMedalToolTests
             workspace.AccountOverrideId = second.Id;
             await application.PendingMedalSwitch;
             Assert.Same(second, application.AccountMedals.SelectedAccount);
+            Assert.Same(second, application.ModerationManager.SelectedAccount);
             Assert.Equal(1, medals.OwnerReadCount);
             current.AccountOverrideId = first.Id;
             await application.PendingMedalSwitch;
             Assert.Same(first, application.AccountMedals.SelectedAccount);
+            Assert.Same(first, application.ModerationManager.SelectedAccount);
             Assert.Equal(2, medals.OwnerReadCount);
 
             application.AccountMedals.FollowCurrentAccount = false;
+            application.ModerationManager.FollowCurrentAccount = false;
             application.SelectedWorkspace = null;
             await application.PendingMedalSwitch;
             Assert.Same(first, application.AccountMedals.SelectedAccount);
+            Assert.Same(first, application.ModerationManager.SelectedAccount);
         }
         finally
         {

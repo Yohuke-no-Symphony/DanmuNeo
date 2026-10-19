@@ -67,6 +67,7 @@
     "Medals.Failed": "操作失败：{0}",
     "Medals.Loaded": "已读取 {0} 枚粉丝牌",
     "Medals.FollowAccount": "跟随当前房间的账号",
+    "Workbench.FollowCurrentAccount": "跟随当前房间的账号",
     "Medals.Automatic": "为此账号自动换牌",
     "Medals.AutomaticHint": "仅当前活跃房间触发，按主播 UID 匹配。手动佩戴或摘牌会先关闭此账号的自动换牌。",
     "Medals.Refresh": "刷新牌墙",

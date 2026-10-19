@@ -15,7 +15,7 @@ public partial class MainWindowViewModel
     private bool toolsStarted;
     private bool toolsDisposed;
 
-    /// <summary>在明确选择的账号下管理已添加房间的禁言名单。</summary>
+    /// <summary>跟随当前账号或固定账号，管理全部已添加房间的禁言名单。</summary>
     public ModerationManagerViewModel ModerationManager { get; }
 
     /// <summary>默认跟随当前房间实际账号，亦可固定账号管理粉丝牌。</summary>
@@ -113,6 +113,7 @@ public partial class MainWindowViewModel
         }
 
         var account = toolsRoom is null ? null : ResolveAccount(toolsRoom);
+        ModerationManager.UpdateCurrentAccount(account);
         AccountMedals.UpdateCurrentAccount(account);
         if (toolsStarted)
         {

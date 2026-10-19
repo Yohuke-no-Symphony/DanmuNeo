@@ -59,7 +59,7 @@
         <Setter Property="VerticalContentAlignment" Value="Center" />
     </Style>
 
-    <Style Selector="Button.iconButton">
+    <Style Selector="Button.iconButton, ToggleButton.iconButton">
         <Setter Property="Width" Value="{StaticResource WorkbenchControlHeight}" />
         <Setter Property="Height" Value="{StaticResource WorkbenchControlHeight}" />
         <Setter Property="MinWidth" Value="{StaticResource WorkbenchControlHeight}" />
@@ -74,6 +74,17 @@
         <Setter Property="Background" Value="{DynamicResource AppSidebarSelectedBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource AppPrimaryBrush}" />
         <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
+    <Style Selector="ToggleButton.iconButton:checked">
+        <Setter Property="Background" Value="{DynamicResource AppSidebarSelectedBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AppPrimaryBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
+    <Style Selector="ToggleButton.iconButton:checked /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AppSidebarSelectedBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AppPrimaryBrush}" />
     </Style>
 
     <Style Selector="TextBox">
@@ -113,9 +124,13 @@
         <Setter Property="Foreground" Value="{DynamicResource AppTextBrush}" />
     </Style>
 
-    <Style Selector="Button.iconButton LucideIcon">
+    <Style Selector="Button.iconButton LucideIcon, ToggleButton.iconButton LucideIcon">
         <Setter Property="Size" Value="16" />
         <Setter Property="Foreground" Value="{DynamicResource AppTextBrush}" />
+    </Style>
+
+    <Style Selector="ToggleButton.iconButton:checked LucideIcon">
+        <Setter Property="Foreground" Value="{DynamicResource AppPrimaryBrush}" />
     </Style>
 
     <Style Selector="Button.iconButton PathIcon">

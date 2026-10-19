@@ -12,7 +12,7 @@ using Yohuke.DanmuNeo.ViewModels.Items;
 
 namespace Yohuke.DanmuNeo.ViewModels;
 
-/// <summary>独立于当前房间的单账号禁言管理，统一观察跨工作区的房间及凭据生命周期。</summary>
+/// <summary>单账号禁言管理，支持跟随当前账号或固定账号，观察跨工作区房间及凭据生命周期。</summary>
 public sealed partial class ModerationManagerViewModel : ViewModelBase, IDisposable
 {
     private readonly ObservableCollection<WorkspaceViewModel> workspaces;
@@ -40,6 +40,7 @@ public sealed partial class ModerationManagerViewModel : ViewModelBase, IDisposa
     private bool isDisposed;
     private string loadedSearchKeyword = "";
     private int loadedSearchPage;
+    private BilibiliAccount? currentAccount;
 
     /// <summary>创建应用级管理器；构造阶段只观察配置，不发起请求。</summary>
     public ModerationManagerViewModel(ObservableCollection<BilibiliAccount> accounts,
@@ -53,6 +54,7 @@ public sealed partial class ModerationManagerViewModel : ViewModelBase, IDisposa
         this.log = log;
         this.getTimeout = getTimeout;
         selectedAccount = accounts.FirstOrDefault(account => account.IsGlobalDefault);
+        currentAccount = selectedAccount;
         Accounts.CollectionChanged += OnAccountsChanged;
         workspaces.CollectionChanged += OnWorkspacesChanged;
         moderationService.Changed += OnModerationChanged;
@@ -63,8 +65,11 @@ public sealed partial class ModerationManagerViewModel : ViewModelBase, IDisposa
         SetStatus(selectedAccount is null ? "Moderation.SelectAccount" : "Moderation.Ready");
     }
 
-    /// <summary>可供显式选择的账号，不使用工作区或房间覆盖账号。</summary>
+    /// <summary>可供固定选择或跟随当前房间解析结果的账号。</summary>
     public ObservableCollection<BilibiliAccount> Accounts { get; }
+
+    /// <summary>关闭跟随后允许固定选择账号。</summary>
+    public bool CanChooseAccount => !FollowCurrentAccount;
 
     /// <summary>已确认管理权限的规范化房间。</summary>
     public ObservableCollection<ModerationRoomOption> ManageableRooms { get; } = [];
@@ -91,6 +96,10 @@ public sealed partial class ModerationManagerViewModel : ViewModelBase, IDisposa
     internal Task RefreshTask { get; private set; } = Task.CompletedTask;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanChooseAccount))]
+    private bool followCurrentAccount = true;
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanManage))]
     private BilibiliAccount? selectedAccount;
 
@@ -111,6 +120,14 @@ public sealed partial class ModerationManagerViewModel : ViewModelBase, IDisposa
 
     [ObservableProperty]
     private bool hasMoreUsers;
+
+    partial void OnFollowCurrentAccountChanged(bool value)
+    {
+        if (value)
+        {
+            SelectedAccount = currentAccount;
+        }
+    }
 
     partial void OnSelectedAccountChanged(BilibiliAccount? value)
     {
@@ -159,6 +176,20 @@ public sealed partial class ModerationManagerViewModel : ViewModelBase, IDisposa
         isActive = true;
         NotifyCommands();
         return IsRefreshing ? RefreshTask : RefreshTask = RefreshPendingAsync();
+    }
+
+    /// <summary>跟随组合根解析的当前账号；固定选择时只记住最新跟随目标。</summary>
+    public void UpdateCurrentAccount(BilibiliAccount? account)
+    {
+        if (isDisposed)
+        {
+            return;
+        }
+        currentAccount = account is not null && Accounts.Contains(account) ? account : null;
+        if (FollowCurrentAccount)
+        {
+            SelectedAccount = currentAccount;
+        }
     }
 
     /// <summary>隐藏或临时卸载时取消读取，保留已有数据与选择；已开始的写操作继续由凭据边界管理。</summary>
@@ -242,6 +273,10 @@ public sealed partial class ModerationManagerViewModel : ViewModelBase, IDisposa
     {
         ObserveAccounts();
 
+        if (currentAccount is not null && !Accounts.Contains(currentAccount))
+        {
+            currentAccount = null;
+        }
         if (SelectedAccount is not null && !Accounts.Contains(SelectedAccount))
         {
             SelectedAccount = null;

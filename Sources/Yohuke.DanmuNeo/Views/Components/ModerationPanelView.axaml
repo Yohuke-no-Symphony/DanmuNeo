@@ -11,11 +11,12 @@
     <Border Padding="{StaticResource WorkbenchPanelPadding}">
         <ScrollViewer HorizontalScrollBarVisibility="Disabled">
             <StackPanel Spacing="8">
-                <WrapPanel>
+                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
                     <ComboBox Name="ModerationAccount"
-                              Width="220"
-                              MaxWidth="{Binding $parent[WrapPanel].Bounds.Width}"
-                              Margin="0,0,6,6"
+                              MinWidth="0"
+                              HorizontalAlignment="Stretch"
+                              HorizontalContentAlignment="Stretch"
+                              IsEnabled="{Binding CanChooseAccount}"
                               ItemsSource="{Binding Accounts}"
                               SelectedItem="{Binding SelectedAccount, Mode=TwoWay}"
                               PlaceholderText="{Loc Key=Moderation.SelectAccount}"
@@ -26,14 +27,19 @@
                             </DataTemplate>
                         </ComboBox.ItemTemplate>
                     </ComboBox>
-                    <Button Name="ModerationRefresh"
+                    <ToggleButton Name="ModerationFollowAccount" Grid.Column="1" Classes="iconButton"
+                                  IsChecked="{Binding FollowCurrentAccount, Mode=TwoWay}"
+                                  AutomationProperties.Name="{Loc Key=Workbench.FollowCurrentAccount}"
+                                  ToolTip.Tip="{Loc Key=Workbench.FollowCurrentAccount}">
+                        <LucideIcon Kind="Link" />
+                    </ToggleButton>
+                    <Button Name="ModerationRefresh" Grid.Column="2"
                             Classes="iconButton"
-                            Margin="0,0,0,6"
                             Command="{Binding RefreshCommand}"
                             ToolTip.Tip="{Loc Key=Moderation.Refresh}">
                         <LucideIcon Kind="RefreshCw" />
                     </Button>
-                </WrapPanel>
+                </Grid>
                 <TextBlock Text="{Binding StatusText}" Classes="muted" TextWrapping="Wrap" />
                 <TextBlock Text="{Binding SummaryText}" Classes="muted" TextWrapping="Wrap" />
                 <ItemsControl ItemsSource="{Binding Issues}">
@@ -45,7 +51,9 @@
                 </ItemsControl>
                 <TextBlock Text="{Loc Key=Moderation.FindUser}" Classes="sectionTitle" />
                 <ComboBox Name="ModerationTargetRoom"
+                          MinWidth="0"
                           HorizontalAlignment="Stretch"
+                          HorizontalContentAlignment="Stretch"
                           ItemsSource="{Binding ManageableRooms}"
                           SelectedItem="{Binding SelectedTargetRoom, Mode=TwoWay}"
                           PlaceholderText="{Loc Key=Moderation.TargetRoom}"
@@ -56,24 +64,23 @@
                         </DataTemplate>
                     </ComboBox.ItemTemplate>
                 </ComboBox>
-                <WrapPanel>
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                     <TextBox Name="ModerationSearch"
-                             Width="220"
-                             MaxWidth="{Binding $parent[WrapPanel].Bounds.Width}"
-                             Margin="0,0,6,6"
+                             MinWidth="0"
+                             HorizontalAlignment="Stretch"
                              Text="{Binding SearchKeyword, Mode=TwoWay}"
                              Watermark="{Loc Key=Moderation.SearchHint}"
                              KeyDown="Search_OnKeyDown" />
-                    <Button Name="ModerationFindUser" Classes="iconButton" Margin="0,0,6,6"
+                    <Button Name="ModerationFindUser" Grid.Column="1" Classes="iconButton"
                             Command="{Binding SearchUsersCommand}"
                             ToolTip.Tip="{Loc Key=Moderation.FindUser}">
                         <LucideIcon Kind="Search" />
                     </Button>
-                    <Button Name="ModerationLoadMoreUsers" Margin="0,0,0,6"
-                            IsVisible="{Binding HasMoreUsers}"
-                            Content="{Loc Key=Moderation.LoadMore}"
-                            Command="{Binding LoadMoreUsersCommand}" />
-                </WrapPanel>
+                </Grid>
+                <Button Name="ModerationLoadMoreUsers" HorizontalAlignment="Right"
+                        IsVisible="{Binding HasMoreUsers}"
+                        Content="{Loc Key=Moderation.LoadMore}"
+                        Command="{Binding LoadMoreUsersCommand}" />
                 <ItemsControl Name="ModerationUserResults" ItemsSource="{Binding UserSearchResults}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="workspace:ModerationUser">

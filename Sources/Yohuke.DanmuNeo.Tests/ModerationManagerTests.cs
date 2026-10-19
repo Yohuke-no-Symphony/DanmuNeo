@@ -8,6 +8,55 @@ namespace Yohuke.DanmuNeo.Tests;
 /// <summary>验证显式账号、跨工作区扫描、权限复核与旧请求隔离。</summary>
 public class ModerationManagerTests
 {
+    /// <summary>跟随使用当前解析账号，关闭后保留固定选择，重新开启立即切到最新账号。</summary>
+    [AvaloniaFact]
+    public void FollowModeKeepsPinnedChoiceAndResumesLatestCurrentAccount()
+    {
+        using var fixture = new ModerationManagerTestContext();
+        var manager = fixture.Manager;
+        Assert.True(manager.FollowCurrentAccount);
+        Assert.False(manager.CanChooseAccount);
+        manager.UpdateCurrentAccount(fixture.Accounts[1]);
+        Assert.Same(fixture.Accounts[1], manager.SelectedAccount);
+        manager.FollowCurrentAccount = false;
+        manager.UpdateCurrentAccount(fixture.Accounts[0]);
+        Assert.Same(fixture.Accounts[1], manager.SelectedAccount);
+        Assert.True(manager.CanChooseAccount);
+        manager.FollowCurrentAccount = true;
+        Assert.Same(fixture.Accounts[0], manager.SelectedAccount);
+        manager.UpdateCurrentAccount(null);
+        Assert.Null(manager.SelectedAccount);
+        manager.FollowCurrentAccount = false;
+        manager.SelectedAccount = fixture.Accounts[1];
+        manager.UpdateCurrentAccount(null);
+        Assert.Same(fixture.Accounts[1], manager.SelectedAccount);
+        fixture.Accounts.RemoveAt(1);
+        manager.FollowCurrentAccount = true;
+        Assert.Null(manager.SelectedAccount);
+        Assert.Equal(0, fixture.Service.PermissionRequestCount);
+    }
+
+    /// <summary>跟随切换撤销旧账号扫描，迟到结果不能进入新账号名单。</summary>
+    [AvaloniaFact]
+    public async Task FollowSwitchCancelsPreviousAccountScan()
+    {
+        using var fixture = new ModerationManagerTestContext();
+        var pending = new TaskCompletionSource<IReadOnlyList<ModerationRecord>>();
+        fixture.Service.ListResponseAsync = (_, _, _) => pending.Task;
+        var oldScan = fixture.Manager.ActivateAsync();
+        var oldToken = fixture.Service.ListRequests.Single().Token;
+        fixture.Service.ListResponseAsync = (_, _, _) => Task.FromResult<IReadOnlyList<ModerationRecord>>([]);
+
+        fixture.Manager.UpdateCurrentAccount(fixture.Accounts[1]);
+        await fixture.Manager.RefreshTask;
+        pending.SetResult([new() { RecordId = 1, RoomId = 100, UserUid = 30 }]);
+        await oldScan;
+
+        Assert.True(oldToken.IsCancellationRequested);
+        Assert.Empty(fixture.Manager.Records);
+        Assert.All(fixture.Service.ListRequests.Skip(1), request => Assert.Equal(fixture.Accounts[1].Cookie, request.Cookie));
+    }
+
     /// <summary>构造不查询；只有全局默认账号可以成为初始选择。</summary>
     [AvaloniaFact]
     public void ConstructorDoesNotQueryAndDoesNotInventAnAccountDefault()

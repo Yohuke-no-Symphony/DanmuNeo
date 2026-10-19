@@ -67,6 +67,7 @@
     "Medals.Failed": "Operation failed: {0}",
     "Medals.Loaded": "Loaded {0} medals",
     "Medals.FollowAccount": "Follow the current room account",
+    "Workbench.FollowCurrentAccount": "Follow the current room account",
     "Medals.Automatic": "Automatically switch medals for this account",
     "Medals.AutomaticHint": "Only the active room triggers switching, matched by the owner UID. Wearing or removing a medal manually first disables automatic switching for this account.",
     "Medals.Refresh": "Refresh medals",

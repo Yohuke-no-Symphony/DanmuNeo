@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Presenters;
+using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Media;
@@ -20,7 +21,7 @@ namespace Yohuke.DanmuNeo.Tests;
 [Collection(AvaloniaDispatcherTestCollection.NAME)]
 public class AccountMedalsListLayoutTests
 {
-    /// <summary>两行内容保持共同左边缘与等级右边缘，佩戴状态以徽章显示且列表融入背景。</summary>
+    /// <summary>单行内容保持列对齐，佩戴状态以徽章显示且列表融入背景。</summary>
     [AvaloniaTheory]
     [InlineData(240, false, "zh-CN")]
     [InlineData(240, true, "en-US")]
@@ -71,7 +72,19 @@ public class AccountMedalsListLayoutTests
             Assert.Equal(0, Assert.IsAssignableFrom<ISolidColorBrush>(list.Background).Color.A);
             Assert.DoesNotContain(list.GetVisualDescendants().OfType<TextBlock>(),
                 text => text.IsEffectivelyVisible && text.Text?.StartsWith("UID ", StringComparison.Ordinal) == true);
+            var accountChoice = panel.FindControl<ComboBox>("MedalAccountChoice")!;
+            var follow = panel.FindControl<ToggleButton>("MedalFollowAccount")!;
+            var refresh = panel.FindControl<Button>("MedalRefresh")!;
+            Assert.InRange(follow.Bounds.Width, follow.Bounds.Height - 0.5, follow.Bounds.Height + 0.5);
+            Assert.Equal(accountChoice.Bounds.Y, follow.Bounds.Y);
+            Assert.Equal(follow.Bounds.Y, refresh.Bounds.Y);
+            Assert.InRange(accountChoice.Bounds.Height, follow.Bounds.Height - 0.5, follow.Bounds.Height + 0.5);
+            Assert.True(accountChoice.Bounds.Right < follow.Bounds.Left);
+            Assert.True(follow.Bounds.Right < refresh.Bounds.Left);
+            Assert.False(accountChoice.IsEnabled);
+            Assert.True(follow.IsChecked);
             double? left = null;
+            double? ownerColumn = null;
             double? right = null;
             double? rowHeight = null;
             foreach (var medal in medals)
@@ -86,20 +99,28 @@ public class AccountMedalsListLayoutTests
                 var ownerLeft = owner.TranslatePoint(default, list)!.Value.X;
                 var levelRight = level.TranslatePoint(new(level.Bounds.Width, 0), list)!.Value.X;
                 left ??= nameLeft;
+                ownerColumn ??= ownerLeft;
                 right ??= levelRight;
                 rowHeight ??= row.Bounds.Height;
                 Assert.InRange(nameLeft, left.Value - 0.5, left.Value + 0.5);
-                Assert.InRange(ownerLeft, left.Value - 0.5, left.Value + 0.5);
+                Assert.InRange(ownerLeft, ownerColumn.Value - 0.5, ownerColumn.Value + 0.5);
                 Assert.InRange(levelRight, right.Value - 0.5, right.Value + 0.5);
                 Assert.InRange(row.Bounds.Height, rowHeight.Value - 0.5, rowHeight.Value + 0.5);
+                Assert.InRange(row.Bounds.Height, 32, 40);
+                var center = name.TranslatePoint(new(0, name.Bounds.Height / 2), row)!.Value.Y;
+                Assert.InRange(owner.TranslatePoint(new(0, owner.Bounds.Height / 2), row)!.Value.Y, center - 1, center + 1);
+                Assert.InRange(level.TranslatePoint(new(0, level.Bounds.Height / 2), row)!.Value.Y, center - 1, center + 1);
                 Assert.InRange(levelRight, 0, list.Bounds.Width);
                 var badge = Assert.Single(row.GetVisualDescendants().OfType<Border>(),
                     border => border.Classes.Contains("medalWearingBadge"));
                 Assert.Equal(medal.IsWearing, badge.IsEffectivelyVisible);
                 if (medal.IsWearing)
                 {
+                    Assert.True(badge.TranslatePoint(default, list)!.Value.X > levelRight);
+                    Assert.InRange(badge.TranslatePoint(new(0, badge.Bounds.Height / 2), row)!.Value.Y,
+                        center - 1, center + 1);
                     Assert.InRange(badge.TranslatePoint(new(badge.Bounds.Width, 0), list)!.Value.X,
-                        levelRight - 0.5, levelRight + 0.5);
+                        0, list.Bounds.Width);
                 }
                 Assert.Equal(medal.Name, ToolTip.GetTip(name));
                 Assert.Equal(medal.TargetName, ToolTip.GetTip(owner));
