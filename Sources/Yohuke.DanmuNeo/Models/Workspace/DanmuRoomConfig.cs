@@ -5,6 +5,9 @@ namespace Yohuke.DanmuNeo.Models.Workspace;
 /// </summary>
 public sealed record DanmuRoomConfig
 {
+    /// <summary>当前账号在目标房间可发送的最大 UTF-16 预算；0 表示未知。</summary>
+    public int Length { get; init; }
+
     /// <summary>
     /// 已解锁的弹幕颜色。
     /// </summary>

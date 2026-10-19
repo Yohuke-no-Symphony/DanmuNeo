@@ -14,6 +14,7 @@ public class FakeBilibiliDanmuConfigService : IBilibiliDanmuConfigService
     /// </summary>
     public DanmuRoomConfig Config { get; set; } = new()
     {
+        Length = 20,
         Colors = [new() { Value = 0xFFFFFF, Name = "白色" }, new() { Value = 0xFF0000, Name = "红色" }],
         Modes = [new() { Value = 1, Name = "滚动" }, new() { Value = 4, Name = "底部" }, new() { Value = 5, Name = "顶部" }]
     };

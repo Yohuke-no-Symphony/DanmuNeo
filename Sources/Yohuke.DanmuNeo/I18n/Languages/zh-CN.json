@@ -654,7 +654,6 @@
     "UI.GlobalSettingsView.FeedInsertionExample": "示例：点击内容 你好，插入 \"你好\"",
     "UI.GlobalSettingsView.GlobalSending": "全局发送",
     "UI.GlobalSettingsView.LooseModeWrappingHint": "宽松模式始终自动换行。",
-    "UI.GlobalSettingsView.RetryBlockedMessages": "屏蔽时重发",
     "UI.GlobalSettingsView.SendInterval": "发送间隔 ms",
     "UI.GlobalSettingsView.TimeoutSeconds": "超时秒数",
     "UI.GlobalSettingsView.WrapDanmu": "弹幕自动换行",
@@ -884,6 +883,13 @@
     "Workbench.Panel.SuperChat": "SC",
     "Workbench.Panel.Workspace": "工作区",
     "Workbench.Title": "工作台",
-    "Workspace.RoomCount": "{0} 个直播间"
+    "Workspace.RoomCount": "{0} 个直播间",
+    "UI.GlobalSettingsView.RetryRateLimitedMessages": "限频时自动重试（最多 2 次）",
+    "Services.Send.RateLimited": "发送频率受限",
+    "Services.Send.LengthUnavailable": "无法确认当前账号的弹幕字数上限",
+    "Services.Send.NoBodyBudget": "符号或单个文字元素超过弹幕字数上限",
+    "Services.Send.EmptyBody": "没有可发送的正文",
+    "Services.Send.LogSource": "发送队列",
+    "Services.Send.RetryScheduled": "直播间 {0} 发送限频，{2} 秒后重试（第 {1} 次）"
   }
 }

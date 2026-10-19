@@ -1,6 +1,8 @@
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
+using Yohuke.DanmuNeo.Apis;
 using Yohuke.DanmuNeo.Models.State;
+using Yohuke.DanmuNeo.Models.Workspace;
 using Yohuke.DanmuNeo.Services;
 using Yohuke.DanmuNeo.ViewModels.Items;
 
@@ -10,6 +12,28 @@ namespace Yohuke.DanmuNeo.Tests;
 [Collection(AvaloniaDispatcherTestCollection.NAME)]
 public class LiveRoomHistoryTests
 {
+    /// <summary>历史接口明确未登录时更新匹配账号状态，并继续接收直播消息。</summary>
+    [AvaloniaFact]
+    public async Task HistoryAuthenticationFailureInvalidatesOnlyMatchingAccount()
+    {
+        using var sessions = new BilibiliAccountSessionService(new ControlledAccountValidationService());
+        var account = new BilibiliAccount { Id = "account", Cookie = "SESSDATA=test;bili_jct=test" };
+        var other = new BilibiliAccount { Id = "other", Cookie = "SESSDATA=other;bili_jct=other" };
+        sessions.Register(account);
+        sessions.Register(other);
+        var socket = new FakeLiveDanmuSocket { KeepRunning = true };
+        var history = new ControlledDanmuHistoryService();
+        using var room = CreateRoom(socket, history, () => account, accountSessions: sessions);
+        room.StartListening();
+        history.Requests.Dequeue().SetException(new BilibiliAuthenticationException("未登录"));
+
+        await room.PendingHistoryTask;
+
+        Assert.Equal(AccountValidationStatus.Expired, sessions.GetState(account.Id).Status);
+        Assert.Equal(AccountValidationStatus.Unchecked, sessions.GetState(other.Id).Status);
+        Assert.True(room.IsListening);
+    }
+
     /// <summary>首次及重连补拉保留已有显示对象且失败不停止监听。</summary>
     [AvaloniaFact]
     public async Task InitialAndRecoveredHistoryMergeWithoutReplacingLiveObjects()
@@ -138,13 +162,14 @@ public class LiveRoomHistoryTests
 
     private static LiveRoomTabViewModel CreateRoom(FakeLiveDanmuSocket socket,
         IBilibiliDanmuHistoryService history, Func<BilibiliAccount> account,
-        AppSettings? settings = null, IReceivedDanmuArchiveService? archive = null, ILiveDanmuSocketFactory? factory = null)
+        AppSettings? settings = null, IReceivedDanmuArchiveService? archive = null, ILiveDanmuSocketFactory? factory = null,
+        IBilibiliAccountSessionService? accountSessions = null)
     {
         var room = new LiveRoomTabViewModel(new() { RoomId = "100", RoomName = "房间" });
         room.Configure(_ => account(), (_, _) => account(), () => settings ?? new(), () => new(), () => [], _ => [],
             new FakeDanmuSendService(), new FakeRoomAvatarService(), () => Task.CompletedTask,
             liveDanmuSocketFactory: factory ?? new SequenceLiveDanmuSocketFactory(socket),
-            receptionServices: new(history, archive));
+            receptionServices: new(history, archive, accountSessions));
         return room;
     }
 }

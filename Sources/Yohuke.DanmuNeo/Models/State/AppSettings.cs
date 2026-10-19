@@ -86,9 +86,9 @@ public class AppSettings
     public bool EnableShieldProcessing { get; set; } = true;
 
     /// <summary>
-    /// 弹幕被屏蔽时是否重发。
+    /// 明确限频时是否自动重试，最多额外尝试两次。
     /// </summary>
-    public bool ResendWhenShielded { get; set; } = true;
+    public bool RetryWhenRateLimited { get; set; } = true;
 
     /// <summary>
     /// 播放或追帧时是否自动开启监听。

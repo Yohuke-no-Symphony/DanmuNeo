@@ -27,6 +27,14 @@ internal class BlockingDanmuSendService : IDanmuSendService
         firstSendRelease.TrySetResult();
     }
 
+    /// <inheritdoc/>
+    public Task<DanmuDeliveryResult> SendAsync(DanmuSendRequest request, BilibiliAccount? account,
+        AppSettings settings, DanmuDeliveryProgress? continuation = null, CancellationToken cancellationToken = default)
+    {
+        return TestDanmuDelivery.SendAsync(request, account, settings, continuation, cancellationToken,
+            SendAsync, record => RecordCreated?.Invoke(this, record));
+    }
+
     public async Task<DanmuSendResult> SendAsync(
         string roomId,
         string message,
@@ -56,7 +64,6 @@ internal class BlockingDanmuSendService : IDanmuSendService
             IsSendAccepted = isAccepted,
             Status = isAccepted ? "接口已接受" : "测试接口拒绝"
         };
-        RecordCreated?.Invoke(this, record);
         return new()
         {
             IsAccepted = isAccepted,
@@ -64,10 +71,5 @@ internal class BlockingDanmuSendService : IDanmuSendService
             ErrorMessage = isAccepted ? "" : "测试接口拒绝",
             Record = record
         };
-    }
-
-    public List<string> SplitMessage(string message, int maxLength)
-    {
-        return [message];
     }
 }

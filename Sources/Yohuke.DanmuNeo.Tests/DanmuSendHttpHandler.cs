@@ -13,6 +13,12 @@ public sealed class DanmuSendHttpHandler : HttpMessageHandler
     /// </summary>
     public string ResponseJson { get; set; } = "";
 
+    /// <summary>按顺序覆盖各次响应正文。</summary>
+    public Queue<string> ResponseBodies { get; } = [];
+
+    /// <summary>按顺序覆盖各次 HTTP 状态。</summary>
+    public Queue<HttpStatusCode> ResponseStatuses { get; } = [];
+
     /// <summary>
     /// HTTP 状态。
     /// </summary>
@@ -54,6 +60,9 @@ public sealed class DanmuSendHttpHandler : HttpMessageHandler
         Forms.Add(form.Split('&', StringSplitOptions.RemoveEmptyEntries)
             .Select(parameter => parameter.Split('=', 2))
             .ToDictionary(pair => WebUtility.UrlDecode(pair[0]), pair => WebUtility.UrlDecode(pair[1])));
-        return new(StatusCode) { Content = new StringContent(ResponseJson) };
+        return new(ResponseStatuses.Count > 0 ? ResponseStatuses.Dequeue() : StatusCode)
+        {
+            Content = new StringContent(ResponseBodies.Count > 0 ? ResponseBodies.Dequeue() : ResponseJson)
+        };
     }
 }

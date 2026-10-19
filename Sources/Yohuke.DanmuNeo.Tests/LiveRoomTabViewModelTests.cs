@@ -244,7 +244,7 @@ public class LiveRoomTabViewModelTests
     }
 
     /// <summary>
-    /// 双语任意一条失败时仍尝试另一条，但不把整行标记为已发送。
+    /// 双语按序发送，任意一条失败时停止后续内容且不把整行标记为已发送。
     /// </summary>
     [Theory]
     [InlineData(false, true)]
@@ -261,8 +261,8 @@ public class LiveRoomTabViewModelTests
 
         await viewModel.SendCurrentLyricAsync();
 
-        Assert.Equal(["【♪原文】", "【♪翻译】"], sendService.SentMessages);
-        Assert.Equal([originalAccepted, translationAccepted],
+        Assert.Equal(originalAccepted ? ["【♪原文】", "【♪翻译】"] : new[] { "【♪原文】" }, sendService.SentMessages);
+        Assert.Equal(originalAccepted ? [originalAccepted, translationAccepted] : new[] { false },
             sendService.Records.Select(record => record.IsSendAccepted));
         Assert.False(viewModel.Lyrics[0].IsSent);
     }

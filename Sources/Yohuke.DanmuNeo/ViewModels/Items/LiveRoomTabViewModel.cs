@@ -744,79 +744,6 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>
-    /// 提交同传输入，并在等待发送结果前清空输入框。
-    /// </summary>
-    [RelayCommand]
-    public async Task SendDraftAsync()
-    {
-        if (isDisposed)
-        {
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(InputDraft))
-        {
-            return;
-        }
-
-        var operationId = Interlocked.Increment(ref draftSendOperationId);
-        IsDraftSendFailed = false;
-        var draft = InputDraft;
-        var revision = draftRevision;
-        var settings = getSettings?.Invoke();
-        var account = resolveAccount?.Invoke(this);
-
-        if (settings is null || sendService is null)
-        {
-            log?.Error(CreateLogSource(Localization.Get("Room.Log.DraftSend")), Localization.Get("Room.Log.SendUnavailable"));
-            TrySetDraftSendFeedback(operationId, revision, new("Room.Draft.ServiceUnavailable"), true);
-            return;
-        }
-
-        var markGroup = getMarkSymbolGroup?.Invoke() ?? MarkSymbolService.CreateDefaultGroup(settings);
-        var content = ShieldReplacementService.Apply(draft.Trim(), settings, false);
-        var message = $"{markGroup.TranslateOpenMark}{content}{markGroup.TranslateCloseMark}";
-        InputDraft = "";
-        revision = draftRevision;
-        SetDraftSendStatus(new("Room.Draft.Sending"));
-        List<DanmuSendResult> results;
-
-        try
-        {
-            results = await SendMessageAsync(message, account, settings, source: CreateLogSource(Localization.Get("Room.Log.DraftSend")));
-        }
-        catch (Exception exception)
-        {
-            TrySetDraftSendFeedback(operationId, revision, new("Room.Draft.Failed", new Func<string>(() => LocalizedExceptionText.Get(exception))), true, draft);
-            return;
-        }
-
-        var acceptedResults = results.Where(result => result.IsAccepted).ToList();
-        var failedResults = results.Where(result => !result.IsAccepted).ToList();
-
-        if (results.Count == 0)
-        {
-            TrySetDraftSendFeedback(operationId, revision, new("Room.Draft.ServiceUnavailable"), true, draft);
-            return;
-        }
-
-        if (acceptedResults.Count == 0)
-        {
-            TrySetDraftSendFeedback(operationId, revision, new("Room.Draft.Failed", new Func<string>(() => failedResults[0].ErrorMessage)), true, draft);
-            return;
-        }
-
-        if (failedResults.Count > 0)
-        {
-            TrySetDraftSendFeedback(operationId, revision,
-                new("Room.Draft.PartiallyFailed", acceptedResults.Count, results.Count, new Func<string>(() => failedResults[0].ErrorMessage)), true, draft);
-            return;
-        }
-
-        TrySetDraftSendFeedback(operationId, revision, new("Room.Draft.Accepted"), false);
-    }
-
-    /// <summary>
     /// 清空同传输入。
     /// </summary>
     [RelayCommand]
@@ -873,7 +800,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>
-    /// 手动发送当前歌词，略过空行并推进到下一条非空歌词。
+    /// 手动发送当前歌词，略过空行，成功后推进到下一条非空歌词。
     /// </summary>
     [RelayCommand]
     public async Task SendCurrentLyricAsync()
@@ -891,8 +818,10 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
         }
 
         var line = Lyrics[index];
-        await SendLyricLineAsync(line, true);
-        AdvanceToNextSendableLyric(line);
+        if (await SendLyricLineAsync(line, true))
+        {
+            AdvanceToNextSendableLyric(line);
+        }
     }
 
     /// <summary>
@@ -924,7 +853,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
         var line = Lyrics[FindNextSendableLyricIndex(ActiveLyricIndex + 1)];
         await SeekAndSendLyricLineAsync(line);
 
-        if (isDisposed || revision != Interlocked.Read(ref lyricPlaybackIntentRevision) ||
+        if (isDisposed || !line.IsSent || revision != Interlocked.Read(ref lyricPlaybackIntentRevision) ||
             !ReferenceEquals(ActiveLyricLine, line))
         {
             return;
@@ -1130,6 +1059,10 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
 
     private void ResetLyricSession()
     {
+        lyricSessionTokenSource.Cancel();
+        lyricSessionTokenSource.Dispose();
+        lyricSessionTokenSource = new();
+        lyricDeliveryProgress.Clear();
         lastAutoEnteredLyricIndex = -1;
 
         foreach (var line in Lyrics)
@@ -1260,77 +1193,6 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
         var nextLine = Lyrics[nextIndex];
         var positionSeconds = nextLine.TimeSeconds >= 0 ? nextLine.TimeSeconds : LyricPlaybackPositionSeconds;
         SetLyricPlaybackPosition(positionSeconds, nextIndex);
-    }
-
-    private async Task<bool> SendLyricLineAsync(
-        LyricLineState line,
-        bool forceSend,
-        CancellationToken cancellationToken = default)
-    {
-        if (isDisposed || !lyricLinesSending.TryAdd(line, 0))
-        {
-            return false;
-        }
-
-        var source = CreateLogSource(Localization.Get("Room.Log.LyricSend"));
-
-        try
-        {
-            if (!forceSend && PreventRepeatedLyricSend && line.IsSent)
-            {
-                return false;
-            }
-
-            var settings = getSettings?.Invoke();
-            var account = resolveAccount?.Invoke(this);
-
-            if (settings is null || sendService is null)
-            {
-                log?.Error(source, Localization.Get("Room.Log.SendUnavailable"));
-                return false;
-            }
-
-            var markGroup = getMarkSymbolGroup?.Invoke() ?? MarkSymbolService.CreateDefaultGroup(settings);
-            var contents = LyricTimelineService.CreateSendContents(
-                line.Content, line.TranslatedContent, LyricSendMode, settings);
-
-            if (contents.Count == 0)
-            {
-                return false;
-            }
-
-            var allAccepted = true;
-
-            foreach (var content in contents)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var message = LyricTimelineService.CreateMessage(
-                    markGroup.LyricOpenMark, markGroup.LyricCloseMark, content);
-                var results = await SendMessageAsync(message, account, settings, source, cancellationToken);
-                allAccepted &= results.Count > 0 && results.All(result => result.IsAccepted);
-            }
-
-            if (!allAccepted)
-            {
-                return false;
-            }
-
-            line.IsSent = true;
-            return true;
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            return false;
-        }
-        catch (Exception exception)
-        {
-            log?.Error(source, Localization.Get("Room.Log.LyricFailed"), exception);
-            return false;
-        }
-        finally
-        {
-            lyricLinesSending.TryRemove(line, out _);
-        }
     }
 
     private async Task SendActiveLyricIfNeededAsync(CancellationToken cancellationToken)
@@ -1964,12 +1826,15 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
             }
 
             var markGroup = getMarkSymbolGroup?.Invoke() ?? MarkSymbolService.CreateDefaultGroup(settings);
-            var messageText = forwardService.CreateForwardMessage(
+            var content = forwardService.CreateForwardContent(
                 message,
                 rule.State,
                 markGroup,
                 getSymbolGroups?.Invoke() ?? [markGroup]);
-            var results = await SendMessageAsync(messageText, targetAccount, settings, logSource, cancellationToken);
+            var request = new DanmuSendRequest { RoomId = RoomId, Contents = [content] };
+            var delivery = await SendMessageAsync(request, targetAccount, settings, logSource,
+                new(request, targetAccount), cancellationToken);
+            var results = delivery.Results;
 
             if (!cancellationToken.IsCancellationRequested)
             {
@@ -2053,104 +1918,10 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
         return saveState?.Invoke() ?? Task.CompletedTask;
     }
 
-    private async Task<List<DanmuSendResult>> SendMessageAsync(
-        string message,
-        BilibiliAccount? account,
-        AppSettings settings,
-        string source,
-        CancellationToken cancellationToken = default)
-    {
-        if (sendService is null)
-        {
-            log?.Error(source, Localization.Get("Room.Log.SendUnavailable"));
-            return [];
-        }
-
-        var results = new List<DanmuSendResult>();
-        var roomId = RoomId;
-
-        try
-        {
-            var sendingAccount = await PrepareDanmuSendingAccountAsync(roomId, account, cancellationToken);
-
-            foreach (var part in sendService.SplitMessage(message, 30))
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                results.Add(await sendService.SendAsync(roomId, part, sendingAccount, settings, cancellationToken));
-            }
-
-            cancellationToken.ThrowIfCancellationRequested();
-            var rejected = results.Where(result => !result.IsAccepted).ToList();
-
-            if (rejected.Count > 0)
-            {
-                var errors = rejected.Select(result => result.ApiCode is { } code
-                    ? Localization.Format("Room.Log.ApiError", result.ErrorMessage, code)
-                    : result.ErrorMessage).Distinct();
-                var exceptions = rejected.Select(result => result.Error).OfType<Exception>().ToList();
-                var details = exceptions.Count switch
-                {
-                    0 => null,
-                    1 => exceptions[0],
-                    _ => new AggregateException(exceptions)
-                };
-                log?.Error(source,
-                    Localization.Format("Room.Log.SendPartiallyAccepted", results.Count - rejected.Count, results.Count, string.Join(Localization.Get("Room.Log.ErrorSeparator"), errors)),
-                    details);
-            }
-            else if (results.Count == 0)
-            {
-                log?.Error(source, Localization.Get("Room.Log.SendNoSegments"));
-            }
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (Exception exception)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            log?.Error(source, Localization.Get("Room.Log.SendFailed"), exception);
-            results.Add(new()
-            {
-                ErrorMessageProvider = () => LocalizedExceptionText.Get(exception),
-                Error = exception
-            });
-        }
-
-        return results;
-    }
-
     private string CreateLogSource(string operation, string? roomId = null)
     {
         var workspace = string.IsNullOrWhiteSpace(logWorkspace) ? "" : $"{logWorkspace} / ";
         return Localization.Format("Room.Log.Source", workspace, RoomName, roomId ?? RoomId, Id, operation);
-    }
-
-    private bool TrySetDraftSendFeedback(long operationId, long revision, LocalizedMessage status, bool failed,
-        string? draftToRestore = null)
-    {
-        if (isDisposed || operationId != draftSendOperationId || revision != draftRevision)
-        {
-            return false;
-        }
-
-        if (draftToRestore is not null)
-        {
-            InputDraft = draftToRestore;
-        }
-
-        SetDraftSendStatus(status);
-        draftSendErrorMessage = failed ? status : new("");
-        DraftSendError = draftSendErrorMessage.Render();
-        IsDraftSendFailed = failed;
-        return true;
-    }
-
-    private void InvalidateDraftSendFeedback()
-    {
-        draftRevision++;
-        IsDraftSendFailed = false;
     }
 
     private async Task RunAutoLyricAsync(CancellationTokenSource tokenSource)
@@ -2205,34 +1976,6 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
             : null;
         SeekNextLyricCommand.NotifyCanExecuteChanged();
         SeekNextAndPlayLyricCommand.NotifyCanExecuteChanged();
-    }
-
-    private void OnSendRecordCreated(object? sender, DanmuFeedItem item)
-    {
-        if (isDisposed || item.UserName != RoomId)
-        {
-            return;
-        }
-
-        Dispatcher.UIThread.Post(() =>
-        {
-            if (isDisposed || item.UserName != RoomId)
-            {
-                return;
-            }
-
-            TranslateHistoryItems.Insert(0, item);
-            Trim(TranslateHistoryItems, 1000);
-            OnPropertyChanged(nameof(HasTranslateHistory));
-
-            if (item.IsSendAccepted)
-            {
-                return;
-            }
-
-            DanmuItems.Insert(0, item);
-            TrimDanmuItems();
-        });
     }
 
     private static void Trim<T>(ObservableCollection<T> collection, int maxCount)

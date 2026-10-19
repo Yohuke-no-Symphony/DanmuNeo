@@ -182,8 +182,16 @@ public class BaseApi : IDisposable
         timeoutTokenSource.CancelAfter(timeout ?? DefaultTimeout);
 
         var response = await Client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeoutTokenSource.Token);
-        response.EnsureSuccessStatusCode();
-        return response;
+        try
+        {
+            response.EnsureSuccessStatusCode();
+            return response;
+        }
+        catch
+        {
+            response.Dispose();
+            throw;
+        }
     }
 
     private static HttpRequestMessage CreateRequest(

@@ -79,7 +79,10 @@ public static class BilibiliDanmuConfigSelector
             modes.Add(new() { Value = mode, Name = ReadName(item, mode.ToString(CultureInfo.InvariantCulture)) });
         }
 
-        return new() { Colors = colors.AsReadOnly(), Modes = modes.AsReadOnly(), Current = current };
+        var length = TryReadInteger(danmu?["length"], out var userLength) && userLength > 0
+            ? userLength
+            : Math.Max(0, config.Length);
+        return new() { Colors = colors.AsReadOnly(), Modes = modes.AsReadOnly(), Current = current, Length = length };
     }
 
     private static bool IsAvailable(JToken? status)

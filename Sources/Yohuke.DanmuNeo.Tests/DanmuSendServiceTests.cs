@@ -158,6 +158,7 @@ public class DanmuSendServiceTests
         {
             ResolveConfig = (roomId, cookie) => new()
             {
+                Length = 20,
                 Current = roomId == "101"
                     ? new()
                     : cookie.Contains("SESSDATA=other")
@@ -218,7 +219,7 @@ public class DanmuSendServiceTests
             ResolveConfig = (_, _) =>
             {
                 account.Cookie = "SESSDATA=other;bili_jct=other-csrf;DedeUserID=43";
-                return new() { Current = new() { Color = 255, Mode = 5 } };
+                return new() { Length = 20, Current = new() { Color = 255, Mode = 5 } };
             }
         };
         var service = new DanmuSendService(client, configService);

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using Yohuke.DanmuNeo.Apis;
 using Yohuke.DanmuNeo.Services;
 
 namespace Yohuke.DanmuNeo.Tests;
@@ -40,6 +41,6 @@ public class BilibiliDanmuHistoryServiceTests
         using var handler = new DanmuHistoryHttpHandler("""{"code":-101,"message":"expired"}""");
         using var client = new HttpClient(handler);
         var service = new BilibiliDanmuHistoryService(client);
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.GetRecentAsync("100", ""));
+        await Assert.ThrowsAsync<BilibiliAuthenticationException>(() => service.GetRecentAsync("100", ""));
     }
 }

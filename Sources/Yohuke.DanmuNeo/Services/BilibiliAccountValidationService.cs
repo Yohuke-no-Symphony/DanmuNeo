@@ -69,7 +69,8 @@ public sealed class BilibiliAccountValidationService : IBilibiliAccountValidatio
 
     internal static bool HasSendingCredentials(string cookie)
     {
-        return !string.IsNullOrWhiteSpace(ApiCookieHelper.GetValue(cookie, "SESSDATA")) &&
+        return !string.IsNullOrWhiteSpace(cookie) &&
+               !string.IsNullOrWhiteSpace(ApiCookieHelper.GetValue(cookie, "SESSDATA")) &&
                !string.IsNullOrWhiteSpace(ApiCookieHelper.GetValue(cookie, "bili_jct"));
     }
 

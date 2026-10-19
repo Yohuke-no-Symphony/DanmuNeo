@@ -71,10 +71,17 @@ public class DanmuForwardService
         MarkSymbolGroup fallbackGroup,
         IEnumerable<MarkSymbolGroup> symbolGroups)
     {
-        var markGroup = symbolGroups.FirstOrDefault(group => group.Id == rule.MarkSymbolGroupId) ?? fallbackGroup;
-        return LyricTimelineService.CreateMessage(
-            markGroup.TranslateOpenMark,
-            markGroup.TranslateCloseMark,
-            message.Content);
+        var content = CreateForwardContent(message, rule, fallbackGroup, symbolGroups);
+        return content.Prefix + content.Body + content.Suffix;
+    }
+    /// <summary>创建保留正文和完整标识符边界的转发请求内容。</summary>
+    public DanmuMessageContent CreateForwardContent(BilibiliDanmuMessage message, DanmuForwardRuleState rule,
+        MarkSymbolGroup fallbackGroup, IEnumerable<MarkSymbolGroup> symbolGroups)
+    {
+        var marks = symbolGroups.FirstOrDefault(group => group.Id == rule.MarkSymbolGroupId) ?? fallbackGroup;
+        return new()
+        {
+            Language = "forward", Body = message.Content.Trim(), Prefix = marks.TranslateOpenMark, Suffix = marks.TranslateCloseMark
+        };
     }
 }

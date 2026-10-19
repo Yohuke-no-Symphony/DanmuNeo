@@ -10,6 +10,12 @@ public class DanmuSendResult
 {
     private readonly string errorMessage = "";
 
+    /// <summary>用于限频重试与失败反馈的结果分类。</summary>
+    public DanmuSendFailureKind FailureKind { get; init; }
+
+    /// <summary>本轮发送该正文范围时执行的网络尝试次数。</summary>
+    public int AttemptCount { get; init; }
+
     internal string? ErrorMessageKey { get; init; }
     internal object[] ErrorMessageArguments { get; init; } = [];
     internal Func<string>? ErrorMessageProvider { get; init; }

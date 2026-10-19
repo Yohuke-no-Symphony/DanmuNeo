@@ -82,7 +82,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IAsyncDis
         appBackupService = new(appDirectoryService);
         ownsReceivedDanmuArchiveService = receivedDanmuArchiveService is null;
         this.receivedDanmuArchiveService = receivedDanmuArchiveService ?? new ReceivedDanmuArchiveService(appDirectoryService, Log);
-        receptionServices = new(danmuHistoryService ?? new BilibiliDanmuHistoryService(), this.receivedDanmuArchiveService);
         emoticonCacheService = new(appDirectoryService);
         this.liveRoomSearchService = liveRoomSearchService ?? new BilibiliLiveRoomSearchService();
         this.moderationService = moderationService ?? new BilibiliModerationService();
@@ -90,7 +89,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IAsyncDis
         this.danmuConfigService = danmuConfigService ?? new BilibiliDanmuConfigService();
         this.accountSessions = accountSessions ?? new BilibiliAccountSessionService();
         ownsAccountSessions = accountSessions is null;
-        danmuSendService = new(danmuConfigService: this.danmuConfigService, accountSessions: this.accountSessions);
+        receptionServices = new(danmuHistoryService ?? new BilibiliDanmuHistoryService(),
+            this.receivedDanmuArchiveService, this.accountSessions);
+        danmuSendService = new(danmuConfigService: this.danmuConfigService, log: Log,
+            accountSessions: this.accountSessions);
         ownedAvatarCacheService = avatarCacheService is null ? new(appDirectoryService) : null;
         this.avatarCacheService = avatarCacheService ?? ownedAvatarCacheService!;
         State = loadedState ?? stateService.Load();

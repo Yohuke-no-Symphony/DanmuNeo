@@ -3,6 +3,7 @@ using Avalonia.Media;
 using Yohuke.DanmuNeo.Models.Workspace;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Input;
+using Yohuke.DanmuNeo.Apis;
 using Yohuke.DanmuNeo.Apis.Models.Bilibili;
 using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Services;
@@ -284,6 +285,10 @@ public partial class LiveRoomTabViewModel
             {
                 if (IsCurrentReception(context))
                 {
+                    if (exception is BilibiliAuthenticationException)
+                    {
+                        receptionServices?.AccountSessions?.ReportAuthenticationFailure(context.AccountId, context.Cookie);
+                    }
                     log?.Warning(CreateLogSource(Localization.Get("Room.History.Source")),
                         Localization.Get("Room.History.Failed"), exception.Message);
                 }

@@ -293,7 +293,7 @@ public class AppStateService
         try
         {
             var text = File.ReadAllText(path);
-            value = JsonSerializer.Deserialize<T>(text, JSON_OPTIONS);
+            value = JsonSerializer.Deserialize<T>(SendingSettingsMigration.Migrate<T>(text), JSON_OPTIONS);
             return value is not null;
         }
         catch (Exception exception)

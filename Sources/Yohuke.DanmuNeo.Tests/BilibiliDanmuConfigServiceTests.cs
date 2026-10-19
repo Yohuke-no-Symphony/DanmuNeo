@@ -403,7 +403,7 @@ public class BilibiliDanmuConfigServiceTests
         using var client = new HttpClient(handler);
         var service = new BilibiliDanmuConfigService(client);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.GetConfigAsync("100", COOKIE));
+        await Assert.ThrowsAnyAsync<InvalidOperationException>(() => service.GetConfigAsync("100", COOKIE));
         var retried = await service.GetConfigAsync("100", COOKIE);
 
         Assert.Equal(new DanmuSendOptions { Color = 65535, Mode = 1 }, retried.Current);

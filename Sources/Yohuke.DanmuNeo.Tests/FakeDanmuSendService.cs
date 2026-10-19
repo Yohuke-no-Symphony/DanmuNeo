@@ -25,6 +25,14 @@ public class FakeDanmuSendService : IDanmuSendService
 
     public List<string>? MessageParts { get; set; }
 
+    /// <inheritdoc/>
+    public Task<DanmuDeliveryResult> SendAsync(DanmuSendRequest request, BilibiliAccount? account,
+        AppSettings settings, DanmuDeliveryProgress? continuation = null, CancellationToken cancellationToken = default)
+    {
+        return TestDanmuDelivery.SendAsync(request, account, settings, continuation, cancellationToken,
+            SendAsync, record => RecordCreated?.Invoke(this, record), MessageParts);
+    }
+
     public Task<DanmuSendResult> SendAsync(
         string roomId,
         string message,
@@ -45,7 +53,6 @@ public class FakeDanmuSendService : IDanmuSendService
             Status = isAccepted ? "接口已接受" : ErrorMessage
         };
         Records.Add(record);
-        RecordCreated?.Invoke(this, record);
         return Task.FromResult(new DanmuSendResult
         {
             IsAccepted = isAccepted,
@@ -53,10 +60,5 @@ public class FakeDanmuSendService : IDanmuSendService
             ErrorMessage = isAccepted ? "" : ErrorMessage,
             Record = record
         });
-    }
-
-    public List<string> SplitMessage(string message, int maxLength)
-    {
-        return MessageParts ?? [message];
     }
 }

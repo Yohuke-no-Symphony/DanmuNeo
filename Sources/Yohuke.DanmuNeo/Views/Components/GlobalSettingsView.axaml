@@ -104,8 +104,8 @@
                            LineSpacing="8">
                     <CheckBox Content="{Loc Key=UI.GlobalSettingsView.EnableReplacements}"
                               IsChecked="{Binding Settings.EnableShieldProcessing}"/>
-                    <CheckBox Content="{Loc Key=UI.GlobalSettingsView.RetryBlockedMessages}"
-                              IsChecked="{Binding Settings.ResendWhenShielded}"/>
+                    <CheckBox Content="{Loc Key=UI.GlobalSettingsView.RetryRateLimitedMessages}"
+                              IsChecked="{Binding Settings.RetryWhenRateLimited}"/>
                     <CheckBox Content="{Loc Key=UI.GlobalSettingsView.AutoListenOnPlayback}"
                               IsChecked="{Binding Settings.AutoStartListeningWithLivePlayer}"/>
                 </WrapPanel>

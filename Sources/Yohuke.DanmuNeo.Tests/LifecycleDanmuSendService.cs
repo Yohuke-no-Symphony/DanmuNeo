@@ -15,6 +15,14 @@ internal sealed class LifecycleDanmuSendService : IDanmuSendService
     internal List<string> SentMessages { get; } = [];
 
     /// <inheritdoc/>
+    /// <inheritdoc/>
+    public Task<DanmuDeliveryResult> SendAsync(DanmuSendRequest request, BilibiliAccount? account,
+        AppSettings settings, DanmuDeliveryProgress? continuation = null, CancellationToken cancellationToken = default)
+    {
+        return TestDanmuDelivery.SendAsync(request, account, settings, continuation, cancellationToken,
+            SendAsync, record => RecordCreated?.Invoke(this, record));
+    }
+
     public Task<DanmuSendResult> SendAsync(
         string roomId,
         string message,
@@ -25,13 +33,6 @@ internal sealed class LifecycleDanmuSendService : IDanmuSendService
         cancellationToken.ThrowIfCancellationRequested();
         SentMessages.Add(message);
         var record = new DanmuFeedItem { UserName = roomId, Content = message, IsSendAccepted = true };
-        RecordCreated?.Invoke(this, record);
         return Task.FromResult(new DanmuSendResult { IsAccepted = true, Record = record });
-    }
-
-    /// <inheritdoc/>
-    public List<string> SplitMessage(string message, int maxLength)
-    {
-        return [message];
     }
 }

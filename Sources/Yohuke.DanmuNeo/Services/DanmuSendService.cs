@@ -5,109 +5,144 @@ using Yohuke.DanmuNeo.Models.Workspace;
 
 namespace Yohuke.DanmuNeo.Services;
 
-/// <summary>
-/// 统一管理弹幕发送队列。
-/// </summary>
+/// <summary>统一管理有序逻辑发送、分段、限速、限频重试与进度。</summary>
 public class DanmuSendService : IDanmuSendService
 {
-    private readonly HttpClient? httpClient;
     private readonly IBilibiliDanmuConfigService danmuConfigService;
+    private readonly IDanmuSendTransport transport;
+    private readonly TimeProvider timeProvider;
+    private readonly IAppLogService? log;
     private readonly IBilibiliAccountSessionService? accountSessions;
-    private readonly SemaphoreSlim sendLock = new(1, 1);
+    private readonly DanmuSendQueue sendQueue = new();
     private DateTimeOffset lastSentAt = DateTimeOffset.MinValue;
 
-    /// <summary>
-    /// 初始化服务；注入的 HTTP 客户端由调用方管理。
-    /// </summary>
+    /// <summary>初始化发送管线；注入的 HTTP 客户端与日志由调用方管理。</summary>
     public DanmuSendService(HttpClient? httpClient = null, IBilibiliDanmuConfigService? danmuConfigService = null,
+        IDanmuSendTransport? transport = null, TimeProvider? timeProvider = null, IAppLogService? log = null,
         IBilibiliAccountSessionService? accountSessions = null)
     {
-        this.httpClient = httpClient;
-        this.danmuConfigService = danmuConfigService ?? new BilibiliDanmuConfigService(httpClient);
+        this.timeProvider = timeProvider ?? TimeProvider.System;
+        this.danmuConfigService = danmuConfigService ?? new BilibiliDanmuConfigService(httpClient, this.timeProvider);
+        this.transport = transport ?? new BilibiliDanmuSendTransport(httpClient);
+        this.log = log;
         this.accountSessions = accountSessions;
     }
 
-    /// <summary>
-    /// 发送记录产生时触发。
-    /// </summary>
+    /// <inheritdoc/>
     public event EventHandler<DanmuFeedItem>? RecordCreated;
 
-    /// <summary>
-    /// 发送弹幕。
-    /// </summary>
-    public async Task<DanmuSendResult> SendAsync(
-        string roomId,
-        string message,
-        BilibiliAccount? account,
-        AppSettings settings,
-        CancellationToken cancellationToken = default)
+    /// <inheritdoc/>
+    public async Task<DanmuDeliveryResult> SendAsync(DanmuSendRequest request, BilibiliAccount? account,
+        AppSettings settings, DanmuDeliveryProgress? continuation = null, CancellationToken cancellationToken = default)
     {
-        if (account is null || string.IsNullOrWhiteSpace(account.Cookie))
-        {
-            return CreateResult(roomId, message, "", false, statusKey: "Services.Send.NoAccount");
-        }
-
-        var cookie = account.Cookie;
-        var accountId = account.Id;
-        if (accountSessions?.CanSend(accountId, cookie) == false)
-        {
-            return CreateResult(roomId, message, "", false, statusKey: "Services.Send.AccountUnavailable");
-        }
-
-        var credentialToken = accountSessions?.GetCredentialCancellationToken(accountId, cookie) ?? CancellationToken.None;
+        cancellationToken.ThrowIfCancellationRequested();
+        var sendingAccount = Snapshot(account);
+        var progress = continuation is not null && continuation.Matches(request, sendingAccount)
+            ? continuation
+            : new DanmuDeliveryProgress(request, sendingAccount);
+        request = progress.Request;
+        var intervalMs = Math.Max(0, settings.SendIntervalMs);
+        var retryWhenLimited = settings.RetryWhenRateLimited;
+        var timeoutSeconds = settings.TimeoutSeconds;
+        var credentialToken = sendingAccount is null ? CancellationToken.None :
+            accountSessions?.GetCredentialCancellationToken(sendingAccount.Id, sendingAccount.Cookie) ?? CancellationToken.None;
         using var linkedSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, credentialToken);
         var sendToken = linkedSource.Token;
-        var enteredLock = false;
-
         try
         {
-            await sendLock.WaitAsync(sendToken);
-            enteredLock = true;
-            if (accountSessions?.CanSend(accountId, cookie) == false)
+            if (sendingAccount is null || string.IsNullOrWhiteSpace(sendingAccount.Cookie))
             {
-                return CreateResult(roomId, message, "", false, statusKey: "Services.Send.AccountUnavailable");
+                RecordLocalFailure(progress, "Services.Send.NoAccount");
+                return new() { Progress = progress };
             }
-
-            var waitTime = TimeSpan.FromMilliseconds(settings.SendIntervalMs) - (DateTimeOffset.Now - lastSentAt);
-
-            if (waitTime > TimeSpan.Zero)
+            if (request.Contents.Count == 0 || request.Contents.Any(content => string.IsNullOrWhiteSpace(content.Body)))
             {
-                await Task.Delay(waitTime, sendToken);
+                RecordLocalFailure(progress, "Services.Send.EmptyBody");
+                return new() { Progress = progress };
             }
-
-            var timeout = TimeSpan.FromSeconds(settings.TimeoutSeconds);
-            var config = await danmuConfigService.GetConfigAsync(roomId, cookie, timeout, sendToken);
-            if (accountSessions?.CanSend(accountId, cookie) == false)
+            if (progress.IsComplete && progress.Results.All(result => result.IsAccepted))
             {
-                return CreateResult(roomId, message, "", false, statusKey: "Services.Send.AccountUnavailable");
+                return new() { Progress = progress };
             }
-
-            using var api = new BilibiliApi(cookie, timeout, httpClient);
-            var response = await api.SendDanmuAsync(long.Parse(roomId), message, config.Current.Mode,
-                cancellationToken: sendToken, color: config.Current.Color);
-            lastSentAt = DateTimeOffset.Now;
-
-            var isBlocked = response.Message is "f" || response.Msg is "f";
-            if (response.Code == -101)
+            if (!ValidateSendingAccount(sendingAccount, progress))
             {
-                accountSessions?.ReportAuthenticationFailure(accountId, cookie);
+                return new() { Progress = progress };
             }
-
-            if (response.Code == 0 && !isBlocked)
+            using var queueTicket = sendQueue.Enqueue();
+            await queueTicket.Ready.WaitAsync(sendToken);
+            sendToken.ThrowIfCancellationRequested();
+            if (!ValidateSendingAccount(sendingAccount, progress))
             {
-                return CreateResult(roomId, message, "", true, response.Code, statusKey: "Services.Send.Accepted");
+                return new() { Progress = progress };
             }
-
-            if (isBlocked)
+            var timeout = TimeSpan.FromSeconds(timeoutSeconds);
+            var config = await danmuConfigService.GetConfigAsync(request.RoomId, sendingAccount.Cookie,
+                timeout, sendToken);
+            if (config.Length <= 0)
             {
-                return CreateResult(roomId, message, "", false, response.Code, statusKey: "Services.Send.Blocked");
+                config = await danmuConfigService.GetConfigAsync(request.RoomId, sendingAccount.Cookie,
+                    timeout, sendToken, forceRefresh: true);
             }
-
-            var errorMessage = response.Message ?? response.Msg;
-            return errorMessage is not null
-                ? CreateResult(roomId, message, errorMessage, false, response.Code)
-                : CreateResult(roomId, message, "", false, response.Code,
-                    statusKey: "Services.Send.FailedCode", statusArguments: [response.Code]);
+            if (config.Length <= 0)
+            {
+                RecordLocalFailure(progress, "Services.Send.LengthUnavailable");
+                return new() { Progress = progress };
+            }
+            for (var contentIndex = 0; contentIndex < request.Contents.Count; contentIndex++)
+            {
+                var content = request.Contents[contentIndex];
+                while (progress.GetAcceptedLength(contentIndex) < content.Body.Length)
+                {
+                    sendToken.ThrowIfCancellationRequested();
+                    var segment = DanmuMessageSegmenter.Next(content, progress.GetAcceptedLength(contentIndex), config.Length);
+                    var attemptCount = 0;
+                    DanmuSendAttemptResult attempt;
+                    do
+                    {
+                        await WaitForSendIntervalAsync(intervalMs, sendToken);
+                        sendToken.ThrowIfCancellationRequested();
+                        if (!ValidateSendingAccount(sendingAccount, progress))
+                        {
+                            return new() { Progress = progress };
+                        }
+                        attemptCount++;
+                        try
+                        {
+                            attempt = await transport.SendOnceAsync(request.RoomId, segment.Message,
+                                sendingAccount.Cookie, config, timeout, sendToken);
+                        }
+                        finally
+                        {
+                            lastSentAt = timeProvider.GetUtcNow();
+                        }
+                        var retryDelay = DanmuSendRetryPolicy.GetDelay(attempt.FailureKind, retryWhenLimited, attemptCount, intervalMs);
+                        if (retryDelay is null)
+                        {
+                            break;
+                        }
+                        log?.Information(Localization.Get("Services.Send.LogSource"),
+                            Localization.Format("Services.Send.RetryScheduled", request.RoomId, attemptCount, retryDelay.Value.TotalSeconds));
+                        await Task.Delay(retryDelay.Value, timeProvider, sendToken);
+                    } while (true);
+                    if (attempt.FailureKind != DanmuSendFailureKind.None)
+                    {
+                        sendToken.ThrowIfCancellationRequested();
+                    }
+                    var result = CreateResult(request.RoomId, segment.Message,
+                        progress.GetRecordId(contentIndex, segment.BodyStart), attempt, attemptCount);
+                    progress.Record(contentIndex, segment, result);
+                    RecordCreated?.Invoke(this, result.Record);
+                    if (attempt.ApiCode == -101)
+                    {
+                        accountSessions?.ReportAuthenticationFailure(sendingAccount.Id, sendingAccount.Cookie);
+                    }
+                    if (!result.IsAccepted)
+                    {
+                        return new() { Progress = progress };
+                    }
+                }
+            }
+            return new() { Progress = progress };
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -115,102 +150,106 @@ public class DanmuSendService : IDanmuSendService
         }
         catch (OperationCanceledException) when (credentialToken.IsCancellationRequested)
         {
-            return CreateResult(roomId, message, "", false, statusKey: "Services.Send.AccountUnavailable");
+            RecordLocalFailure(progress, "Services.Send.AccountUnavailable");
+            return new() { Progress = progress };
+        }
+        catch (BilibiliAuthenticationException exception)
+        {
+            RecordLocalFailure(progress, "Services.Send.AccountUnavailable", exception);
+            if (sendingAccount is not null)
+            {
+                accountSessions?.ReportAuthenticationFailure(sendingAccount.Id, sendingAccount.Cookie);
+            }
+            return new() { Progress = progress };
         }
         catch (Exception exception)
         {
-            return CreateResult(roomId, message, exception.Message, false, error: exception);
-        }
-        finally
-        {
-            if (enteredLock)
-            {
-                sendLock.Release();
-            }
+            RecordLocalFailure(progress, null, exception);
+            return new() { Progress = progress };
         }
     }
 
-    /// <summary>
-    /// 按最大长度切分弹幕。
-    /// </summary>
-    public List<string> SplitMessage(string message, int maxLength)
+    /// <summary>发送不带独立符号的单语言内容，并返回最后一段的结果。</summary>
+    public async Task<DanmuSendResult> SendAsync(string roomId, string message, BilibiliAccount? account,
+        AppSettings settings, CancellationToken cancellationToken = default)
     {
-        if (message.Length <= maxLength)
-        {
-            return [message];
-        }
-
-        var result = new List<string>();
-        var remaining = message;
-
-        while (remaining.Length > maxLength)
-        {
-            var cutIndex = FindCutIndex(remaining, maxLength);
-            result.Add(remaining[..cutIndex]);
-            remaining = "…" + remaining[cutIndex..];
-        }
-
-        if (remaining.Length > 0)
-        {
-            result.Add(remaining);
-        }
-
-        return result;
+        var delivery = await SendAsync(new() { RoomId = roomId, Contents = [new() { Body = message }] },
+            account, settings, cancellationToken: cancellationToken);
+        return delivery.Results.Last();
     }
 
-    private DanmuSendResult CreateResult(
-        string roomId,
-        string message,
-        string status,
-        bool isAccepted,
-        int? apiCode = null,
-        Exception? error = null,
-        string? statusKey = null,
-        object[]? statusArguments = null)
+    private async Task WaitForSendIntervalAsync(int intervalMs, CancellationToken cancellationToken)
     {
+        var remaining = TimeSpan.FromMilliseconds(intervalMs) - (timeProvider.GetUtcNow() - lastSentAt);
+        if (remaining > TimeSpan.Zero)
+        {
+            await Task.Delay(remaining, timeProvider, cancellationToken);
+        }
+    }
+
+    private bool ValidateSendingAccount(BilibiliAccount account, DanmuDeliveryProgress progress)
+    {
+        if (accountSessions?.CanSend(account.Id, account.Cookie) != false)
+        {
+            return true;
+        }
+
+        RecordLocalFailure(progress, "Services.Send.AccountUnavailable");
+        return false;
+    }
+
+    private void RecordLocalFailure(DanmuDeliveryProgress progress, string? statusKey, Exception? error = null)
+    {
+        var index = progress.Request.Contents.Select((content, contentIndex) => contentIndex)
+            .FirstOrDefault(contentIndex => progress.GetAcceptedLength(contentIndex) < progress.Request.Contents[contentIndex].Body.Length);
+        var content = progress.Request.Contents.ElementAtOrDefault(index) ?? new();
+        var start = progress.Request.Contents.Count == 0 ? 0 : progress.GetAcceptedLength(index);
+        var segment = new DanmuSendSegment { BodyStart = start, Message = content.Prefix + content.Body[start..] + content.Suffix };
+        var result = CreateResult(progress.Request.RoomId, segment.Message, progress.GetRecordId(index, start),
+            new() { FailureKind = DanmuSendFailureKind.LocalFailure, ApiCode = null, StatusKey = statusKey, Error = error }, 0);
+        progress.Record(index, segment, result);
+        RecordCreated?.Invoke(this, result.Record);
+    }
+
+    private DanmuSendResult CreateResult(string roomId, string message, string recordId,
+        DanmuSendAttemptResult attempt, int attemptCount)
+    {
+        var accepted = attempt.FailureKind == DanmuSendFailureKind.None;
         var record = new DanmuFeedItem
         {
-            Time = DateTimeOffset.Now,
-            UserName = roomId,
-            Content = message,
-            IsLocalRecord = true,
-            IsSendAccepted = isAccepted,
-            Status = status
+            Time = timeProvider.GetUtcNow(), RoomId = roomId, UserName = roomId, Content = message,
+            SendRecordId = recordId, IsLocalRecord = true, IsSendAccepted = accepted, Status = attempt.ErrorMessage
         };
-
-        if (statusKey is not null)
+        var key = attempt.StatusKey;
+        object[] arguments = [];
+        if (key is null && attempt.Error is null && string.IsNullOrWhiteSpace(attempt.ErrorMessage))
         {
-            record.SetLocalizedStatus(statusKey, statusArguments ?? []);
+            key = accepted ? "Services.Send.Accepted" : "Services.Send.FailedCode";
+            arguments = accepted ? [] : [attempt.ApiCode ?? 0];
         }
-        else if (error is not null)
+        if (key is not null)
         {
-            record.SetLocalizedStatus(() => LocalizedExceptionText.Get(error));
+            record.SetLocalizedStatus(key, arguments);
         }
-
-        RecordCreated?.Invoke(this, record);
+        else if (attempt.Error is not null)
+        {
+            record.SetLocalizedStatus(() => LocalizedExceptionText.Get(attempt.Error));
+        }
         return new()
         {
-            IsAccepted = isAccepted,
-            ApiCode = apiCode,
-            ErrorMessage = isAccepted ? "" : record.Status,
-            ErrorMessageKey = isAccepted ? null : statusKey,
-            ErrorMessageArguments = statusArguments ?? [],
-            ErrorMessageProvider = error is null ? null : () => LocalizedExceptionText.Get(error),
-            Error = error,
+            IsAccepted = accepted, FailureKind = attempt.FailureKind, AttemptCount = attemptCount,
+            ApiCode = attempt.ApiCode, ErrorMessage = accepted ? "" : record.Status, Error = attempt.Error,
+            ErrorMessageKey = accepted ? null : key, ErrorMessageArguments = arguments,
+            ErrorMessageProvider = attempt.Error is null || key is not null ? null : () => LocalizedExceptionText.Get(attempt.Error),
             Record = record
         };
     }
 
-    private static int FindCutIndex(string message, int maxLength)
+    private static BilibiliAccount? Snapshot(BilibiliAccount? account)
     {
-        for (var index = maxLength - 1; index > Math.Max(1, maxLength / 2); index--)
+        return account is null ? null : new()
         {
-            if (" 　/，。：！？,.:!?)）】".Contains(message[index]))
-            {
-                return index + 1;
-            }
-        }
-
-        return maxLength;
+            Id = account.Id, Name = account.Name, Cookie = account.Cookie, IsGlobalDefault = account.IsGlobalDefault
+        };
     }
 }

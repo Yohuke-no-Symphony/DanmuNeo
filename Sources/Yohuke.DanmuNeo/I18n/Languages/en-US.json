@@ -654,7 +654,6 @@
     "UI.GlobalSettingsView.FeedInsertionExample": "Example: click the text 你好 to insert \"你好\"",
     "UI.GlobalSettingsView.GlobalSending": "Global sending",
     "UI.GlobalSettingsView.LooseModeWrappingHint": "Text always wraps in spacious mode.",
-    "UI.GlobalSettingsView.RetryBlockedMessages": "Resend blocked messages",
     "UI.GlobalSettingsView.SendInterval": "Send interval (ms)",
     "UI.GlobalSettingsView.TimeoutSeconds": "Timeout (seconds)",
     "UI.GlobalSettingsView.WrapDanmu": "Wrap danmu text",
@@ -884,6 +883,13 @@
     "Workbench.Panel.SuperChat": "SC",
     "Workbench.Panel.Workspace": "Workspaces",
     "Workbench.Title": "Workbench",
-    "Workspace.RoomCount": "{0} live rooms"
+    "Workspace.RoomCount": "{0} live rooms",
+    "UI.GlobalSettingsView.RetryRateLimitedMessages": "Retry rate-limited messages (up to 2 retries)",
+    "Services.Send.RateLimited": "Sending rate limited",
+    "Services.Send.LengthUnavailable": "Cannot determine this account’s message length limit",
+    "Services.Send.NoBodyBudget": "Message marks or a single text element exceed the length limit",
+    "Services.Send.EmptyBody": "No message content to send",
+    "Services.Send.LogSource": "Send queue",
+    "Services.Send.RetryScheduled": "Room {0} rate limited; retry {1} in {2} seconds"
   }
 }

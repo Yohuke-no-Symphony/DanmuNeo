@@ -23,7 +23,10 @@ public sealed class BilibiliDanmuHistoryService(HttpClient? httpClient = null) :
         if (response.Code != 0 || response.Data is null)
         {
             var detail = AppLogSanitizer.Sanitize(response.Message ?? response.Msg ?? "");
-            throw new InvalidOperationException($"{Localization.Format("Room.History.FailedCode", response.Code)} {detail}".Trim());
+            var error = $"{Localization.Format("Room.History.FailedCode", response.Code)} {detail}".Trim();
+            throw response.Code == -101
+                ? new BilibiliAuthenticationException(error)
+                : new InvalidOperationException(error);
         }
 
         return (response.Data.Room ?? []).Select(item => ParseItem(roomId, item)).ToList();

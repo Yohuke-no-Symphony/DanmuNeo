@@ -139,6 +139,17 @@ public class LiveRoomSearchViewTests
             Dispatcher.UIThread.RunJobs();
             var roomId = view.GetVisualDescendants().OfType<TextBox>()
                 .Single(control => control.Name == "ManualRoomIdTextBox");
+            var previewDirectory = Environment.GetEnvironmentVariable("YOHUKE_SEARCH_QA_OUTPUT");
+
+            if (!string.IsNullOrWhiteSpace(previewDirectory))
+            {
+                window.UpdateLayout();
+                Directory.CreateDirectory(previewDirectory);
+                using var frame = window.CaptureRenderedFrame();
+                Assert.NotNull(frame);
+                frame.Save(Path.Combine(previewDirectory, "live-room-manual.png"));
+            }
+
             roomId.Text = "12345";
             Dispatcher.UIThread.RunJobs();
             Assert.Equal("12345", context.ViewModel.NewRoomId);

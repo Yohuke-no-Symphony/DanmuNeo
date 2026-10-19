@@ -12,16 +12,20 @@ namespace Yohuke.DanmuNeo.Services;
 /// </summary>
 public class BilibiliDanmuConfigService : IBilibiliDanmuConfigService
 {
+    private static readonly TimeSpan CACHE_LIFETIME = TimeSpan.FromSeconds(60);
     private readonly HttpClient? httpClient;
+    private readonly TimeProvider timeProvider;
+    private readonly Dictionary<(long RoomId, string Cookie), DateTimeOffset> configReadAt = [];
     private readonly SemaphoreSlim configLock = new(1, 1);
     private readonly Dictionary<(long RoomId, string Cookie), DanmuRoomConfig> configs = [];
 
     /// <summary>
     /// 初始化服务；注入的 HTTP 客户端由调用方管理。
     /// </summary>
-    public BilibiliDanmuConfigService(HttpClient? httpClient = null)
+    public BilibiliDanmuConfigService(HttpClient? httpClient = null, TimeProvider? timeProvider = null)
     {
         this.httpClient = httpClient;
+        this.timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     /// <inheritdoc/>
@@ -37,7 +41,7 @@ public class BilibiliDanmuConfigService : IBilibiliDanmuConfigService
 
         try
         {
-            if (!forceRefresh && configs.TryGetValue(key, out var cached))
+            if (!forceRefresh && configs.TryGetValue(key, out var cached) && IsFresh(key))
             {
                 return cached;
             }
@@ -45,6 +49,7 @@ public class BilibiliDanmuConfigService : IBilibiliDanmuConfigService
             var config = await LoadConfigAsync(key.RoomId, key.Cookie, timeout, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             configs[key] = config;
+            configReadAt[key] = this.timeProvider.GetUtcNow();
             return config;
         }
         finally
@@ -79,10 +84,11 @@ public class BilibiliDanmuConfigService : IBilibiliDanmuConfigService
 
         try
         {
-            if (!configs.TryGetValue(key, out var config))
+            if (!configs.TryGetValue(key, out var config) || !IsFresh(key))
             {
                 config = await LoadConfigAsync(key.RoomId, key.Cookie, timeout, cancellationToken);
                 configs[key] = config;
+                configReadAt[key] = timeProvider.GetUtcNow();
             }
 
             var colorChanged = options.Color != config.Current.Color;
@@ -139,6 +145,7 @@ public class BilibiliDanmuConfigService : IBilibiliDanmuConfigService
         catch
         {
             configs.Remove(key);
+            configReadAt.Remove(key);
             throw;
         }
 
@@ -157,6 +164,11 @@ public class BilibiliDanmuConfigService : IBilibiliDanmuConfigService
         var userResponse = await api.GetUserInfoAsync(roomId, timeout: timeout, cancellationToken: cancellationToken);
         EnsureSuccess(userResponse.Code, userResponse.Message, userResponse.Msg, "Services.BilibiliDanmuConfig.CurrentReadFailed");
         return BilibiliDanmuConfigSelector.Select(response.Data, userResponse.Data);
+    }
+
+    private bool IsFresh((long RoomId, string Cookie) key)
+    {
+        return configReadAt.TryGetValue(key, out var readAt) && timeProvider.GetUtcNow() - readAt < CACHE_LIFETIME;
     }
 
     private static (long RoomId, string Cookie) CreateKey(string roomId, string cookie)
@@ -186,6 +198,14 @@ public class BilibiliDanmuConfigService : IBilibiliDanmuConfigService
         }
 
         var error = !string.IsNullOrWhiteSpace(message) ? message : msg;
+        if (code == -101)
+        {
+            throw string.IsNullOrWhiteSpace(error)
+                ? LocalizedExceptionText.Create("Services.BilibiliDanmuConfig.FailureWithCode",
+                    text => new BilibiliAuthenticationException(text), new Func<string>(() => Localization.Get(fallbackKey)), code)
+                : new BilibiliAuthenticationException(error);
+        }
+
         throw string.IsNullOrWhiteSpace(error)
             ? LocalizedExceptionText.Create("Services.BilibiliDanmuConfig.FailureWithCode",
                 text => new InvalidOperationException(text), new Func<string>(() => Localization.Get(fallbackKey)), code)

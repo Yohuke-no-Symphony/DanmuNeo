@@ -25,6 +25,10 @@ public partial class LiveRoomTabViewModel
         }
 
         isDisposed = true;
+        sendLifetimeTokenSource.Cancel();
+        lyricSessionTokenSource.Cancel();
+        draftDeliveryProgress = null;
+        lyricDeliveryProgress.Clear();
         Localization.LanguageChanged -= OnLanguageChanged;
         Deactivate();
         StopAutoLyric(false);
@@ -37,6 +41,8 @@ public partial class LiveRoomTabViewModel
             sendService.RecordCreated -= OnSendRecordCreated;
         }
 
+        sendLifetimeTokenSource.Dispose();
+        lyricSessionTokenSource.Dispose();
         avatarImage?.Dispose();
         avatarImage = null;
         GC.SuppressFinalize(this);

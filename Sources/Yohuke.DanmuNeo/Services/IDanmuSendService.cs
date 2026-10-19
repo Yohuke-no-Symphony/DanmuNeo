@@ -3,28 +3,13 @@ using Yohuke.DanmuNeo.Models.Workspace;
 
 namespace Yohuke.DanmuNeo.Services;
 
-/// <summary>
-/// 弹幕发送队列。
-/// </summary>
+/// <summary>统一排队、分段并投递逻辑弹幕。</summary>
 public interface IDanmuSendService
 {
-    /// <summary>
-    /// 发送记录产生时触发。
-    /// </summary>
+    /// <summary>分段产生终态时通知；相同记录 ID 表示更新已有历史。</summary>
     event EventHandler<DanmuFeedItem>? RecordCreated;
 
-    /// <summary>
-    /// 发送弹幕。
-    /// </summary>
-    Task<DanmuSendResult> SendAsync(
-        string roomId,
-        string message,
-        BilibiliAccount? account,
-        AppSettings settings,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// 按最大长度切分弹幕。
-    /// </summary>
-    List<string> SplitMessage(string message, int maxLength);
+    /// <summary>发送全部未接受正文，可在内容与身份不变时继续先前操作。</summary>
+    Task<DanmuDeliveryResult> SendAsync(DanmuSendRequest request, BilibiliAccount? account,
+        AppSettings settings, DanmuDeliveryProgress? continuation = null, CancellationToken cancellationToken = default);
 }

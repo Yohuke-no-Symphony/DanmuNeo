@@ -29,6 +29,9 @@ public class DanmuFeedItem : ObservableObject
     /// </summary>
     public string RoomId { get; set; } = "";
 
+    /// <summary>逻辑发送分段的稳定历史标识。</summary>
+    public string SendRecordId { get; set; } = "";
+
     /// <summary>
     /// 发送者是否为房管。
     /// </summary>

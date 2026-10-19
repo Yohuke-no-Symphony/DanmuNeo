@@ -9,6 +9,7 @@ namespace Yohuke.DanmuNeo.Tests;
 /// <summary>
 /// 歌词手动跳转与发送的回归测试。
 /// </summary>
+[Collection(AvaloniaDispatcherTestCollection.NAME)]
 public class LyricNavigationTests
 {
     /// <summary>
