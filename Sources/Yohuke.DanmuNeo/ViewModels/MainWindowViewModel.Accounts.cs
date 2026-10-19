@@ -59,10 +59,17 @@ public partial class MainWindowViewModel
         {
             AddAccountItem(account);
         }
+
+        RefreshToolSelection();
     }
 
     private void OnStoredAccountCredentialsChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(BilibiliAccount.IsGlobalDefault) && !isDisposed)
+        {
+            RefreshToolSelection();
+        }
+
         if (e.PropertyName != nameof(BilibiliAccount.Cookie) || isDisposed)
         {
             return;

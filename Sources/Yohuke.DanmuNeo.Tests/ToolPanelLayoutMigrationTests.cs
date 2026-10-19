@@ -10,11 +10,10 @@ public class ToolPanelLayoutMigrationTests
     [Theory]
     [InlineData(1)]
     [InlineData(2)]
+    [InlineData(3)]
     public void HistoricalLayoutsOnlyGainHiddenToolPanels(int sourceVersion)
     {
-        var members = sourceVersion == 1
-            ? new[] { "workspace", "livePlayer", "composer", "superChat", "danmu", "history", "lyrics", "forwarding" }
-            : ["workspace", "livePlayer", "composer", "superChat", "danmu", "history", "lyrics", "forwarding", "log"];
+        var members = GetHistoricalMembers(sourceVersion);
         var snapshot = new WorkspaceLayoutSnapshot
         {
             Main = new() { PanelIds = [.. members.Where(id => id != "lyrics")], ActivePanelId = "composer" },
@@ -44,7 +43,7 @@ public class ToolPanelLayoutMigrationTests
         Assert.Equal(JsonSerializer.Serialize(snapshot.FloatingWindows), JsonSerializer.Serialize(upgraded.CurrentLayout.FloatingWindows));
         Assert.Equal(snapshot.FocusedPanelId, upgraded.CurrentLayout.FocusedPanelId);
         Assert.Equal(WorkbenchPanelIds.All.Except(members), upgraded.CurrentLayout.HiddenPanelIds);
-        Assert.Contains("moderation", upgraded.CurrentLayout.HiddenPanelIds);
+        Assert.Contains("accountMedals", upgraded.CurrentLayout.HiddenPanelIds);
         var preset = Assert.Single(upgraded.UserPresets);
         Assert.Equal("我的布局", preset.Name);
         Assert.Equal(upgraded.CurrentLayout.HiddenPanelIds, preset.Layout.HiddenPanelIds);
@@ -57,16 +56,14 @@ public class ToolPanelLayoutMigrationTests
     [InlineData(1, false)]
     [InlineData(2, true)]
     [InlineData(2, false)]
+    [InlineData(3, true)]
+    [InlineData(3, false)]
     public void MigrationRejectsInvalidHistoricalMembership(int version, bool futureMember)
     {
-        var members = new List<string> { "workspace", "livePlayer", "composer", "superChat", "danmu", "history", "lyrics", "forwarding" };
-        if (version == 2)
-        {
-            members.Add("log");
-        }
+        var members = GetHistoricalMembers(version).ToList();
         if (futureMember)
         {
-            members.Add("moderation");
+            members.Add("accountMedals");
         }
         else
         {
@@ -79,5 +76,16 @@ public class ToolPanelLayoutMigrationTests
         };
 
         Assert.Throws<InvalidDataException>(() => WorkspaceLayoutSerializer.Deserialize(JsonSerializer.Serialize(old)));
+    }
+
+    private static string[] GetHistoricalMembers(int version)
+    {
+        return version switch
+        {
+            1 => ["workspace", "livePlayer", "composer", "superChat", "danmu", "history", "lyrics", "forwarding"],
+            2 => ["workspace", "livePlayer", "composer", "superChat", "danmu", "history", "lyrics", "forwarding", "log"],
+            3 => ["workspace", "livePlayer", "composer", "superChat", "danmu", "history", "lyrics", "forwarding", "log", "moderation"],
+            _ => throw new ArgumentOutOfRangeException(nameof(version))
+        };
     }
 }

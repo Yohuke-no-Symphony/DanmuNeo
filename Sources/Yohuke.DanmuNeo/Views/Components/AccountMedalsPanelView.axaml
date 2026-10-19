@@ -1,0 +1,60 @@
+<components:WorkbenchPanelView xmlns="https://github.com/avaloniaui"
+                               xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                               xmlns:components="clr-namespace:Yohuke.DanmuNeo.Views.Components"
+                               xmlns:items="clr-namespace:Yohuke.DanmuNeo.ViewModels.Items"
+                               xmlns:state="clr-namespace:Yohuke.DanmuNeo.Models.State"
+                               xmlns:workspace="clr-namespace:Yohuke.DanmuNeo.Models.Workspace"
+                               x:Class="Yohuke.DanmuNeo.Views.Components.AccountMedalsPanelView"
+                               x:DataType="items:AccountMedalsViewModel"
+                               x:CompileBindings="True">
+    <Border Padding="{StaticResource WorkbenchPanelPadding}">
+        <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" RowSpacing="8">
+            <CheckBox IsChecked="{Binding FollowCurrentAccount, Mode=TwoWay}">
+                <TextBlock Text="{Loc Key=Medals.FollowAccount}" TextWrapping="Wrap"/>
+            </CheckBox>
+            <ComboBox Grid.Row="1" x:Name="MedalAccountChoice"
+                      HorizontalAlignment="Stretch"
+                      IsEnabled="{Binding CanChooseAccount}"
+                      PlaceholderText="{Loc Key=Medals.ChooseAccount}"
+                      ItemsSource="{Binding Accounts}"
+                      SelectedItem="{Binding SelectedAccount, Mode=TwoWay}">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="state:BilibiliAccount">
+                        <TextBlock Text="{Binding Name}"/>
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+            <StackPanel Grid.Row="2" Spacing="6">
+                <CheckBox IsEnabled="{Binding CanRefresh}"
+                          IsChecked="{Binding AutoSwitchMedal, Mode=TwoWay}">
+                    <TextBlock Text="{Loc Key=Medals.Automatic}" TextWrapping="Wrap"/>
+                </CheckBox>
+                <TextBlock Text="{Loc Key=Medals.AutomaticHint}" Classes="muted" TextWrapping="Wrap"/>
+                <WrapPanel Orientation="Horizontal" ItemSpacing="8" LineSpacing="6">
+                    <Button Content="{Loc Key=Medals.Refresh}" Command="{Binding RefreshCommand}"/>
+                    <Button Content="{Loc Key=Medals.Wear}" Command="{Binding WearSelectedCommand}"/>
+                    <Button Content="{Loc Key=Medals.TakeOff}" Command="{Binding TakeOffCommand}"/>
+                </WrapPanel>
+            </StackPanel>
+            <ListBox Grid.Row="3" x:Name="MedalList"
+                     ItemsSource="{Binding Medals}"
+                     SelectedItem="{Binding SelectedMedal, Mode=TwoWay}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="workspace:AccountMedal">
+                        <Grid ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="8">
+                            <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Grid.Column="1" Text="{Binding Level, StringFormat='Lv.{0}'}" Classes="muted"/>
+                            <TextBlock Grid.Column="2" Text="{Loc Key=Medals.Wearing}"
+                                       IsVisible="{Binding IsWearing}"/>
+                            <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding TargetName}"
+                                       TextTrimming="CharacterEllipsis" Classes="muted"/>
+                            <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding TargetUid, StringFormat='UID {0}'}"
+                                       Classes="muted"/>
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+            <TextBlock Grid.Row="4" Text="{Binding StatusText}" Classes="muted" TextWrapping="Wrap"/>
+        </Grid>
+    </Border>
+</components:WorkbenchPanelView>

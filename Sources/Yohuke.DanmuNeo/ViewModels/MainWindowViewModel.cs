@@ -70,7 +70,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IAsyncDis
         AppState? loadedState = null,
         IBilibiliAccountSessionService? accountSessions = null,
         IBilibiliDanmuHistoryService? danmuHistoryService = null,
-        IReceivedDanmuArchiveService? receivedDanmuArchiveService = null)
+        IReceivedDanmuArchiveService? receivedDanmuArchiveService = null,
+        IBilibiliMedalService? medalService = null)
     {
         Log = log ?? new AppLogService();
         ownsLog = log is null;
@@ -110,10 +111,14 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IAsyncDis
         ShortcutBindingGroups = [];
         Workspaces = new(State.Workspaces.OrderBy(workspace => workspace.SortOrder).Select(CreateWorkspaceViewModel));
         ModerationManager = new(Accounts, Workspaces, this.moderationService, this.accountSessions, Log,
-            () => TimeSpan.FromSeconds(double.IsFinite(Settings.TimeoutSeconds)
-                ? Math.Clamp(Settings.TimeoutSeconds, 0.1, 120) : 3.05));
+            GetToolsTimeout);
         selectedWorkspace = Workspaces.FirstOrDefault(workspace => workspace.Id == State.SelectedWorkspaceId) ??
                             Workspaces.FirstOrDefault();
+        medalSwitchCoordinator = new(medalService ?? new BilibiliMedalService(), this.accountSessions,
+            SaveAsync, GetToolsTimeout, Log);
+        AccountMedals = new(Accounts, medalSwitchCoordinator, Log);
+        toolsInitialized = true;
+        RefreshToolSelection();
         RefreshThemeModeOptions();
         RefreshShortcutBindingGroups();
         RefreshSettingsSectionOptions();
@@ -594,6 +599,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IAsyncDis
         OnPropertyChanged(nameof(WindowTitle));
         OnPropertyChanged(nameof(SelectedWorkspaceMarkGroup));
         RefreshTreeSelection();
+        RefreshToolSelection();
     }
 
     partial void OnIsAddDialogOpenChanged(bool value)
@@ -1859,7 +1865,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IAsyncDis
             return;
         }
 
-        ModerationManager.Dispose();
+        DisposeTools();
         _ = ShutdownReceptionAsync();
         isDisposed = true;
         Localization.LanguageChanged -= OnLanguageChanged;
@@ -2090,6 +2096,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IAsyncDis
 
     private void RefreshAccountLabels()
     {
+        RefreshToolSelection();
         foreach (var room in Workspaces.SelectMany(workspace => workspace.Rooms))
         {
             room.InvalidateModerationPermission();

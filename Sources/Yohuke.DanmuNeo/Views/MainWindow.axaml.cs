@@ -136,6 +136,7 @@ public partial class MainWindow : Window
         {
             Workbench = await WorkbenchSession.CreateAsync(this, WindowMenu, viewModel);
             DockHost.Content = Workbench.Layouts.Host;
+            await viewModel.StartToolsAsync();
         }
         catch (Exception exception)
         {

@@ -28,6 +28,7 @@ public sealed class WorkbenchPanelSet : IDisposable
         Lyrics = new(context);
         Forwarding = new(context);
         Moderation = new(context, context.Application.ModerationManager);
+        AccountMedals = new(context, context.Application.AccountMedals);
         Panels = new Dictionary<string, WorkbenchPanelView>
         {
             [WorkbenchPanelIds.LIVE_PLAYER] = Player,
@@ -37,7 +38,8 @@ public sealed class WorkbenchPanelSet : IDisposable
             [WorkbenchPanelIds.HISTORY] = History,
             [WorkbenchPanelIds.LYRICS] = Lyrics,
             [WorkbenchPanelIds.FORWARDING] = Forwarding,
-            [WorkbenchPanelIds.MODERATION] = Moderation
+            [WorkbenchPanelIds.MODERATION] = Moderation,
+            [WorkbenchPanelIds.ACCOUNT_MEDALS] = AccountMedals
         };
         Lyrics.LyricLibraryRequested += owner => LyricLibraryRequested?.Invoke(owner);
         context.SelectionChanged += Context_OnSelectionChanged;
@@ -66,6 +68,9 @@ public sealed class WorkbenchPanelSet : IDisposable
 
     /// <summary>按所选账号管理跨房间禁言的工具面板。</summary>
     public ModerationPanelView Moderation { get; }
+
+    /// <summary>当前账号或指定账号的粉丝牌面板。</summary>
+    public AccountMedalsPanelView AccountMedals { get; }
 
     /// <summary>以稳定面板 ID 索引的唯一视图集合。</summary>
     public IReadOnlyDictionary<string, WorkbenchPanelView> Panels { get; }

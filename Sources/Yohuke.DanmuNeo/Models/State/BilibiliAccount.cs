@@ -12,6 +12,7 @@ public partial class BilibiliAccount : ObservableObject
     private string name = "账号";
     private string cookie = "";
     private bool isGlobalDefault;
+    private bool autoSwitchMedal;
 
     /// <summary>
     /// 账号 ID。
@@ -64,6 +65,13 @@ public partial class BilibiliAccount : ObservableObject
     {
         OnPropertyChanged(nameof(CookieStatus));
         OnPropertyChanged(nameof(CookieSummary));
+    }
+
+    /// <summary>是否仅随活跃房间自动佩戴对应粉丝牌，默认关闭。</summary>
+    public bool AutoSwitchMedal
+    {
+        get => autoSwitchMedal;
+        set => SetProperty(ref autoSwitchMedal, value);
     }
 
     /// <summary>
