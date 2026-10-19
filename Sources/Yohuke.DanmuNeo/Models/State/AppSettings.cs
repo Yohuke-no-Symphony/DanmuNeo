@@ -95,6 +95,9 @@ public class AppSettings
     /// </summary>
     public bool AutoStartListeningWithLivePlayer { get; set; } = true;
 
+    /// <summary>是否自动将收到的直播消息留档为本地文本。</summary>
+    public bool ArchiveReceivedDanmu { get; set; } = true;
+
     /// <summary>
     /// 是否使用紧凑弹幕显示。
     /// </summary>

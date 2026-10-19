@@ -140,7 +140,7 @@ internal sealed class WorkbenchSession : IAsyncDisposable
         Panels.Dispose();
         logPanel.Dispose();
         Context.Dispose();
-        application.Dispose();
+        await application.DisposeAsync();
     }
 
     private void AttachWindow(Window window)

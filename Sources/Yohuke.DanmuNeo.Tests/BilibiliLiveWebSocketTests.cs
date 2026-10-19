@@ -7,6 +7,18 @@ namespace Yohuke.DanmuNeo.Tests;
 public class BilibiliLiveWebSocketTests
 {
     [Fact]
+    public void ParseDanmuMessageKeepsServerTimestampAndIdentity()
+    {
+        var json = JObject.Parse("""
+            {"cmd":"DANMU_MSG","msg_id":"server-id","info":[[0,0,0,0,1800000000123],"内容",[42,"用户"]]}
+            """);
+        var message = BilibiliLiveWebSocket.ParseDanmuMessage("100", json);
+        Assert.NotNull(message);
+        Assert.Equal(1800000000, message.Timestamp);
+        Assert.Equal("server-id", message.MessageId);
+    }
+
+    [Fact]
     public void ParseDanmuMessageReadsUserAndContent()
     {
         var json = JObject.Parse("""

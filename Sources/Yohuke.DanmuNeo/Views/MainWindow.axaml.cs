@@ -105,7 +105,7 @@ public partial class MainWindow : Window
             else if (viewModel is not null)
             {
                 await viewModel.SaveAsync();
-                viewModel.Dispose();
+                await viewModel.DisposeAsync();
             }
 
             allowClose = true;

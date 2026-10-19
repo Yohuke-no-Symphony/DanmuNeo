@@ -15,7 +15,7 @@ namespace Yohuke.DanmuNeo.ViewModels;
 /// <summary>
 /// 主窗口视图模型。
 /// </summary>
-public partial class MainWindowViewModel : ViewModelBase, IDisposable
+public partial class MainWindowViewModel : ViewModelBase, IDisposable, IAsyncDisposable
 {
     private readonly AppStateService stateService;
     private readonly bool ownsLog;
@@ -68,7 +68,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         IAppUpdateService? appUpdateService = null,
         IAppLogService? log = null,
         AppState? loadedState = null,
-        IBilibiliAccountSessionService? accountSessions = null)
+        IBilibiliAccountSessionService? accountSessions = null,
+        IBilibiliDanmuHistoryService? danmuHistoryService = null,
+        IReceivedDanmuArchiveService? receivedDanmuArchiveService = null)
     {
         Log = log ?? new AppLogService();
         ownsLog = log is null;
@@ -78,6 +80,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         appDirectoryService = new(stateService.ConfigDirectory);
         appDirectoryService.EnsureDirectories();
         appBackupService = new(appDirectoryService);
+        ownsReceivedDanmuArchiveService = receivedDanmuArchiveService is null;
+        this.receivedDanmuArchiveService = receivedDanmuArchiveService ?? new ReceivedDanmuArchiveService(appDirectoryService, Log);
+        receptionServices = new(danmuHistoryService ?? new BilibiliDanmuHistoryService(), this.receivedDanmuArchiveService);
         emoticonCacheService = new(appDirectoryService);
         this.liveRoomSearchService = liveRoomSearchService ?? new BilibiliLiveRoomSearchService();
         this.moderationService = moderationService ?? new BilibiliModerationService();
@@ -1835,7 +1840,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             danmuConfigService: danmuConfigService,
             emoticonCacheService: emoticonCacheService,
             log: Log,
-            logWorkspace: workspace.Name);
+            logWorkspace: workspace.Name,
+            receptionServices: receptionServices,
+            receptionWorkspaceId: workspace.Id);
         _ = room.LoadAvatarAsync();
     }
 
@@ -1847,6 +1854,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        _ = ShutdownReceptionAsync();
         isDisposed = true;
         Localization.LanguageChanged -= OnLanguageChanged;
         DisposeUpdateCheck();

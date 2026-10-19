@@ -44,6 +44,9 @@
                                                            TextTrimming="CharacterEllipsis" />
                                             </Grid>
                                         </Border>
+                                        <TextBlock Text="{Loc Key=Room.History.Badge}"
+                                                   IsVisible="{Binding IsHistory}"
+                                                   Classes="muted" DockPanel.Dock="Right" Margin="6,0,0,0"/>
                                         <TextBlock Text="{Binding DetailLine}"
                                                    Classes="danmuFeedMeta"
                                                    DockPanel.Dock="Right"

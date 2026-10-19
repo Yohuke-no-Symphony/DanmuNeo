@@ -72,6 +72,17 @@
 
         <Border Classes="panel" Padding="14">
             <StackPanel Spacing="10">
+                <TextBlock Text="{Loc Key=Room.Archive.Source}" Classes="sectionTitle"/>
+                <CheckBox Content="{Loc Key=Room.Archive.Enabled}"
+                          IsChecked="{Binding ArchiveReceivedDanmu, Mode=TwoWay}"/>
+                <TextBlock Text="{Loc Key=Room.Archive.Hint}" Classes="muted" TextWrapping="Wrap"/>
+                <Button HorizontalAlignment="Left" Content="{Loc Key=Room.Archive.OpenDirectory}"
+                        Command="{Binding #Root.OpenDanmuLogsDirectoryCommand}"/>
+            </StackPanel>
+        </Border>
+
+        <Border Classes="panel" Padding="14">
+            <StackPanel Spacing="10">
                 <TextBlock Text="{Loc Key=UI.MiscSettingsView.Cache}"
                            Classes="sectionTitle"/>
                 <Grid ColumnDefinitions="120,*"

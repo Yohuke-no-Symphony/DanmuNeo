@@ -6,6 +6,7 @@ namespace Yohuke.DanmuNeo.Tests;
 /// <summary>
 /// 仅认证查找的明确未登录响应可以使绑定账号失效。
 /// </summary>
+[Collection(AvaloniaDispatcherTestCollection.NAME)]
 public class RoomSearchAccountSessionTests
 {
     /// <summary>

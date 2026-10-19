@@ -5,6 +5,12 @@ namespace Yohuke.DanmuNeo.Apis.Models.Bilibili;
 /// </summary>
 public class BilibiliDanmuMessage
 {
+    /// <summary>服务器提供的消息标识；没有可靠标识时为空。</summary>
+    public string MessageId { get; set; } = "";
+
+    /// <summary>服务器事件时间的 Unix 秒；协议未提供时为 0。</summary>
+    public long Timestamp { get; set; }
+
     /// <summary>
     /// 直播间 ID。
     /// </summary>

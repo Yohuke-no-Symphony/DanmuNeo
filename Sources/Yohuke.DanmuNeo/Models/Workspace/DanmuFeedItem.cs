@@ -21,6 +21,9 @@ public class DanmuFeedItem : ObservableObject
     private object[] statusArguments = [];
     private IReadOnlyList<DanmuEmoticon> emoticons = [];
 
+    /// <summary>是否来自服务器近期历史补拉。</summary>
+    public bool IsHistory { get; set; }
+
     /// <summary>
     /// 接收此弹幕时的直播间 ID。
     /// </summary>

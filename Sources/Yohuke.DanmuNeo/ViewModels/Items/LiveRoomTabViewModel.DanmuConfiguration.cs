@@ -99,6 +99,7 @@ public partial class LiveRoomTabViewModel
     /// </summary>
     public void NotifyDanmuConfigurationAccountChanged()
     {
+        RefreshListeningAccountContext();
         if (isDanmuConfigurationActive && !MatchesDanmuConfigurationIdentity())
         {
             StartDanmuConfigurationLoad();

@@ -78,6 +78,18 @@ public partial class BilibiliApi : BaseApi
             cancellationToken);
     }
 
+    /// <summary>读取直播间近期普通弹幕。</summary>
+    public Task<ApiResponse<BilibiliDanmuHistoryData>> GetDanmuHistoryAsync(long roomId,
+        TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+    {
+        var headers = CreateAccountHeaders(0);
+        headers["Referer"] = $"https://live.bilibili.com/{roomId}";
+        return GetJsonAsync<ApiResponse<BilibiliDanmuHistoryData>>(
+            "https://api.live.bilibili.com/xlive/web-room/v1/dM/gethistory",
+            new Dictionary<string, object?> { ["roomid"] = roomId, ["room_type"] = 0 },
+            headers, timeout, cancellationToken);
+    }
+
     /// <summary>
     /// 获取直播间播放地址。
     /// </summary>

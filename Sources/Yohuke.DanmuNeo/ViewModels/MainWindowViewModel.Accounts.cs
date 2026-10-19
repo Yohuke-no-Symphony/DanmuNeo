@@ -1,5 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.ComponentModel;
+using Avalonia.Threading;
 using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Models.BrowserLogin;
 using Yohuke.DanmuNeo.Models.State;
@@ -13,6 +15,7 @@ public partial class MainWindowViewModel
     private readonly IBilibiliAccountSessionService accountSessions;
     private readonly bool ownsAccountSessions;
     private bool accountValidationStarted;
+    private CancellationTokenSource? accountContextRefreshTokenSource;
 
     /// <summary>
     /// 账号设置行，包括仅存在于本次运行的验证结果。
@@ -35,6 +38,7 @@ public partial class MainWindowViewModel
         var item = new AccountSettingsItemViewModel(account, accountSessions,
             () => TimeSpan.FromSeconds(Math.Max(0.1, Settings.TimeoutSeconds)));
         AccountItems.Add(item);
+        account.PropertyChanged += OnStoredAccountCredentialsChanged;
         if (accountValidationStarted)
         {
             item.StartAutomaticValidation();
@@ -46,6 +50,7 @@ public partial class MainWindowViewModel
         foreach (var item in AccountItems.Where(item => !Accounts.Contains(item.Account)).ToArray())
         {
             item.Dispose();
+            item.Account.PropertyChanged -= OnStoredAccountCredentialsChanged;
             accountSessions.Remove(item.Account.Id);
             AccountItems.Remove(item);
         }
@@ -53,6 +58,38 @@ public partial class MainWindowViewModel
         foreach (var account in Accounts.Where(account => AccountItems.All(item => item.Account != account)))
         {
             AddAccountItem(account);
+        }
+    }
+
+    private void OnStoredAccountCredentialsChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(BilibiliAccount.Cookie) || isDisposed)
+        {
+            return;
+        }
+
+        accountContextRefreshTokenSource?.Cancel();
+        accountContextRefreshTokenSource?.Dispose();
+        accountContextRefreshTokenSource = new();
+        _ = RefreshAccountContextsAfterEditAsync(accountContextRefreshTokenSource.Token);
+    }
+
+    private async Task RefreshAccountContextsAfterEditAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken).ConfigureAwait(false);
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (!isDisposed && !cancellationToken.IsCancellationRequested)
+                {
+                    RefreshAccountLabels();
+                    RestartForwarding();
+                }
+            });
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
         }
     }
 
@@ -77,10 +114,13 @@ public partial class MainWindowViewModel
 
     private void DisposeAccounts()
     {
+        accountContextRefreshTokenSource?.Cancel();
+        accountContextRefreshTokenSource?.Dispose();
         Accounts.CollectionChanged -= OnAccountsCollectionChanged;
         foreach (var item in AccountItems)
         {
             item.Dispose();
+            item.Account.PropertyChanged -= OnStoredAccountCredentialsChanged;
             accountSessions.Remove(item.Account.Id);
         }
 

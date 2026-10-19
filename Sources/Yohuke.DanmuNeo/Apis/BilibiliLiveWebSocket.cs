@@ -391,6 +391,8 @@ public class BilibiliLiveWebSocket : BaseApi, ILiveDanmuSocket
         return new()
         {
             RoomId = roomId,
+            MessageId = ReadScalarText(json["msg_id"] ?? json["id"] ?? ReadDanmuExtra(metadata)?["id_str"]),
+            Timestamp = ReadServerTimestamp(ReadArrayItem(metadata, 4), json["send_time"]),
             Uid = modernUid > 0 ? modernUid : ReadInteger(ReadArrayItem(legacyUser, 0)),
             UserName = string.IsNullOrWhiteSpace(modernName)
                 ? ReadScalarText(ReadArrayItem(legacyUser, 1))
@@ -741,6 +743,7 @@ public class BilibiliLiveWebSocket : BaseApi, ILiveDanmuSocket
         return new()
         {
             MessageId = ReadTokenText(data["id"]),
+            Uid = ReadInteger(data["uid"]),
             RoomId = roomId,
             UserName = data["user_info"]?["uname"]?.Value<string>() ?? "",
             Price = price,

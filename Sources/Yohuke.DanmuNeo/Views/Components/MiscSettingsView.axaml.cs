@@ -27,6 +27,15 @@ public partial class MiscSettingsView : UserControl
     }
 
     [RelayCommand]
+    private void OpenDanmuLogsDirectory()
+    {
+        if (DataContext is MainWindowViewModel viewModel)
+        {
+            viewModel.OpenDanmuLogsDirectory();
+        }
+    }
+
+    [RelayCommand]
     private void OpenCacheDirectory()
     {
         if (DataContext is MainWindowViewModel viewModel)

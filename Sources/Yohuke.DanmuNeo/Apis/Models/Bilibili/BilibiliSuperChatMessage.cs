@@ -15,6 +15,9 @@ public class BilibiliSuperChatMessage
     /// </summary>
     public string RoomId { get; set; } = "";
 
+    /// <summary>发送者 UID，协议缺失时为 0。</summary>
+    public long Uid { get; set; }
+
     /// <summary>
     /// 用户名。
     /// </summary>
