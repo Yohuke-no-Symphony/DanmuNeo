@@ -7,6 +7,46 @@
                                x:Class="Yohuke.DanmuNeo.Views.Components.AccountMedalsPanelView"
                                x:DataType="items:AccountMedalsViewModel"
                                x:CompileBindings="True">
+    <components:WorkbenchPanelView.Styles>
+        <Style Selector="ListBox.medalList">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+        </Style>
+        <Style Selector="ListBox.medalList ListBoxItem">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="MinHeight" Value="64" />
+            <Setter Property="Padding" Value="8" />
+            <Setter Property="Margin" Value="0,2" />
+            <Setter Property="CornerRadius" Value="{StaticResource WorkbenchControlCornerRadius}" />
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="ListBox.medalList ListBoxItem:pointerover">
+            <Setter Property="Background" Value="{DynamicResource AppSidebarHoverBrush}" />
+        </Style>
+        <Style Selector="ListBox.medalList ListBoxItem:selected">
+            <Setter Property="Background" Value="{DynamicResource AppSidebarSelectedBrush}" />
+        </Style>
+        <Style Selector="ListBox.medalList ListBoxItem /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="ListBox.medalList ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AppSidebarHoverBrush}" />
+        </Style>
+        <Style Selector="ListBox.medalList ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AppSidebarSelectedBrush}" />
+        </Style>
+        <Style Selector="Border.medalWearingBadge">
+            <Setter Property="Background" Value="{DynamicResource AppSidebarSelectedBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="6,2" />
+            <Setter Property="HorizontalAlignment" Value="Right" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+    </components:WorkbenchPanelView.Styles>
     <Border Padding="{StaticResource WorkbenchPanelPadding}">
         <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" RowSpacing="8">
             <CheckBox IsChecked="{Binding FollowCurrentAccount, Mode=TwoWay}">
@@ -36,20 +76,29 @@
                     <Button Content="{Loc Key=Medals.TakeOff}" Command="{Binding TakeOffCommand}"/>
                 </WrapPanel>
             </StackPanel>
-            <ListBox Grid.Row="3" x:Name="MedalList"
+            <ListBox Grid.Row="3" x:Name="MedalList" Classes="medalList"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                      ItemsSource="{Binding Medals}"
                      SelectedItem="{Binding SelectedMedal, Mode=TwoWay}">
                 <ListBox.ItemTemplate>
                     <DataTemplate x:DataType="workspace:AccountMedal">
-                        <Grid ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="8">
-                            <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis"/>
-                            <TextBlock Grid.Column="1" Text="{Binding Level, StringFormat='Lv.{0}'}" Classes="muted"/>
-                            <TextBlock Grid.Column="2" Text="{Loc Key=Medals.Wearing}"
-                                       IsVisible="{Binding IsWearing}"/>
-                            <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding TargetName}"
-                                       TextTrimming="CharacterEllipsis" Classes="muted"/>
-                            <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding TargetUid, StringFormat='UID {0}'}"
-                                       Classes="muted"/>
+                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,22" ColumnSpacing="12" RowSpacing="4">
+                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
+                                       TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}" />
+                            <TextBlock Grid.Column="1" Text="{Binding Level, StringFormat='Lv.{0}'}"
+                                       HorizontalAlignment="Right" VerticalAlignment="Center" Classes="muted" />
+                            <TextBlock Grid.Row="1" Text="{Binding TargetName}" VerticalAlignment="Center"
+                                       FontSize="{DynamicResource AppFontSizeCaption}" Classes="muted"
+                                       TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding TargetName}" />
+                            <Border Grid.Row="1" Grid.Column="1" Classes="medalWearingBadge"
+                                    IsVisible="{Binding IsWearing}">
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <LucideIcon Kind="Check" Size="12" VerticalAlignment="Center"
+                                                Foreground="{DynamicResource AppTextBrush}" />
+                                    <TextBlock Text="{Loc Key=Medals.Wearing}" FontSize="11" FontWeight="Medium"
+                                               Foreground="{DynamicResource AppTextBrush}" />
+                                </StackPanel>
+                            </Border>
                         </Grid>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
