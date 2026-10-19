@@ -1,6 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:state="clr-namespace:Yohuke.DanmuNeo.Models.State"
+             xmlns:items="clr-namespace:Yohuke.DanmuNeo.ViewModels.Items"
              x:Class="Yohuke.DanmuNeo.Views.Components.AccountSettingsView"
              x:CompileBindings="False"
              x:Name="Root">
@@ -58,25 +58,27 @@
 	                        </StackPanel>
 	                    </Button>
                 </Grid>
-                <ItemsControl ItemsSource="{Binding Accounts}">
+                <ItemsControl ItemsSource="{Binding AccountItems}">
                     <ItemsControl.ItemTemplate>
-                        <DataTemplate DataType="state:BilibiliAccount">
+                        <DataTemplate DataType="items:AccountSettingsItemViewModel">
                             <Border BorderBrush="{DynamicResource AppBorderBrush}"
                                     BorderThickness="0,0,0,1"
                                     Padding="0,8">
                                 <Grid RowDefinitions="Auto,Auto"
                                       RowSpacing="8">
-                                    <Grid ColumnDefinitions="160,*,Auto,Auto,Auto"
+                                    <Grid ColumnDefinitions="160,*,Auto,Auto,Auto,Auto"
                                           ColumnSpacing="8">
-                                        <TextBox Text="{Binding Name}"
+                                        <TextBox Text="{Binding Account.Name}"
                                                  Watermark="{Loc Key=UI.AccountSettingsView.AccountName}"/>
                                         <StackPanel Grid.Column="1"
                                                     Spacing="2"
                                                     VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding CookieStatus}"
+                                            <TextBlock Text="{Binding StatusText}"
                                                        FontWeight="SemiBold"/>
-                                            <TextBlock Text="{Binding CookieSummary}"
+                                            <TextBlock Text="{Binding Account.CookieSummary}"
                                                        Classes="muted"/>
+                                            <TextBlock Text="{Binding ProfileText}" Classes="muted"/>
+                                            <TextBlock Text="{Binding CheckedAtText}" Classes="muted"/>
                                         </StackPanel>
 	                                        <Button Grid.Column="2"
 	                                                ToolTip.Tip="{Loc Key=UI.AccountSettingsView.BrowserSignIn}"
@@ -88,19 +90,24 @@
 	                                                ToolTip.Tip="{Loc Key=UI.AccountSettingsView.SetDefault}"
 	                                                Classes="iconButton"
 	                                                Command="{Binding #Root.SetDefaultAccountCommand}"
-	                                                CommandParameter="{Binding}">
+	                                                CommandParameter="{Binding Account}">
 	                                            <LucideIcon Kind="BadgeCheck"/>
 	                                        </Button>
 	                                        <Button Grid.Column="4"
 	                                                ToolTip.Tip="{Loc Key=UI.AccountSettingsView.Delete}"
 	                                                Classes="iconButton"
 	                                                Command="{Binding #Root.DeleteAccountCommand}"
-	                                                CommandParameter="{Binding}">
+	                                                CommandParameter="{Binding Account}">
 	                                            <LucideIcon Kind="Trash2"/>
 	                                        </Button>
+                                        <Button Grid.Column="5" Classes="iconButton"
+                                                Command="{Binding RefreshCommand}"
+                                                ToolTip.Tip="{Loc Key=UI.AccountSettingsView.ValidateAccount}">
+                                            <LucideIcon Kind="RefreshCw"/>
+                                        </Button>
                                     </Grid>
                                     <TextBox Grid.Row="1"
-                                             Text="{Binding Cookie}"
+                                             Text="{Binding Account.Cookie}"
                                              PasswordChar="*"
                                              Watermark="{Loc Key=UI.AccountSettingsView.Cookie}"/>
                                 </Grid>

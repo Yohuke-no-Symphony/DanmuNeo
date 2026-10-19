@@ -12,16 +12,19 @@ public class DanmuSendService : IDanmuSendService
 {
     private readonly HttpClient? httpClient;
     private readonly IBilibiliDanmuConfigService danmuConfigService;
+    private readonly IBilibiliAccountSessionService? accountSessions;
     private readonly SemaphoreSlim sendLock = new(1, 1);
     private DateTimeOffset lastSentAt = DateTimeOffset.MinValue;
 
     /// <summary>
     /// 初始化服务；注入的 HTTP 客户端由调用方管理。
     /// </summary>
-    public DanmuSendService(HttpClient? httpClient = null, IBilibiliDanmuConfigService? danmuConfigService = null)
+    public DanmuSendService(HttpClient? httpClient = null, IBilibiliDanmuConfigService? danmuConfigService = null,
+        IBilibiliAccountSessionService? accountSessions = null)
     {
         this.httpClient = httpClient;
         this.danmuConfigService = danmuConfigService ?? new BilibiliDanmuConfigService(httpClient);
+        this.accountSessions = accountSessions;
     }
 
     /// <summary>
@@ -45,25 +48,50 @@ public class DanmuSendService : IDanmuSendService
         }
 
         var cookie = account.Cookie;
-        await sendLock.WaitAsync(cancellationToken);
+        var accountId = account.Id;
+        if (accountSessions?.CanSend(accountId, cookie) == false)
+        {
+            return CreateResult(roomId, message, "", false, statusKey: "Services.Send.AccountUnavailable");
+        }
+
+        var credentialToken = accountSessions?.GetCredentialCancellationToken(accountId, cookie) ?? CancellationToken.None;
+        using var linkedSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, credentialToken);
+        var sendToken = linkedSource.Token;
+        var enteredLock = false;
 
         try
         {
+            await sendLock.WaitAsync(sendToken);
+            enteredLock = true;
+            if (accountSessions?.CanSend(accountId, cookie) == false)
+            {
+                return CreateResult(roomId, message, "", false, statusKey: "Services.Send.AccountUnavailable");
+            }
+
             var waitTime = TimeSpan.FromMilliseconds(settings.SendIntervalMs) - (DateTimeOffset.Now - lastSentAt);
 
             if (waitTime > TimeSpan.Zero)
             {
-                await Task.Delay(waitTime, cancellationToken);
+                await Task.Delay(waitTime, sendToken);
             }
 
             var timeout = TimeSpan.FromSeconds(settings.TimeoutSeconds);
-            var config = await danmuConfigService.GetConfigAsync(roomId, cookie, timeout, cancellationToken);
+            var config = await danmuConfigService.GetConfigAsync(roomId, cookie, timeout, sendToken);
+            if (accountSessions?.CanSend(accountId, cookie) == false)
+            {
+                return CreateResult(roomId, message, "", false, statusKey: "Services.Send.AccountUnavailable");
+            }
+
             using var api = new BilibiliApi(cookie, timeout, httpClient);
             var response = await api.SendDanmuAsync(long.Parse(roomId), message, config.Current.Mode,
-                cancellationToken: cancellationToken, color: config.Current.Color);
+                cancellationToken: sendToken, color: config.Current.Color);
             lastSentAt = DateTimeOffset.Now;
 
             var isBlocked = response.Message is "f" || response.Msg is "f";
+            if (response.Code == -101)
+            {
+                accountSessions?.ReportAuthenticationFailure(accountId, cookie);
+            }
 
             if (response.Code == 0 && !isBlocked)
             {
@@ -85,13 +113,20 @@ public class DanmuSendService : IDanmuSendService
         {
             throw;
         }
+        catch (OperationCanceledException) when (credentialToken.IsCancellationRequested)
+        {
+            return CreateResult(roomId, message, "", false, statusKey: "Services.Send.AccountUnavailable");
+        }
         catch (Exception exception)
         {
             return CreateResult(roomId, message, exception.Message, false, error: exception);
         }
         finally
         {
-            sendLock.Release();
+            if (enteredLock)
+            {
+                sendLock.Release();
+            }
         }
     }
 

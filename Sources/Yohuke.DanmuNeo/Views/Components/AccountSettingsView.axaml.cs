@@ -5,6 +5,7 @@ using Yohuke.DanmuNeo.Models.BrowserLogin;
 using Yohuke.DanmuNeo.Models.State;
 using Yohuke.DanmuNeo.Services;
 using Yohuke.DanmuNeo.ViewModels;
+using Yohuke.DanmuNeo.ViewModels.Items;
 
 namespace Yohuke.DanmuNeo.Views.Components;
 
@@ -64,7 +65,7 @@ public partial class AccountSettingsView : UserControl
             return;
         }
 
-        var account = (sender as Control)?.DataContext as BilibiliAccount;
+        var account = ((sender as Control)?.DataContext as AccountSettingsItemViewModel)?.Account;
         var result = await ShowBrowserLoginAsync(BrowserLoginPlatform.Bilibili);
 
         if (result is not null)

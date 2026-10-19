@@ -70,7 +70,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         IBilibiliDanmuConfigService? danmuConfigService = null,
         IAppUpdateService? appUpdateService = null,
         IAppLogService? log = null,
-        AppState? loadedState = null)
+        AppState? loadedState = null,
+        IBilibiliAccountSessionService? accountSessions = null)
     {
         Log = log ?? new AppLogService();
         ownsLog = log is null;
@@ -85,7 +86,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         this.moderationService = moderationService ?? new BilibiliModerationService();
         this.userNameService = userNameService ?? new BilibiliUserNameService();
         this.danmuConfigService = danmuConfigService ?? new BilibiliDanmuConfigService();
-        danmuSendService = new(danmuConfigService: this.danmuConfigService);
+        this.accountSessions = accountSessions ?? new BilibiliAccountSessionService();
+        ownsAccountSessions = accountSessions is null;
+        danmuSendService = new(danmuConfigService: this.danmuConfigService, accountSessions: this.accountSessions);
         ownedAvatarCacheService = avatarCacheService is null ? new(appDirectoryService) : null;
         this.avatarCacheService = avatarCacheService ?? ownedAvatarCacheService!;
         State = loadedState ?? stateService.Load();
@@ -93,6 +96,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         LanguageOptions = CreateLanguageOptions(Settings.Language);
         ShortcutBindingService.Normalize(Settings);
         Accounts = new(State.Accounts);
+        InitializeAccounts();
         ForwardAccountOptions = [];
         SymbolGroups = new(Settings.MarkGroups.OrderBy(group => group.SortOrder));
         ShieldReplacementRules = new(Settings.ShieldReplacementRules.OrderBy(rule => rule.SortOrder));
@@ -1513,139 +1517,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>
-    /// 新增账号。
-    /// </summary>
-    public async Task AddAccountAsync()
-    {
-        var account = new BilibiliAccount
-        {
-            Name = Localization.Format("App.Default.Account", Accounts.Count + 1),
-            IsGlobalDefault = Accounts.Count == 0
-        };
-        Accounts.Add(account);
-        State.Accounts.Add(account);
-        RefreshAccountLabels();
-        RefreshForwardAccountOptions();
-        await SaveAsync();
-    }
-
-    /// <summary>
-    /// 应用 B 站浏览器登录结果。
-    /// </summary>
-    public async Task ApplyBilibiliBrowserLoginAsync(BrowserCookieLoginResult result, BilibiliAccount? account)
-    {
-        if (result.Platform != BrowserLoginPlatform.Bilibili || string.IsNullOrWhiteSpace(result.Cookie))
-        {
-            return;
-        }
-
-        var targetAccount = account;
-
-        if (targetAccount is null)
-        {
-            targetAccount = new()
-            {
-                Name = Localization.Format("App.Default.BilibiliAccount", Accounts.Count + 1),
-                IsGlobalDefault = Accounts.Count == 0
-            };
-            Accounts.Add(targetAccount);
-            State.Accounts.Add(targetAccount);
-            RefreshForwardAccountOptions();
-        }
-
-        targetAccount.Cookie = result.Cookie;
-        RefreshAccountLabels();
-        await SaveAsync();
-        SetBrowserLoginStatus(result);
-        Log.Information(Localization.Get("App.Log.BilibiliLogin"), StatusMessage);
-    }
-
-    /// <summary>
-    /// 应用 QQ 音乐浏览器登录结果。
-    /// </summary>
-    public async Task ApplyQQMusicBrowserLoginAsync(BrowserCookieLoginResult result)
-    {
-        if (result.Platform != BrowserLoginPlatform.QQMusic || string.IsNullOrWhiteSpace(result.Cookie))
-        {
-            return;
-        }
-
-        Settings.QQMusicCookie = result.Cookie;
-        OnPropertyChanged(nameof(QQMusicCookieStatus));
-        OnPropertyChanged(nameof(QQMusicCookieSummary));
-        await SaveAsync();
-        SetBrowserLoginStatus(result);
-        Log.Information(Localization.Get("App.Log.QQMusicLogin"), StatusMessage);
-    }
-
-    /// <summary>
-    /// 删除账号。
-    /// </summary>
-    public async Task DeleteAccountAsync(BilibiliAccount? account)
-    {
-        if (account is null)
-        {
-            return;
-        }
-
-        Accounts.Remove(account);
-        State.Accounts.Remove(account);
-
-        foreach (var workspace in State.Workspaces)
-        {
-            if (workspace.AccountOverrideId == account.Id)
-            {
-                workspace.AccountOverrideId = null;
-            }
-
-            foreach (var room in workspace.LiveRooms)
-            {
-                if (room.AccountOverrideId == account.Id)
-                {
-                    room.AccountOverrideId = null;
-                }
-
-            }
-        }
-
-        foreach (var rule in Workspaces
-                     .SelectMany(workspace => workspace.Rooms)
-                     .SelectMany(room => room.ForwardRules)
-                     .Where(rule => rule.AccountOverrideId == account.Id))
-        {
-            rule.AccountOverrideId = "";
-        }
-
-        if (Accounts.Count > 0 && Accounts.All(item => !item.IsGlobalDefault))
-        {
-            Accounts[0].IsGlobalDefault = true;
-        }
-
-        RefreshAccountLabels();
-        RefreshForwardAccountOptions();
-        await SaveAsync();
-    }
-
-    /// <summary>
-    /// 设置默认账号。
-    /// </summary>
-    public async Task SetDefaultAccountAsync(BilibiliAccount? account)
-    {
-        if (account is null)
-        {
-            return;
-        }
-
-        foreach (var item in Accounts)
-        {
-            item.IsGlobalDefault = item == account;
-        }
-
-        RefreshAccountLabels();
-        await SaveAsync();
-    }
-
-    /// <summary>
     /// 当前工作区使用全局账号。
     /// </summary>
     public async Task ClearWorkspaceAccountAsync()
@@ -2221,6 +2092,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         isDisposed = true;
         Localization.LanguageChanged -= OnLanguageChanged;
         DisposeUpdateCheck();
+        DisposeAccounts();
         ResetLiveRoomSearch();
         foreach (var workspace in Workspaces)
         {

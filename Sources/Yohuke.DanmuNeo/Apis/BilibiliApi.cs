@@ -8,7 +8,7 @@ namespace Yohuke.DanmuNeo.Apis;
 /// <summary>
 /// B 站登录与直播间 REST API。
 /// </summary>
-public class BilibiliApi : BaseApi
+public partial class BilibiliApi : BaseApi
 {
     private readonly List<string> cookies = [];
     private readonly List<string> csrfs = [];

@@ -53,6 +53,7 @@ public partial class App : Application
             mainWindow.Activate();
             StartupLog.Append($"MainWindow visible={mainWindow.IsVisible} state={mainWindow.WindowState}");
             _ = viewModel.CheckForUpdatesOnStartupAsync();
+            _ = viewModel.StartAccountValidationAsync();
         }
 
         base.OnFrameworkInitializationCompleted();
