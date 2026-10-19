@@ -10,6 +10,8 @@
             <Thickness x:Key="WorkbenchPanelPadding">12</Thickness>
             <FontFamily x:Key="ContentControlThemeFontFamily">PingFang SC, Microsoft YaHei UI, Noto Sans CJK SC, Noto Sans SC, sans-serif</FontFamily>
             <SolidColorBrush x:Key="AppErrorBrush" Color="#EF4444" />
+            <SolidColorBrush x:Key="AppSuccessBrush" Color="#22C55E" />
+            <SolidColorBrush x:Key="AppWarningBrush" Color="#F59E0B" />
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Light">
                     <SolidColorBrush x:Key="AppBackgroundBrush" Color="#F2F4F8" />

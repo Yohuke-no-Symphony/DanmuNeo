@@ -32,15 +32,6 @@ public partial class AccountSettingsView : UserControl
     }
 
     [RelayCommand]
-    private async Task AddAccountAsync()
-    {
-        if (DataContext is MainWindowViewModel viewModel)
-        {
-            await viewModel.AddAccountAsync();
-        }
-    }
-
-    [RelayCommand]
     private async Task SetDefaultAccountAsync(BilibiliAccount? account)
     {
         if (DataContext is MainWindowViewModel viewModel)

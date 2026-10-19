@@ -642,7 +642,7 @@
     "UI.AccountSettingsView.Delete": "Delete",
     "UI.AccountSettingsView.QqMusic": "QQ Music",
     "UI.AccountSettingsView.QqMusicCookie": "QQ Music cookie",
-    "UI.AccountSettingsView.SetDefault": "Set as default",
+    "UI.AccountSettingsView.SetDefault": "Default account",
     "UI.AccountSettingsView.ValidateAccount": "Verify sign-in status",
     "UI.AddWorkspaceDialogView.Add": "Add",
     "UI.AddWorkspaceDialogView.AddRoomManually": "Add room manually",

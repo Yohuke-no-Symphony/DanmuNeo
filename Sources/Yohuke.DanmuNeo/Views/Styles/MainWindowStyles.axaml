@@ -59,7 +59,7 @@
         <Setter Property="VerticalContentAlignment" Value="Center" />
     </Style>
 
-    <Style Selector="Button.iconButton, ToggleButton.iconButton">
+    <Style Selector="Button.iconButton, ToggleButton.iconButton, RadioButton.iconButton">
         <Setter Property="Width" Value="{StaticResource WorkbenchControlHeight}" />
         <Setter Property="Height" Value="{StaticResource WorkbenchControlHeight}" />
         <Setter Property="MinWidth" Value="{StaticResource WorkbenchControlHeight}" />
@@ -76,13 +76,13 @@
         <Setter Property="BorderThickness" Value="1" />
     </Style>
 
-    <Style Selector="ToggleButton.iconButton:checked">
+    <Style Selector="ToggleButton.iconButton:checked, RadioButton.iconButton:checked">
         <Setter Property="Background" Value="{DynamicResource AppSidebarSelectedBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource AppPrimaryBrush}" />
         <Setter Property="BorderThickness" Value="1" />
     </Style>
 
-    <Style Selector="ToggleButton.iconButton:checked /template/ ContentPresenter#PART_ContentPresenter">
+    <Style Selector="ToggleButton.iconButton:checked /template/ ContentPresenter#PART_ContentPresenter, RadioButton.iconButton:checked /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{DynamicResource AppSidebarSelectedBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource AppPrimaryBrush}" />
     </Style>
@@ -124,12 +124,12 @@
         <Setter Property="Foreground" Value="{DynamicResource AppTextBrush}" />
     </Style>
 
-    <Style Selector="Button.iconButton LucideIcon, ToggleButton.iconButton LucideIcon">
+    <Style Selector="Button.iconButton LucideIcon, ToggleButton.iconButton LucideIcon, RadioButton.iconButton LucideIcon">
         <Setter Property="Size" Value="16" />
         <Setter Property="Foreground" Value="{DynamicResource AppTextBrush}" />
     </Style>
 
-    <Style Selector="ToggleButton.iconButton:checked LucideIcon">
+    <Style Selector="ToggleButton.iconButton:checked LucideIcon, RadioButton.iconButton:checked LucideIcon">
         <Setter Property="Foreground" Value="{DynamicResource AppPrimaryBrush}" />
     </Style>
 

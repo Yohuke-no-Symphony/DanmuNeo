@@ -38,4 +38,28 @@ public class AccountSettingsValidationTests
         Assert.DoesNotContain("真实用户", json);
         Assert.DoesNotContain("CheckedAt", json);
     }
+
+    /// <summary>网络暂时不可验证时即使缓存着用户身份，也不能继续亮绿灯。</summary>
+    [AvaloniaFact]
+    public async Task UnavailableValidationDoesNotKeepGreenLightFromCachedProfile()
+    {
+        var validation = new ControlledAccountValidationService();
+        using var sessions = new BilibiliAccountSessionService(validation);
+        var account = new BilibiliAccount { Cookie = "SESSDATA=offline;bili_jct=offline" };
+        sessions.Register(account);
+        using var row = new AccountSettingsItemViewModel(account, sessions, () => TimeSpan.FromSeconds(3));
+        var first = row.RefreshAsync();
+        validation.Requests[0].SetResult(new() { Status = AccountValidationStatus.Valid, Uid = 42, UserName = "有效用户" });
+        await first;
+        Assert.True(row.IsValid);
+        var second = row.RefreshAsync();
+        Assert.True(row.IsUncertain);
+        Assert.False(row.IsValid);
+        validation.Requests[1].SetResult(new() { Status = AccountValidationStatus.Unavailable });
+        await second;
+        Assert.Equal("有效用户 · UID 42", row.ProfileText);
+        Assert.True(row.IsUncertain);
+        Assert.False(row.IsValid);
+        Assert.False(row.IsInvalid);
+    }
 }

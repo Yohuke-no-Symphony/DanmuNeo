@@ -642,7 +642,7 @@
     "UI.AccountSettingsView.Delete": "删除",
     "UI.AccountSettingsView.QqMusic": "QQ 音乐",
     "UI.AccountSettingsView.QqMusicCookie": "QQ 音乐 Cookie",
-    "UI.AccountSettingsView.SetDefault": "设为默认",
+    "UI.AccountSettingsView.SetDefault": "默认账号",
     "UI.AccountSettingsView.ValidateAccount": "验证登录状态",
     "UI.AddWorkspaceDialogView.Add": "添加",
     "UI.AddWorkspaceDialogView.AddRoomManually": "手动添加直播间",

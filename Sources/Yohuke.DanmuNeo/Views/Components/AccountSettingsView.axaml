@@ -4,112 +4,103 @@
              x:Class="Yohuke.DanmuNeo.Views.Components.AccountSettingsView"
              x:CompileBindings="False"
              x:Name="Root">
-    <StackPanel Spacing="18"
-                IsVisible="{Binding IsAccountSettingsSelected}">
+    <UserControl.Styles>
+        <Style Selector="Ellipse.accountValidity">
+            <Setter Property="Width" Value="10" />
+            <Setter Property="Height" Value="10" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Fill" Value="{DynamicResource AppMutedTextBrush}" />
+        </Style>
+        <Style Selector="Ellipse.accountValidity.valid">
+            <Setter Property="Fill" Value="{DynamicResource AppSuccessBrush}" />
+        </Style>
+        <Style Selector="Ellipse.accountValidity.invalid">
+            <Setter Property="Fill" Value="{DynamicResource AppErrorBrush}" />
+        </Style>
+        <Style Selector="Ellipse.accountValidity.uncertain">
+            <Setter Property="Fill" Value="{DynamicResource AppWarningBrush}" />
+        </Style>
+    </UserControl.Styles>
+    <StackPanel Spacing="18" IsVisible="{Binding IsAccountSettingsSelected}">
         <Border Classes="panel" Padding="14">
-            <StackPanel Spacing="10">
-                <Grid ColumnDefinitions="*,Auto"
-                      ColumnSpacing="8">
-                    <StackPanel>
-                        <TextBlock Text="{Loc Key=UI.AccountSettingsView.QqMusic}"
-                                   Classes="sectionTitle"/>
-                        <TextBlock Text="{Binding QQMusicCookieSummary}"
-                                   Classes="muted"/>
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="{Loc Key=UI.AccountSettingsView.QqMusic}" Classes="sectionTitle" />
+                    <TextBlock Text="{Binding QQMusicCookieStatus}" Classes="muted" TextWrapping="Wrap" />
+                </StackPanel>
+                <Button Grid.Column="1" Name="QQMusicBrowserLogin" Click="QQMusicBrowserLogin_OnClick">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <LucideIcon Kind="Globe" />
+                        <TextBlock Text="{Loc Key=UI.AccountSettingsView.BrowserSignIn}" />
                     </StackPanel>
-	                    <Button Grid.Column="1"
-	                            Click="QQMusicBrowserLogin_OnClick">
-	                        <StackPanel Orientation="Horizontal"
-	                                    Spacing="6">
-	                            <LucideIcon Kind="Globe"/>
-	                            <TextBlock Text="{Loc Key=UI.AccountSettingsView.BrowserSignIn}"/>
-	                        </StackPanel>
-	                    </Button>
-                </Grid>
-                <TextBlock Text="{Binding QQMusicCookieStatus}"
-                           Classes="muted"/>
-                <TextBox Watermark="{Loc Key=UI.AccountSettingsView.QqMusicCookie}"
-                         PasswordChar="*"
-                         Text="{Binding Settings.QQMusicCookie}"/>
-            </StackPanel>
+                </Button>
+            </Grid>
         </Border>
-
         <Border Classes="panel" Padding="14">
             <StackPanel Spacing="10">
-                <Grid ColumnDefinitions="*,Auto,Auto"
-                      ColumnSpacing="8">
-                    <StackPanel>
-                        <TextBlock Text="{Loc Key=UI.AccountSettingsView.BilibiliAccounts}"
-                                   Classes="sectionTitle"/>
-                        <TextBlock Text="{Loc Key=UI.AccountSettingsView.CookiePrivacyHint}"
-                                   Classes="muted"/>
-                    </StackPanel>
-	                    <Button Grid.Column="1"
-	                            ToolTip.Tip="{Loc Key=UI.AccountSettingsView.AddAccount}"
-	                            Classes="iconButton"
-	                            Command="{Binding #Root.AddAccountCommand}">
-	                        <LucideIcon Kind="UserPlus"/>
-	                    </Button>
-	                    <Button Grid.Column="2"
-	                            Click="BilibiliBrowserLogin_OnClick">
-	                        <StackPanel Orientation="Horizontal"
-	                                    Spacing="6">
-	                            <LucideIcon Kind="Globe"/>
-	                            <TextBlock Text="{Loc Key=UI.AccountSettingsView.AddFromBrowser}"/>
-	                        </StackPanel>
-	                    </Button>
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                    <TextBlock Text="{Loc Key=UI.AccountSettingsView.BilibiliAccounts}"
+                               Classes="sectionTitle" VerticalAlignment="Center" />
+                    <Button Grid.Column="1" Name="BilibiliBrowserAdd" Click="BilibiliBrowserLogin_OnClick">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <LucideIcon Kind="UserPlus" />
+                            <TextBlock Text="{Loc Key=UI.AccountSettingsView.AddAccount}" />
+                        </StackPanel>
+                    </Button>
                 </Grid>
-                <ItemsControl ItemsSource="{Binding AccountItems}">
+                <ItemsControl Name="AccountList" ItemsSource="{Binding AccountItems}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="items:AccountSettingsItemViewModel">
                             <Border BorderBrush="{DynamicResource AppBorderBrush}"
-                                    BorderThickness="0,0,0,1"
-                                    Padding="0,8">
-                                <Grid RowDefinitions="Auto,Auto"
-                                      RowSpacing="8">
-                                    <Grid ColumnDefinitions="160,*,Auto,Auto,Auto,Auto"
-                                          ColumnSpacing="8">
-                                        <TextBox Text="{Binding Account.Name}"
-                                                 Watermark="{Loc Key=UI.AccountSettingsView.AccountName}"/>
-                                        <StackPanel Grid.Column="1"
-                                                    Spacing="2"
-                                                    VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding StatusText}"
-                                                       FontWeight="SemiBold"/>
-                                            <TextBlock Text="{Binding Account.CookieSummary}"
-                                                       Classes="muted"/>
-                                            <TextBlock Text="{Binding ProfileText}" Classes="muted"/>
-                                            <TextBlock Text="{Binding CheckedAtText}" Classes="muted"/>
-                                        </StackPanel>
-	                                        <Button Grid.Column="2"
-	                                                ToolTip.Tip="{Loc Key=UI.AccountSettingsView.BrowserSignIn}"
-	                                                Classes="iconButton"
-	                                                Click="BilibiliBrowserLogin_OnClick">
-	                                            <LucideIcon Kind="LogIn"/>
-	                                        </Button>
-	                                        <Button Grid.Column="3"
-	                                                ToolTip.Tip="{Loc Key=UI.AccountSettingsView.SetDefault}"
-	                                                Classes="iconButton"
-	                                                Command="{Binding #Root.SetDefaultAccountCommand}"
-	                                                CommandParameter="{Binding Account}">
-	                                            <LucideIcon Kind="BadgeCheck"/>
-	                                        </Button>
-	                                        <Button Grid.Column="4"
-	                                                ToolTip.Tip="{Loc Key=UI.AccountSettingsView.Delete}"
-	                                                Classes="iconButton"
-	                                                Command="{Binding #Root.DeleteAccountCommand}"
-	                                                CommandParameter="{Binding Account}">
-	                                            <LucideIcon Kind="Trash2"/>
-	                                        </Button>
-                                        <Button Grid.Column="5" Classes="iconButton"
-                                                Command="{Binding RefreshCommand}"
-                                                ToolTip.Tip="{Loc Key=UI.AccountSettingsView.ValidateAccount}">
-                                            <LucideIcon Kind="RefreshCw"/>
-                                        </Button>
+                                    BorderThickness="0,0,0,1" Padding="0,10">
+                                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto"
+                                      ColumnSpacing="8" RowSpacing="4">
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8"
+                                          HorizontalAlignment="Left" VerticalAlignment="Center">
+                                        <Ellipse Name="AccountValidity" Classes="accountValidity"
+                                                 Classes.valid="{Binding IsValid}"
+                                                 Classes.invalid="{Binding IsInvalid}"
+                                                 Classes.uncertain="{Binding IsUncertain}"
+                                                 ToolTip.Tip="{Binding ValidationHint}"
+                                                 AutomationProperties.Name="{Binding StatusText}" />
+                                        <TextBox Name="AccountNameEditor" Grid.Column="1"
+                                                 MinWidth="0" MaxWidth="220"
+                                                 Height="{StaticResource WorkbenchControlHeight}"
+                                                 VerticalAlignment="Center"
+                                                 Text="{Binding Account.Name, Mode=TwoWay}"
+                                                 Watermark="{Loc Key=UI.AccountSettingsView.AccountName}" />
                                     </Grid>
-                                    <TextBox Grid.Row="1"
-                                             Text="{Binding Account.Cookie}"
-                                             PasswordChar="*"
-                                             Watermark="{Loc Key=UI.AccountSettingsView.Cookie}"/>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
+                                                VerticalAlignment="Center">
+                                        <Button Name="AccountBrowserLogin" Classes="iconButton"
+                                                Click="BilibiliBrowserLogin_OnClick"
+                                                ToolTip.Tip="{Loc Key=UI.AccountSettingsView.BrowserSignIn}">
+                                            <LucideIcon Kind="LogIn" />
+                                        </Button>
+                                        <RadioButton Name="DefaultAccountToggle" Classes="iconButton"
+                                                     Theme="{StaticResource {x:Type ToggleButton}}"
+                                                     GroupName="DefaultAccount"
+                                                     IsChecked="{Binding Account.IsGlobalDefault, Mode=OneWay}"
+                                                     ToolTip.Tip="{Loc Key=UI.AccountSettingsView.SetDefault}"
+                                                     AutomationProperties.Name="{Loc Key=UI.AccountSettingsView.SetDefault}"
+                                                     Command="{Binding #Root.SetDefaultAccountCommand}"
+                                                     CommandParameter="{Binding Account}">
+                                            <LucideIcon Kind="BadgeCheck" />
+                                        </RadioButton>
+                                        <Button Name="AccountValidate" Classes="iconButton" Command="{Binding RefreshCommand}"
+                                                ToolTip.Tip="{Loc Key=UI.AccountSettingsView.ValidateAccount}">
+                                            <LucideIcon Kind="RefreshCw" />
+                                        </Button>
+                                        <Button Name="AccountDelete" Classes="iconButton"
+                                                ToolTip.Tip="{Loc Key=UI.AccountSettingsView.Delete}"
+                                                Command="{Binding #Root.DeleteAccountCommand}"
+                                                CommandParameter="{Binding Account}">
+                                            <LucideIcon Kind="Trash2" />
+                                        </Button>
+                                    </StackPanel>
+                                    <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Margin="18,0,0,0"
+                                               Text="{Binding ProfileText}" Classes="muted"
+                                               TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding ProfileText}" />
                                 </Grid>
                             </Border>
                         </DataTemplate>

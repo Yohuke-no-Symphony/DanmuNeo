@@ -53,6 +53,19 @@ public partial class AccountSettingsItemViewModel : ObservableObject, IDisposabl
     /// </summary>
     public string StatusText => Localization.Get($"App.Account.Validation.{sessions.GetState(Account.Id).Status}");
 
+    /// <summary>只有当前凭据明确验证有效时显示绿灯。</summary>
+    public bool IsValid => sessions.GetState(Account.Id).Status == AccountValidationStatus.Valid;
+
+    /// <summary>未绑定、失效或凭据不完整时显示红灯。</summary>
+    public bool IsInvalid => sessions.GetState(Account.Id).Status is AccountValidationStatus.NotBound or
+        AccountValidationStatus.Expired or AccountValidationStatus.Incomplete;
+
+    /// <summary>尚未确认、检查中或暂时无法验证时显示待确认状态。</summary>
+    public bool IsUncertain => !IsValid && !IsInvalid;
+
+    /// <summary>状态灯提供可读状态和最近验证时间，不包含凭据。</summary>
+    public string ValidationHint => string.IsNullOrEmpty(CheckedAtText) ? StatusText : $"{StatusText}\n{CheckedAtText}";
+
     /// <summary>
     /// 服务端确认的昵称与 UID。
     /// </summary>
@@ -134,6 +147,10 @@ public partial class AccountSettingsItemViewModel : ObservableObject, IDisposabl
             OnPropertyChanged(nameof(StatusText));
             OnPropertyChanged(nameof(ProfileText));
             OnPropertyChanged(nameof(CheckedAtText));
+            OnPropertyChanged(nameof(IsValid));
+            OnPropertyChanged(nameof(IsInvalid));
+            OnPropertyChanged(nameof(IsUncertain));
+            OnPropertyChanged(nameof(ValidationHint));
         }
     }
 
