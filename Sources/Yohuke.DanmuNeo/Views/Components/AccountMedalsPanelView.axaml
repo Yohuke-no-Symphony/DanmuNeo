@@ -8,6 +8,9 @@
                                x:DataType="items:AccountMedalsViewModel"
                                x:CompileBindings="True">
     <components:WorkbenchPanelView.Styles>
+        <Style Selector="Button.medalAction, ToggleButton.medalAction">
+            <Setter Property="Padding" Value="8,5" />
+        </Style>
         <Style Selector="ListBox.medalList">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
@@ -74,14 +77,29 @@
                 </Button>
             </Grid>
             <StackPanel Grid.Row="1" Spacing="6">
-                <CheckBox IsEnabled="{Binding CanRefresh}"
-                          IsChecked="{Binding AutoSwitchMedal, Mode=TwoWay}">
-                    <TextBlock Text="{Loc Key=Medals.Automatic}" TextWrapping="Wrap"/>
-                </CheckBox>
                 <TextBlock Text="{Loc Key=Medals.AutomaticHint}" Classes="muted" TextWrapping="Wrap"/>
                 <WrapPanel Orientation="Horizontal" ItemSpacing="8" LineSpacing="6">
-                    <Button x:Name="MedalWear" Content="{Loc Key=Medals.Wear}" Command="{Binding WearSelectedCommand}"/>
-                    <Button x:Name="MedalTakeOff" Content="{Loc Key=Medals.TakeOff}" Command="{Binding TakeOffCommand}"/>
+                    <ToggleButton x:Name="MedalAutomatic" Classes="actionToggle medalAction"
+                                  IsEnabled="{Binding CanRefresh}"
+                                  IsChecked="{Binding AutoSwitchMedal, Mode=TwoWay}"
+                                  AutomationProperties.Name="{Loc Key=Medals.Automatic}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <LucideIcon Kind="Repeat" VerticalAlignment="Center" />
+                            <TextBlock Text="{Loc Key=Medals.Automatic}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </ToggleButton>
+                    <Button x:Name="MedalWear" Classes="medalAction" Command="{Binding WearSelectedCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <LucideIcon Kind="BadgeCheck" VerticalAlignment="Center" />
+                            <TextBlock Text="{Loc Key=Medals.Wear}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="MedalTakeOff" Classes="medalAction" Command="{Binding TakeOffCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <LucideIcon Kind="BadgeMinus" VerticalAlignment="Center" />
+                            <TextBlock Text="{Loc Key=Medals.TakeOff}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
                 </WrapPanel>
             </StackPanel>
             <ListBox Grid.Row="2" x:Name="MedalList" Classes="medalList" Grid.IsSharedSizeScope="True"

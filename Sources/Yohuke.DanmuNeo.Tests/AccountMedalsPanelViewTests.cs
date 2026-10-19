@@ -47,12 +47,19 @@ public class AccountMedalsPanelViewTests
                 .Single(item => ReferenceEquals(item.DataContext, viewModel.Medals.Single(medal => medal.Id == 11)));
             Click(window, row);
             Assert.Equal(11, viewModel.SelectedMedal?.Id);
+            var automatic = panel.FindControl<ToggleButton>("MedalAutomatic")!;
+            Click(window, automatic);
+            await viewModel.PendingOperation;
+            Assert.True(account.AutoSwitchMedal);
+            Assert.True(automatic.IsChecked);
             service.ReadResponse = _ => old;
             Click(window, panel.FindControl<Button>("MedalWear")!);
             await viewModel.PendingOperation;
             Dispatcher.UIThread.RunJobs();
             window.UpdateLayout();
             Assert.Equal(["wear:11"], service.Writes);
+            Assert.False(account.AutoSwitchMedal);
+            Assert.False(automatic.IsChecked);
             Assert.True(viewModel.SelectedMedal?.IsWearing);
             Assert.Single(list.GetVisualDescendants().OfType<Border>(),
                 border => border.Classes.Contains("medalWearingBadge") && border.IsEffectivelyVisible);

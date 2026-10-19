@@ -14,6 +14,7 @@ using Yohuke.DanmuNeo.Services;
 using Yohuke.DanmuNeo.ViewModels.Items;
 using Yohuke.DanmuNeo.Views.Components;
 using Yohuke.DanmuNeo.Windowing;
+using Lucide.Avalonia;
 
 namespace Yohuke.DanmuNeo.Tests;
 
@@ -83,6 +84,25 @@ public class AccountMedalsListLayoutTests
             Assert.True(follow.Bounds.Right < refresh.Bounds.Left);
             Assert.False(accountChoice.IsEnabled);
             Assert.True(follow.IsChecked);
+            var automatic = panel.FindControl<ToggleButton>("MedalAutomatic")!;
+            var wear = panel.FindControl<Button>("MedalWear")!;
+            var takeOff = panel.FindControl<Button>("MedalTakeOff")!;
+            Assert.DoesNotContain(panel.GetVisualDescendants().OfType<CheckBox>(),
+                check => check.IsEffectivelyVisible);
+            foreach (var action in new Button[] { automatic, wear, takeOff })
+            {
+                var text = Assert.Single(action.GetVisualDescendants().OfType<TextBlock>());
+                var icon = Assert.Single(action.GetVisualDescendants().OfType<LucideIcon>());
+                Assert.True(icon.TranslatePoint(default, action)!.Value.X < text.TranslatePoint(default, action)!.Value.X);
+                Assert.InRange(action.Bounds.Height, 31.5, 32.5);
+                Assert.InRange(action.Bounds.Right, 0, action.GetVisualParent()!.Bounds.Width + 0.5);
+            }
+            if (width >= 320)
+            {
+                Assert.Equal(automatic.Bounds.Y, wear.Bounds.Y);
+                Assert.Equal(wear.Bounds.Y, takeOff.Bounds.Y);
+            }
+            Assert.Equal(Localization.Get("Medals.Automatic"), automatic.GetVisualDescendants().OfType<TextBlock>().Single().Text);
             double? left = null;
             double? ownerColumn = null;
             double? right = null;
@@ -146,6 +166,15 @@ public class AccountMedalsListLayoutTests
                 .GetVisualDescendants().OfType<ContentPresenter>().Single().Background);
             Assert.InRange(selectedBackground.Opacity * selectedBackground.Color.A / 255d, 0.01, 0.2);
             SavePreview(window, $"medals-{width}-{(dark ? "dark" : "light")}-{language}-selected");
+            viewModel.AutoSwitchMedal = true;
+            await viewModel.PendingOperation;
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            Assert.True(automatic.IsChecked);
+            var automaticFill = Assert.IsAssignableFrom<ISolidColorBrush>(automatic
+                .GetVisualDescendants().OfType<ContentPresenter>().Single().Background);
+            Assert.InRange(automaticFill.Opacity * automaticFill.Color.A / 255d, 0.01, 0.2);
+            SavePreview(window, $"medals-{width}-{(dark ? "dark" : "light")}-{language}-automatic");
         }
         finally
         {

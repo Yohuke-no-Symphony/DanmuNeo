@@ -49,7 +49,7 @@
         <Setter Property="Background" Value="{DynamicResource AppSplitterBrush}" />
     </Style>
 
-    <Style Selector="Button:not(.dockChromeButton)">
+    <Style Selector="Button:not(.dockChromeButton), ToggleButton.actionToggle">
         <Setter Property="FontSize" Value="{DynamicResource AppFontSizeBody}" />
         <Setter Property="FontWeight" Value="Regular" />
         <Setter Property="CornerRadius" Value="{StaticResource WorkbenchControlCornerRadius}" />
@@ -57,6 +57,16 @@
         <Setter Property="MinHeight" Value="{StaticResource WorkbenchControlHeight}" />
         <Setter Property="HorizontalContentAlignment" Value="Center" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="ToggleButton.actionToggle:checked /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AppSidebarSelectedBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AppPrimaryBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
+    <Style Selector="ToggleButton.actionToggle:checked LucideIcon">
+        <Setter Property="Foreground" Value="{DynamicResource AppPrimaryBrush}" />
     </Style>
 
     <Style Selector="Button.iconButton, ToggleButton.iconButton, RadioButton.iconButton">
