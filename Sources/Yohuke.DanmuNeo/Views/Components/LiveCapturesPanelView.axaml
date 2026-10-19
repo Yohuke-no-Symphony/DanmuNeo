@@ -4,75 +4,142 @@
                                xmlns:vm="clr-namespace:Yohuke.DanmuNeo.ViewModels"
                                xmlns:items="clr-namespace:Yohuke.DanmuNeo.ViewModels.Items"
                                xmlns:captures="clr-namespace:Yohuke.DanmuNeo.Models.Captures"
-                               xmlns:i18n="clr-namespace:Yohuke.DanmuNeo.I18n"
-                               xmlns:icons="using:Lucide.Avalonia"
                                x:Class="Yohuke.DanmuNeo.Views.Components.LiveCapturesPanelView"
                                x:DataType="vm:LiveCapturesViewModel"
                                MinWidth="240" MinHeight="200">
+    <components:WorkbenchPanelView.Styles>
+        <Style Selector="ListBox.captureList">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+        </Style>
+        <Style Selector="ListBox.captureList ListBoxItem">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Padding" Value="6" />
+            <Setter Property="Margin" Value="0,2" />
+            <Setter Property="CornerRadius" Value="{StaticResource WorkbenchControlCornerRadius}" />
+        </Style>
+        <Style Selector="ListBox.captureList ListBoxItem /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="ListBox.captureList ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AppSidebarHoverBrush}" />
+        </Style>
+        <Style Selector="ListBox.captureList ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AppSidebarSelectedBrush}" />
+        </Style>
+    </components:WorkbenchPanelView.Styles>
     <Border Padding="{StaticResource WorkbenchPanelPadding}">
         <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="8">
-            <WrapPanel Orientation="Horizontal">
-                <Button x:Name="CaptureButton" IsEnabled="{Binding CanCapture}" Classes="iconButton" Click="Capture_OnClick" ToolTip.Tip="{i18n:Loc Key=Captures.Capture}">
-                    <icons:LucideIcon Kind="Camera" />
+            <WrapPanel x:Name="CaptureToolbar" Orientation="Horizontal" ItemSpacing="8" LineSpacing="8">
+                <Button x:Name="CaptureButton" IsEnabled="{Binding CanCapture}" Click="Capture_OnClick">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <LucideIcon Kind="Camera" VerticalAlignment="Center" />
+                        <TextBlock Text="{Loc Key=Captures.Capture}" />
+                    </StackPanel>
                 </Button>
-                <Button Classes="iconButton" Command="{Binding SaveCommand}" IsEnabled="{Binding CanSave}" ToolTip.Tip="{i18n:Loc Key=Captures.Save}">
-                    <icons:LucideIcon Kind="Save" />
+                <Button x:Name="CaptureSave" Command="{Binding SaveCommand}" IsEnabled="{Binding CanSave}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <LucideIcon Kind="Save" VerticalAlignment="Center" />
+                        <TextBlock Text="{Loc Key=Captures.Save}" />
+                    </StackPanel>
                 </Button>
-                <Button Content="{i18n:Loc Key=Captures.ExportSingle}" IsEnabled="{Binding CanExportSingle}" Click="ExportSingle_OnClick" />
-                <Button Content="{i18n:Loc Key=Captures.ExportSelected}" IsEnabled="{Binding CanExportSelected}" Click="ExportSelected_OnClick" />
-                <Button Content="{i18n:Loc Key=Captures.ExportFiltered}" IsEnabled="{Binding CanExportFiltered}" Click="ExportFiltered_OnClick" />
+                <Button x:Name="CaptureExportSingle" IsEnabled="{Binding CanExportSingle}" Click="ExportSingle_OnClick">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <LucideIcon Kind="ImageDown" VerticalAlignment="Center" />
+                        <TextBlock Text="{Loc Key=Captures.ExportSingle}" />
+                    </StackPanel>
+                </Button>
+                <Button x:Name="CaptureExportSelected" IsEnabled="{Binding CanExportSelected}" Click="ExportSelected_OnClick">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <LucideIcon Kind="Images" VerticalAlignment="Center" />
+                        <TextBlock Text="{Loc Key=Captures.ExportSelected}" />
+                    </StackPanel>
+                </Button>
+                <Button x:Name="CaptureExportFiltered" IsEnabled="{Binding CanExportFiltered}" Click="ExportFiltered_OnClick">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <LucideIcon Kind="FolderOutput" VerticalAlignment="Center" />
+                        <TextBlock Text="{Loc Key=Captures.ExportFiltered}" />
+                    </StackPanel>
+                </Button>
             </WrapPanel>
-            <Grid Grid.Row="1" ColumnDefinitions="*,*,Auto" ColumnSpacing="6">
-                <ComboBox ItemsSource="{Binding RoomOptions}" SelectedItem="{Binding SelectedRoom}" HorizontalAlignment="Stretch"
-                          ToolTip.Tip="{i18n:Loc Key=Captures.FilterRoom}">
+            <Grid Grid.Row="1" ColumnDefinitions="*,*,Auto" ColumnSpacing="8">
+                <ComboBox MinWidth="0" ItemsSource="{Binding RoomOptions}" SelectedItem="{Binding SelectedRoom}"
+                          HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                          ToolTip.Tip="{Loc Key=Captures.FilterRoom}">
                     <ComboBox.ItemTemplate>
-                        <DataTemplate x:DataType="captures:LiveCaptureFilterOption"><TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" /></DataTemplate>
+                        <DataTemplate x:DataType="captures:LiveCaptureFilterOption">
+                            <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
+                        </DataTemplate>
                     </ComboBox.ItemTemplate>
                 </ComboBox>
-                <ComboBox Grid.Column="1" ItemsSource="{Binding SessionOptions}" SelectedItem="{Binding SelectedSession}" HorizontalAlignment="Stretch"
-                          ToolTip.Tip="{i18n:Loc Key=Captures.FilterSession}">
+                <ComboBox Grid.Column="1" MinWidth="0" ItemsSource="{Binding SessionOptions}" SelectedItem="{Binding SelectedSession}"
+                          HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                          ToolTip.Tip="{Loc Key=Captures.FilterSession}">
                     <ComboBox.ItemTemplate>
-                        <DataTemplate x:DataType="captures:LiveCaptureFilterOption"><TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" /></DataTemplate>
+                        <DataTemplate x:DataType="captures:LiveCaptureFilterOption">
+                            <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
+                        </DataTemplate>
                     </ComboBox.ItemTemplate>
                 </ComboBox>
-                <Button Grid.Column="2" Classes="iconButton" Command="{Binding ClearFiltersCommand}" ToolTip.Tip="{i18n:Loc Key=Captures.ClearFilters}">
-                    <icons:LucideIcon Kind="X" />
+                <Button x:Name="CaptureClearFilters" Grid.Column="2" Command="{Binding ClearFiltersCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <LucideIcon Kind="X" VerticalAlignment="Center" />
+                        <TextBlock Text="{Loc Key=Captures.ClearFilters}" />
+                    </StackPanel>
                 </Button>
             </Grid>
-            <Grid Grid.Row="2" ColumnDefinitions="*,*" ColumnSpacing="8">
-                <ListBox x:Name="CaptureList" ItemsSource="{Binding FilteredCaptures}" SelectedItem="{Binding SelectedCapture}"
+            <Grid Grid.Row="2" x:Name="CaptureBody" ColumnDefinitions="3*,Auto,5*">
+                <ListBox x:Name="CaptureList" Classes="captureList" MinWidth="0"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         ItemsSource="{Binding FilteredCaptures}" SelectedItem="{Binding SelectedCapture}"
                          SelectionMode="Multiple,Toggle" SelectionChanged="CaptureList_OnSelectionChanged">
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="items:LiveCaptureItemViewModel">
-                            <StackPanel Spacing="4" Margin="2">
-                                <components:LiveCaptureImage FilePath="{Binding PreviewPath}" Height="100" Stretch="Uniform" />
-                                <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
-                                <TextBlock Text="{Binding CapturedAtText}" Classes="muted" FontSize="11" />
-                                <TextBlock Text="{Binding ElapsedText}" Classes="muted" FontSize="11" />
-                                <TextBlock Text="{Binding Note}" MaxLines="2" TextWrapping="Wrap" />
-                            </StackPanel>
+                            <Grid ColumnDefinitions="64,*" ColumnSpacing="8">
+                                <components:LiveCaptureImage FilePath="{Binding PreviewPath}" Width="64" Height="44"
+                                                             Stretch="Uniform" VerticalAlignment="Center" />
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                        <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis"
+                                                   ToolTip.Tip="{Binding Title}" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="1" Text="{Binding ListTimeText}" Classes="muted" FontSize="11"
+                                                   ToolTip.Tip="{Binding CapturedAtText}" VerticalAlignment="Center" />
+                                    </Grid>
+                                    <TextBlock Classes="captureNote" Text="{Binding Note}" IsVisible="{Binding HasNote}"
+                                               FontSize="12" TextTrimming="CharacterEllipsis" MaxLines="2" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Grid>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
-                <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Disabled">
-                    <StackPanel Spacing="6">
-                        <components:LiveCaptureImage FilePath="{Binding SelectedCapture.PreviewPath}" DecodeWidth="1920" MaxHeight="360" Stretch="Uniform" />
-                        <TextBlock Text="{i18n:Loc Key=Captures.StartedAtLabel}" Classes="muted" TextWrapping="Wrap" />
-                        <TextBlock Text="{Binding SelectedCapture.StartedAtText}" TextWrapping="Wrap" />
-                        <TextBlock Text="{i18n:Loc Key=Captures.ElapsedLabel}" Classes="muted" TextWrapping="Wrap" />
-                        <TextBlock Text="{Binding SelectedCapture.ElapsedText}" />
-                        <TextBlock Text="{i18n:Loc Key=Captures.CapturedAtLabel}" Classes="muted" TextWrapping="Wrap" />
-                        <TextBlock Text="{Binding SelectedCapture.CapturedAtText}" TextWrapping="Wrap" />
-                        <TextBlock Text="{i18n:Loc Key=Captures.Note}" Classes="muted" />
-                        <TextBox x:Name="NoteEditor" IsEnabled="{Binding HasSelectedCapture}" Text="{Binding SelectedCapture.Note, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                 Watermark="{i18n:Loc Key=Captures.NoteHint}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="100" MaxLength="10000" />
-                        <TextBlock Text="{i18n:Loc Key=Captures.PermanentHint}" Classes="muted" FontSize="11" TextWrapping="Wrap" />
+                <GridSplitter x:Name="CaptureDivider" Grid.Column="1" Width="8" Margin="2,0"
+                              Classes="sidebarSplitter" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext"
+                              HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+                <ScrollViewer x:Name="CapturePreview" Grid.Column="2" MinWidth="0" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Spacing="8">
+                        <components:LiveCaptureImage FilePath="{Binding SelectedCapture.PreviewPath}" DecodeWidth="1920"
+                                                     MaxHeight="360" Stretch="Uniform" />
+                        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="8" RowSpacing="4">
+                            <TextBlock Text="{Loc Key=Captures.StartedAtLabel}" Classes="muted" />
+                            <TextBlock Grid.Column="1" Text="{Binding SelectedCapture.StartedAtText}" TextWrapping="Wrap" />
+                            <TextBlock Grid.Row="1" Text="{Loc Key=Captures.CapturedAtLabel}" Classes="muted" />
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedCapture.CapturedAtText}" TextWrapping="Wrap" />
+                            <TextBlock Grid.Row="2" Text="{Loc Key=Captures.ElapsedLabel}" Classes="muted" />
+                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedCapture.ElapsedText}" />
+                        </Grid>
+                        <TextBlock Text="{Loc Key=Captures.Note}" Classes="muted" />
+                        <TextBox x:Name="NoteEditor" IsEnabled="{Binding HasSelectedCapture}"
+                                 Text="{Binding SelectedCapture.Note, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 Watermark="{Loc Key=Captures.NoteHint}" AcceptsReturn="True" TextWrapping="Wrap"
+                                 MinHeight="80" MaxLength="10000" />
                     </StackPanel>
                 </ScrollViewer>
             </Grid>
             <StackPanel Grid.Row="3" Spacing="2">
                 <TextBlock Text="{Binding CountText}" Classes="muted" />
-                <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding StatusText}" IsVisible="{Binding HasStatus}" TextWrapping="Wrap" />
             </StackPanel>
         </Grid>
     </Border>

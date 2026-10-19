@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
@@ -13,12 +14,19 @@ public partial class LiveCapturesPanelView : WorkbenchPanelView
 {
     private readonly CancellationTokenSource panelLifetime = new();
     private readonly CancellationToken panelCancellation;
+    private readonly ColumnDefinitions wideColumns;
+    private readonly ColumnDefinitions narrowColumns = new("*");
+    private readonly RowDefinitions wideRows = new();
+    private readonly RowDefinitions narrowRows = new("2*,Auto,3*");
+    private bool? narrowLayout;
 
     /// <summary>创建供 XAML 加载器使用的设计时面板。</summary>
     public LiveCapturesPanelView()
     {
         panelCancellation = panelLifetime.Token;
         InitializeComponent();
+        wideColumns = CaptureBody.ColumnDefinitions;
+        CaptureBody.SizeChanged += CaptureBody_OnSizeChanged;
     }
 
     /// <summary>连接工作台和由组合根持有的全局图库。</summary>
@@ -34,8 +42,29 @@ public partial class LiveCapturesPanelView : WorkbenchPanelView
     /// <inheritdoc/>
     protected override void DisposePanel()
     {
+        CaptureBody.SizeChanged -= CaptureBody_OnSizeChanged;
         panelLifetime.Cancel();
         panelLifetime.Dispose();
+    }
+
+    private void CaptureBody_OnSizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        var narrow = CaptureBody.Bounds.Width < 560;
+        if (narrowLayout == narrow)
+        {
+            return;
+        }
+        narrowLayout = narrow;
+        CaptureBody.ColumnDefinitions = narrow ? narrowColumns : wideColumns;
+        CaptureBody.RowDefinitions = narrow ? narrowRows : wideRows;
+        Grid.SetColumn(CaptureDivider, narrow ? 0 : 1);
+        Grid.SetRow(CaptureDivider, narrow ? 1 : 0);
+        Grid.SetColumn(CapturePreview, narrow ? 0 : 2);
+        Grid.SetRow(CapturePreview, narrow ? 2 : 0);
+        CaptureDivider.ResizeDirection = narrow ? GridResizeDirection.Rows : GridResizeDirection.Columns;
+        CaptureDivider.Width = narrow ? double.NaN : 8;
+        CaptureDivider.Height = narrow ? 8 : double.NaN;
+        CaptureDivider.Margin = narrow ? new(0, 2) : new(2, 0);
     }
 
     private void Capture_OnClick(object? sender, RoutedEventArgs e)

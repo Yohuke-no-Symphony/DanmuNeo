@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using System.Globalization;
 using Yohuke.DanmuNeo.Models.Captures;
 using Yohuke.DanmuNeo.Services;
 
@@ -29,6 +30,10 @@ public sealed class LiveCaptureItemViewModel : ObservableObject
     public string StartedAtText => LiveCaptureTimeFormatter.FormatTime(record.StartedAt);
     public string ElapsedText => LiveCaptureTimeFormatter.FormatElapsed(record.StartedAt, record.CapturedAt);
     public string CapturedAtText => LiveCaptureTimeFormatter.FormatTime(record.CapturedAt);
+    /// <summary>列表中紧随房间名称的抓图时刻与开播后时长。</summary>
+    public string ListTimeText => $"{CapturedAt.ToLocalTime().ToString("HH:mm:ss", CultureInfo.CurrentCulture)} · {ElapsedText}";
+    /// <summary>只有实际备注内容才占用列表备注行。</summary>
+    public bool HasNote => !string.IsNullOrWhiteSpace(Note);
     public LiveCaptureRecord Snapshot => record with { Note = note };
 
     public string Note
@@ -44,6 +49,7 @@ public sealed class LiveCaptureItemViewModel : ObservableObject
             }
             updateNote(Id, value);
             SetProperty(ref note, value);
+            OnPropertyChanged(nameof(HasNote));
         }
     }
 
@@ -65,5 +71,6 @@ public sealed class LiveCaptureItemViewModel : ObservableObject
         OnPropertyChanged(nameof(StartedAtText));
         OnPropertyChanged(nameof(ElapsedText));
         OnPropertyChanged(nameof(CapturedAtText));
+        OnPropertyChanged(nameof(ListTimeText));
     }
 }

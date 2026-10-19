@@ -70,6 +70,8 @@ public sealed partial class LiveCapturesViewModel : ObservableObject, IDisposabl
     public bool HasFilteredCaptures => FilteredCaptures.Count > 0;
     internal Task PendingNoteSave => pendingNoteSave;
     public string CountText => Localization.Format("Captures.Count", FilteredCaptures.Count, Captures.Count);
+    /// <summary>保留操作结果和错误，隐藏常规保存成功的重复提示。</summary>
+    public bool HasStatus => !string.IsNullOrEmpty(StatusText) && statusKey != "Captures.Saved";
 
     /// <summary>加载永久图库；重复调用不重复添加记录。</summary>
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
@@ -542,6 +544,7 @@ public sealed partial class LiveCapturesViewModel : ObservableObject, IDisposabl
         statusKey = key;
         statusArguments = arguments;
         StatusText = Localization.Format(key, arguments);
+        OnPropertyChanged(nameof(HasStatus));
     }
 
     private void OnLanguageChanged(object? sender, EventArgs e)
