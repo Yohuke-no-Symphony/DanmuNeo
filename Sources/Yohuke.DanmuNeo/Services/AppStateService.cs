@@ -560,9 +560,13 @@ public class AppStateService
             state.SelectedWorkspaceId = state.Workspaces[0].Id;
         }
 
-        if (state.Accounts.Count > 0 && state.Accounts.All(account => !account.IsGlobalDefault))
+        if (state.Accounts.Count > 0)
         {
-            state.Accounts[0].IsGlobalDefault = true;
+            var defaultAccount = state.Accounts.FirstOrDefault(account => account.IsGlobalDefault) ?? state.Accounts[0];
+            foreach (var account in state.Accounts)
+            {
+                account.IsGlobalDefault = ReferenceEquals(account, defaultAccount);
+            }
         }
 
         foreach (var item in state.LyricLibrary)

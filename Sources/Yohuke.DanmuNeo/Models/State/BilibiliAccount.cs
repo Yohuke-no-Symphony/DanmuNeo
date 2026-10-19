@@ -13,6 +13,7 @@ public partial class BilibiliAccount : ObservableObject
     private string cookie = "";
     private bool isGlobalDefault;
     private bool autoSwitchMedal;
+    private bool autoNameOnLogin;
 
     /// <summary>
     /// 账号 ID。
@@ -30,6 +31,13 @@ public partial class BilibiliAccount : ObservableObject
     {
         get => name;
         set => SetProperty(ref name, value);
+    }
+
+    /// <summary>仅新建账号等待首次有效登录时采用用户名，旧配置和自定义名称默认保留。</summary>
+    public bool AutoNameOnLogin
+    {
+        get => autoNameOnLogin;
+        set => SetProperty(ref autoNameOnLogin, value);
     }
 
     /// <summary>

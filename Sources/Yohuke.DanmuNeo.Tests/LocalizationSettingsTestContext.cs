@@ -7,6 +7,7 @@ internal sealed class LocalizationSettingsTestContext : IDisposable
 {
     private readonly string directory = Path.Combine(Path.GetTempPath(),
         "DanmuNeo-localization-settings-" + Guid.NewGuid().ToString("N"));
+    private readonly BilibiliAccountSessionService sessions = new(new MedalValidationService());
 
     internal LocalizationSettingsTestContext(string languageId)
     {
@@ -15,7 +16,7 @@ internal sealed class LocalizationSettingsTestContext : IDisposable
         var state = StateService.Load();
         AppLanguageService.ApplyPreference(state.Settings.Language);
         ViewModel = new(StateService, new FakeLiveRoomSearchService(), new FakeRoomAvatarService(),
-            danmuConfigService: new FakeBilibiliDanmuConfigService(), loadedState: state);
+            danmuConfigService: new FakeBilibiliDanmuConfigService(), loadedState: state, accountSessions: sessions);
     }
 
     internal AppStateService StateService { get; }
@@ -25,6 +26,7 @@ internal sealed class LocalizationSettingsTestContext : IDisposable
     public void Dispose()
     {
         ViewModel.Dispose();
+        sessions.Dispose();
         Directory.Delete(directory, true);
     }
 }

@@ -5,6 +5,7 @@ using Avalonia.Threading;
 using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Models.BrowserLogin;
 using Yohuke.DanmuNeo.Models.State;
+using Yohuke.DanmuNeo.Models.Workspace;
 using Yohuke.DanmuNeo.Services;
 using Yohuke.DanmuNeo.ViewModels.Items;
 
@@ -15,12 +16,15 @@ public partial class MainWindowViewModel
     private readonly IBilibiliAccountSessionService accountSessions;
     private readonly bool ownsAccountSessions;
     private bool accountValidationStarted;
+    private bool accountNamingStopped;
     private CancellationTokenSource? accountContextRefreshTokenSource;
 
     /// <summary>
     /// 账号设置行，包括仅存在于本次运行的验证结果。
     /// </summary>
     public ObservableCollection<AccountSettingsItemViewModel> AccountItems { get; } = [];
+
+    internal Task PendingAccountNameSave { get; private set; } = Task.CompletedTask;
 
     private void InitializeAccounts()
     {
@@ -30,6 +34,45 @@ public partial class MainWindowViewModel
         }
 
         Accounts.CollectionChanged += OnAccountsCollectionChanged;
+        accountSessions.Changed += OnAccountValidationChanged;
+    }
+
+    private void OnAccountValidationChanged(object? sender, string accountId)
+    {
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            Dispatcher.UIThread.Post(() => OnAccountValidationChanged(sender, accountId));
+            return;
+        }
+        if (isDisposed || accountNamingStopped ||
+            Accounts.FirstOrDefault(account => account.Id == accountId) is not { AutoNameOnLogin: true } account ||
+            accountSessions.GetState(accountId) is not { Status: AccountValidationStatus.Valid, Uid: > 0 } state ||
+            string.IsNullOrWhiteSpace(state.UserName))
+        {
+            return;
+        }
+        account.Name = state.UserName;
+        account.AutoNameOnLogin = false;
+        RefreshAccountLabels();
+        PendingAccountNameSave = SaveInitialAccountNameAsync();
+    }
+
+    private async Task SaveInitialAccountNameAsync()
+    {
+        try
+        {
+            await SaveAsync();
+        }
+        catch
+        {
+        }
+    }
+
+    private async Task CompleteAccountNameUpdatesAsync()
+    {
+        accountNamingStopped = true;
+        accountSessions.Changed -= OnAccountValidationChanged;
+        await PendingAccountNameSave;
     }
 
     private void AddAccountItem(BilibiliAccount account)
@@ -38,7 +81,7 @@ public partial class MainWindowViewModel
         var item = new AccountSettingsItemViewModel(account, accountSessions,
             () => TimeSpan.FromSeconds(Math.Max(0.1, Settings.TimeoutSeconds)));
         AccountItems.Add(item);
-        account.PropertyChanged += OnStoredAccountCredentialsChanged;
+        account.PropertyChanged += OnStoredAccountChanged;
         if (accountValidationStarted)
         {
             item.StartAutomaticValidation();
@@ -50,7 +93,7 @@ public partial class MainWindowViewModel
         foreach (var item in AccountItems.Where(item => !Accounts.Contains(item.Account)).ToArray())
         {
             item.Dispose();
-            item.Account.PropertyChanged -= OnStoredAccountCredentialsChanged;
+            item.Account.PropertyChanged -= OnStoredAccountChanged;
             accountSessions.Remove(item.Account.Id);
             AccountItems.Remove(item);
         }
@@ -63,8 +106,12 @@ public partial class MainWindowViewModel
         RefreshToolSelection();
     }
 
-    private void OnStoredAccountCredentialsChanged(object? sender, PropertyChangedEventArgs e)
+    private void OnStoredAccountChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(BilibiliAccount.Name) && sender is BilibiliAccount account && !isDisposed)
+        {
+            account.AutoNameOnLogin = false;
+        }
         if (e.PropertyName == nameof(BilibiliAccount.IsGlobalDefault) && !isDisposed)
         {
             RefreshToolSelection();
@@ -121,13 +168,15 @@ public partial class MainWindowViewModel
 
     private void DisposeAccounts()
     {
+        accountNamingStopped = true;
         accountContextRefreshTokenSource?.Cancel();
         accountContextRefreshTokenSource?.Dispose();
+        accountSessions.Changed -= OnAccountValidationChanged;
         Accounts.CollectionChanged -= OnAccountsCollectionChanged;
         foreach (var item in AccountItems)
         {
             item.Dispose();
-            item.Account.PropertyChanged -= OnStoredAccountCredentialsChanged;
+            item.Account.PropertyChanged -= OnStoredAccountChanged;
             accountSessions.Remove(item.Account.Id);
         }
 
@@ -146,6 +195,7 @@ public partial class MainWindowViewModel
         var account = new BilibiliAccount
         {
             Name = Localization.Format("App.Default.Account", Accounts.Count + 1),
+            AutoNameOnLogin = true,
             IsGlobalDefault = Accounts.Count == 0
         };
         Accounts.Add(account);
@@ -172,6 +222,7 @@ public partial class MainWindowViewModel
             targetAccount = new()
             {
                 Name = Localization.Format("App.Default.BilibiliAccount", Accounts.Count + 1),
+                AutoNameOnLogin = true,
                 IsGlobalDefault = Accounts.Count == 0
             };
             Accounts.Add(targetAccount);
@@ -180,7 +231,7 @@ public partial class MainWindowViewModel
         }
 
         targetAccount.Cookie = result.Cookie;
-        if (accountValidationStarted && AccountItems.FirstOrDefault(item => item.Account == targetAccount) is { } accountItem)
+        if (AccountItems.FirstOrDefault(item => item.Account == targetAccount) is { } accountItem)
         {
             await accountItem.RefreshAsync();
         }
@@ -261,14 +312,18 @@ public partial class MainWindowViewModel
     /// </summary>
     public async Task SetDefaultAccountAsync(BilibiliAccount? account)
     {
-        if (account is null)
+        if (account is null || !Accounts.Contains(account))
         {
             return;
         }
 
+        account.IsGlobalDefault = true;
         foreach (var item in Accounts)
         {
-            item.IsGlobalDefault = item == account;
+            if (item != account)
+            {
+                item.IsGlobalDefault = false;
+            }
         }
 
         RefreshAccountLabels();

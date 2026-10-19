@@ -41,6 +41,7 @@ public partial class MainWindowViewModel
     /// <inheritdoc/>
     public async ValueTask DisposeAsync()
     {
+        await CompleteAccountNameUpdatesAsync();
         if (!isDisposed)
         {
             await FlushCapturesAsync();
