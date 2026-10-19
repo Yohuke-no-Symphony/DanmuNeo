@@ -77,7 +77,6 @@
                 </Button>
             </Grid>
             <StackPanel Grid.Row="1" Spacing="6">
-                <TextBlock Text="{Loc Key=Medals.AutomaticHint}" Classes="muted" TextWrapping="Wrap"/>
                 <WrapPanel Orientation="Horizontal" ItemSpacing="8" LineSpacing="6">
                     <ToggleButton x:Name="MedalAutomatic" Classes="actionToggle medalAction"
                                   IsEnabled="{Binding CanRefresh}"

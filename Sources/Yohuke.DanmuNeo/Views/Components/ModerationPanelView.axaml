@@ -40,7 +40,6 @@
                         <LucideIcon Kind="RefreshCw" />
                     </Button>
                 </Grid>
-                <TextBlock Text="{Binding StatusText}" Classes="muted" TextWrapping="Wrap" />
                 <TextBlock Text="{Binding SummaryText}" Classes="muted" TextWrapping="Wrap" />
                 <ItemsControl ItemsSource="{Binding Issues}">
                     <ItemsControl.ItemTemplate>

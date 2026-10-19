@@ -214,9 +214,6 @@ public sealed partial class ModerationManagerViewModel
             }
 
             ApplyRooms(nextRooms, nextRecords, nextAliases, nextIssues);
-            SetStatus(sources.Count == 0 ? "Moderation.NoRooms" :
-                Issues.Count > 0 ? "Moderation.PartialFailure" :
-                ManageableRooms.Count == 0 ? "Moderation.NoPermission" : "Moderation.Loaded");
             return true;
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
