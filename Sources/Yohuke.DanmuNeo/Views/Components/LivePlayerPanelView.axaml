@@ -45,6 +45,13 @@
                         Command="{Binding ChaseLiveCommand}">
                     <LucideIcon Kind="RefreshCw" />
                 </Button>
+                <Button x:Name="FrameCaptureButton" ToolTip.Tip="{Loc Key=Captures.Capture}"
+                        Classes="iconButton"
+                        VerticalAlignment="Center"
+                        IsEnabled="{Binding IsLivePlayerVisible}"
+                        Click="Capture_OnClick">
+                    <LucideIcon Kind="Camera" />
+                </Button>
                 <Button ToolTip.Tip="{Loc Key=UI.LivePlayerPanelView.Mute}"
                         Classes="iconButton"
                         Classes.selected="{Binding IsLivePlayerMuted}"

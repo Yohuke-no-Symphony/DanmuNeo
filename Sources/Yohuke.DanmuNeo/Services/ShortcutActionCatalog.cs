@@ -17,6 +17,7 @@ public static class ShortcutActionCatalog
         new(ShortcutActionKeys.LIVE_PLAYER_START, "livePlayer", "App.Shortcut.Group.livePlayer", "App.Shortcut.Action.LivePlayerStart", "Ctrl+Shift+P"),
         new(ShortcutActionKeys.LIVE_PLAYER_STOP, "livePlayer", "App.Shortcut.Group.livePlayer", "App.Shortcut.Action.LivePlayerStop", "Ctrl+Shift+O"),
         new(ShortcutActionKeys.LIVE_PLAYER_CHASE, "livePlayer", "App.Shortcut.Group.livePlayer", "App.Shortcut.Action.LivePlayerChase", "Ctrl+Shift+R"),
+        new(ShortcutActionKeys.LIVE_PLAYER_CAPTURE, "livePlayer", "App.Shortcut.Group.livePlayer", "App.Shortcut.Action.LivePlayerCapture", "Alt+P"),
         new(ShortcutActionKeys.INPUT_FOCUS_DRAFT, "input", "App.Shortcut.Group.input", "App.Shortcut.Action.InputFocusDraft", "Ctrl+Shift+I"),
         new(ShortcutActionKeys.INPUT_CLEAR_DRAFT, "input", "App.Shortcut.Group.input", "App.Shortcut.Action.InputClearDraft", "Ctrl+Shift+Backspace"),
         new(ShortcutActionKeys.INPUT_CYCLE_MARK_GROUP, "input", "App.Shortcut.Group.input", "App.Shortcut.Action.InputCycleMarkGroup", "Tab"),

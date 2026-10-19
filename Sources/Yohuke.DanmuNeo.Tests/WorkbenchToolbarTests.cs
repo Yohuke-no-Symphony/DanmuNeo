@@ -86,7 +86,7 @@ public class WorkbenchToolbarTests
             window.UpdateLayout();
             var buttons = player.GetVisualDescendants().OfType<Button>()
                 .Where(button => button.Classes.Contains("iconButton")).ToArray();
-            Assert.Equal(3, buttons.Length);
+            Assert.Equal(4, buttons.Length);
 
             for (var index = 1; index < buttons.Length; index++)
             {

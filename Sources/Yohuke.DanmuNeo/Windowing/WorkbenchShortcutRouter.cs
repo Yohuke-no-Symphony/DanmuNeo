@@ -16,6 +16,7 @@ internal sealed class WorkbenchShortcutRouter : IDisposable
     private readonly Action openSettings;
     private readonly Func<bool> isModal;
     private readonly HashSet<Window> windows = [];
+    private readonly HashSet<Key> captureKeys = [];
 
     internal WorkbenchShortcutRouter(WorkbenchContext context, WorkbenchPanelSet panels,
         Action<string> showPanel, Action openSettings, Func<bool> isModal)
@@ -70,16 +71,19 @@ internal sealed class WorkbenchShortcutRouter : IDisposable
 
     private void OnSelectionChanged(object? sender, EventArgs e)
     {
+        captureKeys.Clear();
         panels.StopHeldActions();
     }
 
     private void OnDeactivated(object? sender, EventArgs e)
     {
+        captureKeys.Clear();
         panels.StopHeldActions();
     }
 
     private void OnLostFocus(object? sender, RoutedEventArgs e)
     {
+        captureKeys.Clear();
         panels.StopHeldActions();
     }
 
@@ -93,6 +97,7 @@ internal sealed class WorkbenchShortcutRouter : IDisposable
 
     private void OnKeyUp(object? sender, KeyEventArgs e)
     {
+        captureKeys.Remove(e.Key);
         panels.ReleaseKey(e.Key);
     }
 
@@ -126,7 +131,7 @@ internal sealed class WorkbenchShortcutRouter : IDisposable
             control.FindAncestorOfType<TextBox>() is not null;
 
         if (action is null || inTextInput && action is not
-            (ShortcutActionKeys.INPUT_CLEAR_DRAFT or ShortcutActionKeys.INPUT_CYCLE_MARK_GROUP))
+            (ShortcutActionKeys.INPUT_CLEAR_DRAFT or ShortcutActionKeys.INPUT_CYCLE_MARK_GROUP or ShortcutActionKeys.LIVE_PLAYER_CAPTURE))
         {
             return;
         }
@@ -134,6 +139,16 @@ internal sealed class WorkbenchShortcutRouter : IDisposable
         if (action == ShortcutActionKeys.INPUT_CYCLE_MARK_GROUP && application.SelectedWorkspace is not null)
         {
             application.CycleWorkspaceMarkGroupCommand.Execute(null);
+            e.Handled = true;
+            return;
+        }
+
+        if (action == ShortcutActionKeys.LIVE_PLAYER_CAPTURE)
+        {
+            if (captureKeys.Add(e.Key))
+            {
+                _ = panels.CaptureCurrentFrameAsync();
+            }
             e.Handled = true;
             return;
         }

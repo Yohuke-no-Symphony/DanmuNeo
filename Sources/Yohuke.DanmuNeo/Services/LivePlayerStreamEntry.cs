@@ -32,6 +32,12 @@ internal class LivePlayerStreamEntry
     /// </summary>
     public string RoomId { get; set; } = "";
 
+    /// <summary>取流时确定的开播时间，未知为零。</summary>
+    public long LiveTime { get; set; }
+
+    /// <summary>不包含会话令牌的图库场次身份。</summary>
+    public string BroadcastSessionId { get; set; } = "";
+
     /// <summary>
     /// Cookie。
     /// </summary>

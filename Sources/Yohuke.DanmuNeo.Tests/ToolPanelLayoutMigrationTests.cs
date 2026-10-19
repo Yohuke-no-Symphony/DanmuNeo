@@ -11,6 +11,7 @@ public class ToolPanelLayoutMigrationTests
     [InlineData(1)]
     [InlineData(2)]
     [InlineData(3)]
+    [InlineData(4)]
     public void HistoricalLayoutsOnlyGainHiddenToolPanels(int sourceVersion)
     {
         var members = GetHistoricalMembers(sourceVersion);
@@ -43,7 +44,7 @@ public class ToolPanelLayoutMigrationTests
         Assert.Equal(JsonSerializer.Serialize(snapshot.FloatingWindows), JsonSerializer.Serialize(upgraded.CurrentLayout.FloatingWindows));
         Assert.Equal(snapshot.FocusedPanelId, upgraded.CurrentLayout.FocusedPanelId);
         Assert.Equal(WorkbenchPanelIds.All.Except(members), upgraded.CurrentLayout.HiddenPanelIds);
-        Assert.Contains("accountMedals", upgraded.CurrentLayout.HiddenPanelIds);
+        Assert.Contains("liveCaptures", upgraded.CurrentLayout.HiddenPanelIds);
         var preset = Assert.Single(upgraded.UserPresets);
         Assert.Equal("我的布局", preset.Name);
         Assert.Equal(upgraded.CurrentLayout.HiddenPanelIds, preset.Layout.HiddenPanelIds);
@@ -58,12 +59,14 @@ public class ToolPanelLayoutMigrationTests
     [InlineData(2, false)]
     [InlineData(3, true)]
     [InlineData(3, false)]
+    [InlineData(4, true)]
+    [InlineData(4, false)]
     public void MigrationRejectsInvalidHistoricalMembership(int version, bool futureMember)
     {
         var members = GetHistoricalMembers(version).ToList();
         if (futureMember)
         {
-            members.Add("accountMedals");
+            members.Add("liveCaptures");
         }
         else
         {
@@ -85,6 +88,7 @@ public class ToolPanelLayoutMigrationTests
             1 => ["workspace", "livePlayer", "composer", "superChat", "danmu", "history", "lyrics", "forwarding"],
             2 => ["workspace", "livePlayer", "composer", "superChat", "danmu", "history", "lyrics", "forwarding", "log"],
             3 => ["workspace", "livePlayer", "composer", "superChat", "danmu", "history", "lyrics", "forwarding", "log", "moderation"],
+            4 => ["workspace", "livePlayer", "composer", "superChat", "danmu", "history", "lyrics", "forwarding", "log", "moderation", "accountMedals"],
             _ => throw new ArgumentOutOfRangeException(nameof(version))
         };
     }

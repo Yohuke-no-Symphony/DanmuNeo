@@ -36,6 +36,7 @@ internal sealed class WorkbenchDockPanel : Tool, IDeferredContentPresentation
             WorkbenchPanelIds.LOG => "Workbench.Panel.Log",
             WorkbenchPanelIds.MODERATION => "Workbench.Panel.Moderation",
             WorkbenchPanelIds.ACCOUNT_MEDALS => "Workbench.Panel.AccountMedals",
+            WorkbenchPanelIds.LIVE_CAPTURES => "Workbench.Panel.LiveCaptures",
             _ => throw new ArgumentOutOfRangeException(nameof(panelId))
         });
     }

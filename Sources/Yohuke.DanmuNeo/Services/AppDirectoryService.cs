@@ -14,6 +14,7 @@ public class AppDirectoryService
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "Yohuke.DanmuNeo");
         DanmuLogsDirectory = Path.Combine(ConfigDirectory, "DanmuLogs");
+        CapturesDirectory = Path.Combine(ConfigDirectory, "Captures");
         CacheDirectory = Path.Combine(ConfigDirectory, "Cache");
         AvatarCacheDirectory = Path.Combine(CacheDirectory, "Avatars");
         EmoticonCacheDirectory = Path.Combine(ConfigDirectory, "temp", "emots");
@@ -26,6 +27,9 @@ public class AppDirectoryService
 
     /// <summary>收到消息的永久留档目录，不属于缓存。</summary>
     public string DanmuLogsDirectory { get; }
+
+    /// <summary>永久视频截图和独立元数据目录，不属于缓存。</summary>
+    public string CapturesDirectory { get; }
 
     /// <summary>
     /// 缓存目录。
@@ -48,6 +52,7 @@ public class AppDirectoryService
     public void EnsureDirectories()
     {
         Directory.CreateDirectory(ConfigDirectory);
+        Directory.CreateDirectory(CapturesDirectory);
         Directory.CreateDirectory(CacheDirectory);
         Directory.CreateDirectory(AvatarCacheDirectory);
         Directory.CreateDirectory(EmoticonCacheDirectory);

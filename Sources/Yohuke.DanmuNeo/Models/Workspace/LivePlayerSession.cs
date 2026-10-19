@@ -14,4 +14,7 @@ public class LivePlayerSession
     /// 播放器页面地址。
     /// </summary>
     public string PlayerUrl { get; set; } = "";
+
+    /// <summary>从取流结果保留的 Unix 开播时间，未知为零。</summary>
+    public long LiveTime { get; set; }
 }

@@ -53,16 +53,16 @@ internal static class WorkspaceLayoutPresets
             DEFAULT => Split(WorkspaceLayoutOrientation.Vertical, 0.3,
                 Tabs(0.3, WorkbenchPanelIds.SUPER_CHAT),
                 Tabs(0.7, WorkbenchPanelIds.DANMU, WorkbenchPanelIds.HISTORY,
-                    WorkbenchPanelIds.LYRICS, WorkbenchPanelIds.FORWARDING, WorkbenchPanelIds.LOG, WorkbenchPanelIds.MODERATION, WorkbenchPanelIds.ACCOUNT_MEDALS)),
+                    WorkbenchPanelIds.LYRICS, WorkbenchPanelIds.FORWARDING, WorkbenchPanelIds.LOG, WorkbenchPanelIds.MODERATION, WorkbenchPanelIds.ACCOUNT_MEDALS, WorkbenchPanelIds.LIVE_CAPTURES)),
             TRANSLATION => Split(WorkspaceLayoutOrientation.Vertical, 0.3,
                 Tabs(0.25, WorkbenchPanelIds.SUPER_CHAT),
                 Tabs(0.5, WorkbenchPanelIds.DANMU),
-                Tabs(0.25, WorkbenchPanelIds.HISTORY, WorkbenchPanelIds.LOG, WorkbenchPanelIds.MODERATION, WorkbenchPanelIds.ACCOUNT_MEDALS)),
+                Tabs(0.25, WorkbenchPanelIds.HISTORY, WorkbenchPanelIds.LOG, WorkbenchPanelIds.MODERATION, WorkbenchPanelIds.ACCOUNT_MEDALS, WorkbenchPanelIds.LIVE_CAPTURES)),
             _ => Split(WorkspaceLayoutOrientation.Vertical, 0.3,
                 Tabs(0.45, WorkbenchPanelIds.LIVE_PLAYER),
                 Tabs(0.55, WorkbenchPanelIds.DANMU, WorkbenchPanelIds.SUPER_CHAT, WorkbenchPanelIds.HISTORY,
                     presetId == LYRICS ? WorkbenchPanelIds.FORWARDING : WorkbenchPanelIds.LYRICS, WorkbenchPanelIds.LOG,
-                    WorkbenchPanelIds.MODERATION, WorkbenchPanelIds.ACCOUNT_MEDALS))
+                    WorkbenchPanelIds.MODERATION, WorkbenchPanelIds.ACCOUNT_MEDALS, WorkbenchPanelIds.LIVE_CAPTURES))
         };
 
         return new()

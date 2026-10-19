@@ -13,7 +13,7 @@ namespace Yohuke.DanmuNeo.Services;
 /// <summary>
 /// 用本地 HTTP 服务承载直播播放器页面并代理 B 站直播流。
 /// </summary>
-public class LivePlayerService : ILivePlayerService, IDisposable
+public partial class LivePlayerService : ILivePlayerService, ILiveFrameCaptureService, IDisposable
 {
     private const string MPEGTS_RESOURCE_NAME = "Yohuke.DanmuNeo.Assets.Player.mpegts.js";
     private const int MAXIMUM_DIAGNOSTIC_LENGTH = 4096;
@@ -41,6 +41,7 @@ public class LivePlayerService : ILivePlayerService, IDisposable
     private CancellationTokenSource? listenerTokenSource;
     private int port;
     private string? mpegtsScript;
+    private bool isDisposed;
 
     /// <inheritdoc/>
     public Task<LivePlayerSession> CreatePlayerAsync(
@@ -48,29 +49,31 @@ public class LivePlayerService : ILivePlayerService, IDisposable
         string? cookie,
         CancellationToken cancellationToken = default)
     {
-        EnsureStarted();
-
-        var token = Guid.NewGuid().ToString("N");
-        var entry = new LivePlayerStreamEntry
-        {
-            StreamUrl = source.StreamUrl,
-            RoomId = source.RoomId,
-            Cookie = ApiCookieHelper.CreateBilibiliCookie(cookie ?? "")
-        };
-
+        cancellationToken.ThrowIfCancellationRequested();
         lock (gate)
         {
-            streams[token] = entry;
+            ObjectDisposedException.ThrowIf(isDisposed, this);
+            EnsureStarted();
+            var token = Guid.NewGuid().ToString("N");
+            streams[token] = new()
+            {
+                StreamUrl = source.StreamUrl,
+                RoomId = source.RoomId,
+                LiveTime = source.LiveTime,
+                BroadcastSessionId = source.LiveTime > 0
+                    ? $"{source.RoomId}:{source.LiveTime}"
+                    : $"{source.RoomId}:unknown:{Guid.NewGuid():N}",
+                Cookie = ApiCookieHelper.CreateBilibiliCookie(cookie ?? "")
+            };
+            var playerUrl =
+                $"http://127.0.0.1:{port}/player?token={Uri.EscapeDataString(token)}&v={DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}";
+            return Task.FromResult(new LivePlayerSession
+            {
+                Token = token,
+                PlayerUrl = playerUrl,
+                LiveTime = source.LiveTime
+            });
         }
-
-        var playerUrl =
-            $"http://127.0.0.1:{port}/player?token={Uri.EscapeDataString(token)}&v={DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}";
-
-        return Task.FromResult(new LivePlayerSession
-        {
-            Token = token,
-            PlayerUrl = playerUrl
-        });
     }
 
     /// <inheritdoc/>
@@ -98,22 +101,27 @@ public class LivePlayerService : ILivePlayerService, IDisposable
     /// <inheritdoc/>
     public void Dispose()
     {
+        LivePlayerStreamEntry[] revoked;
+        lock (gate)
+        {
+            if (isDisposed)
+            {
+                return;
+            }
+            isDisposed = true;
+            revoked = streams.Values.ToArray();
+            streams.Clear();
+        }
         listenerTokenSource?.Cancel();
         listener?.Close();
         httpClient.Dispose();
-
-        lock (gate)
+        foreach (var entry in revoked)
         {
-            foreach (var entry in streams.Values)
-            {
-                entry.CancellationTokenSource.Cancel();
-                entry.CancellationTokenSource.Dispose();
-            }
-
-            streams.Clear();
+            entry.CancellationTokenSource.Cancel();
+            entry.CancellationTokenSource.Dispose();
         }
-
         listenerTokenSource?.Dispose();
+        GC.SuppressFinalize(this);
     }
 
     private void EnsureStarted()
@@ -128,7 +136,8 @@ public class LivePlayerService : ILivePlayerService, IDisposable
         listener = new();
         listener.Prefixes.Add($"http://127.0.0.1:{port}/");
         listener.Start();
-        _ = Task.Run(() => ListenAsync(listenerTokenSource.Token));
+        var cancellationToken = listenerTokenSource.Token;
+        _ = Task.Run(() => ListenAsync(cancellationToken));
     }
 
     private async Task ListenAsync(CancellationToken cancellationToken)
@@ -173,6 +182,11 @@ public class LivePlayerService : ILivePlayerService, IDisposable
             {
                 await WriteTextAsync(context.Response, GetMpegtsScript(), "application/javascript; charset=utf-8",
                     cancellationToken);
+                return;
+            }
+
+            if (await HandleCaptureRequestAsync(context, path, cancellationToken))
+            {
                 return;
             }
 
@@ -503,6 +517,7 @@ public class LivePlayerService : ILivePlayerService, IDisposable
                    const status = document.getElementById("status");
                    const soundGate = document.getElementById("soundGate");
                    const video = document.getElementById("player");
+                   {{CreateCaptureScript()}}
                    let localization = {{json}};
                    let currentStatusText = () => text("Player.Connecting");
                    let player = null;

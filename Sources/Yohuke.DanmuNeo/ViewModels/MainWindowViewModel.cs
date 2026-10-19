@@ -71,7 +71,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IAsyncDis
         IBilibiliAccountSessionService? accountSessions = null,
         IBilibiliDanmuHistoryService? danmuHistoryService = null,
         IReceivedDanmuArchiveService? receivedDanmuArchiveService = null,
-        IBilibiliMedalService? medalService = null)
+        IBilibiliMedalService? medalService = null,
+        ILiveCaptureStore? liveCaptureStore = null,
+        ILiveCaptureExportService? liveCaptureExportService = null,
+        ILiveFrameCaptureService? frameCaptureService = null)
     {
         Log = log ?? new AppLogService();
         ownsLog = log is null;
@@ -117,6 +120,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IAsyncDis
         medalSwitchCoordinator = new(medalService ?? new BilibiliMedalService(), this.accountSessions,
             SaveAsync, GetToolsTimeout, Log);
         AccountMedals = new(Accounts, medalSwitchCoordinator, Log);
+        FrameCaptureService = frameCaptureService ?? livePlayerService;
+        var captureStore = liveCaptureStore ?? new LiveCaptureStore(appDirectoryService.CapturesDirectory);
+        LiveCaptures = new(captureStore, liveCaptureExportService ?? new LiveCaptureExportService(captureStore));
         toolsInitialized = true;
         RefreshToolSelection();
         RefreshThemeModeOptions();

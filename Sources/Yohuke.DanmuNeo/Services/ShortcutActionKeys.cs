@@ -30,6 +30,9 @@ public static class ShortcutActionKeys
     /// </summary>
     public const string LIVE_PLAYER_CHASE = "livePlayer.chase";
 
+    /// <summary>保存当前直播视频原帧到永久图库。</summary>
+    public const string LIVE_PLAYER_CAPTURE = "livePlayer.capture";
+
     /// <summary>
     /// 聚焦同传输入框。
     /// </summary>

@@ -86,6 +86,7 @@ public partial class LivePlayerPanelView : WorkbenchRoomPanel
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         isAttached = false;
+        NotifyCaptureAvailability();
         Localization.LanguageChanged -= OnLanguageChanged;
 
         if (migrationDepth == 0)
@@ -118,6 +119,7 @@ public partial class LivePlayerPanelView : WorkbenchRoomPanel
     protected override void DisposePanel()
     {
         isDisposed = true;
+        ReleaseCaptureBridge();
         Localization.LanguageChanged -= OnLanguageChanged;
 
         if (Context is not null)
@@ -182,6 +184,7 @@ public partial class LivePlayerPanelView : WorkbenchRoomPanel
                 {
                     SyncLivePlayerAudio();
                     SyncLivePlayerLanguage();
+                    SyncCaptureGesture();
                 }
             };
             liveWebView.NavigationCompleted += navigationCompleted;
@@ -190,15 +193,18 @@ public partial class LivePlayerPanelView : WorkbenchRoomPanel
 
         if (liveWebView.Source != uri)
         {
+            ResetCaptureHost();
             liveWebView.Source = uri;
         }
 
         SyncLivePlayerAudio();
+        NotifyCaptureAvailability();
     }
 
     private void ClearLivePlayerHost()
     {
         hostGeneration++;
+        ResetCaptureHost();
 
         if (liveWebView is not null)
         {
@@ -209,6 +215,8 @@ public partial class LivePlayerPanelView : WorkbenchRoomPanel
             liveWebView = null;
             navigationCompleted = null;
         }
+
+        NotifyCaptureAvailability();
     }
 
     private static void LiveWebView_OnEnvironmentRequested(object? sender, WebViewEnvironmentRequestedEventArgs e)

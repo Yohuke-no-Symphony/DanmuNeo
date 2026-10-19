@@ -93,6 +93,8 @@ internal sealed class WorkbenchSession : IAsyncDisposable
     {
         Panels.StopHeldActions();
         application.CancelShortcutRecording();
+        await Panels.CompletePendingCaptureAsync();
+        await application.FlushCapturesAsync();
 
         if (application.IsSettingsOpen)
         {

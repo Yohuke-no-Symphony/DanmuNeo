@@ -120,6 +120,7 @@ internal sealed class WorkbenchMenuCatalog : IDisposable
             WorkbenchPanelIds.LOG => LucideIconKind.Logs,
             WorkbenchPanelIds.MODERATION => LucideIconKind.Shield,
             WorkbenchPanelIds.ACCOUNT_MEDALS => LucideIconKind.Medal,
+            WorkbenchPanelIds.LIVE_CAPTURES => LucideIconKind.Camera,
             _ => throw new ArgumentOutOfRangeException(nameof(id))
         };
     }

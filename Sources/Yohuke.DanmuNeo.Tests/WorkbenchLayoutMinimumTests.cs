@@ -263,15 +263,16 @@ public class WorkbenchLayoutMinimumTests
     }
 
     /// <summary>
-    /// 全部实际面板竖排并显示发送错误时，最小主窗内仍容纳内容声明的高度下限。
+    /// 旧布局的九个面板竖排、升级工具保持隐藏时，最小主窗仍容纳内容声明的高度下限。
     /// </summary>
     [AvaloniaFact]
-    public async Task EightRealPanelsFitMinimumWindowWithComposerError()
+    public async Task LegacyPanelsFitMinimumWindowWithComposerError()
     {
         using var fixture = new WorkspaceSidebarTestContext(240);
         fixture.ViewModel.Settings.WindowWidth = 980;
         fixture.ViewModel.Settings.WindowHeight = 640;
         fixture.ViewModel.Settings.UseWindowMenuOnMac = true;
+        var legacyPanels = WorkbenchPanelIds.ForVersion(2);
         var file = WorkspaceLayoutPresets.CreateDefaultFile() with
         {
             CurrentLayout = new()
@@ -280,13 +281,12 @@ public class WorkbenchLayoutMinimumTests
                 {
                     Kind = WorkspaceLayoutNodeKind.Split,
                     Orientation = WorkspaceLayoutOrientation.Vertical,
-                    Children = WorkbenchPanelIds.All.Select(id => new WorkspaceLayoutNode
+                    Children = legacyPanels.Select(id => new WorkspaceLayoutNode
                     {
-                        Proportion = 1d / WorkbenchPanelIds.All.Count,
-                        PanelIds = [id],
-                        ActivePanelId = id
+                        Proportion = 1d / legacyPanels.Count, PanelIds = [id], ActivePanelId = id
                     }).ToList()
                 },
+                HiddenPanelIds = WorkbenchPanelIds.All.Except(legacyPanels).ToList(),
                 FocusedPanelId = WorkbenchPanelIds.COMPOSER
             }
         };
@@ -303,9 +303,12 @@ public class WorkbenchLayoutMinimumTests
             Dispatcher.UIThread.RunJobs();
             window.UpdateLayout();
 
-            Assert.InRange(workbench.Layouts.RootDock.MinHeight, 0, workbench.Layouts.Host.Bounds.Height);
+            Assert.True(workbench.Layouts.RootDock.MinHeight <= workbench.Layouts.Host.Bounds.Height,
+                $"Root minimum {workbench.Layouts.RootDock.MinHeight}, host {workbench.Layouts.Host.Bounds.Height}: " +
+                string.Join("; ", workbench.Layouts.PanelAdapters.Values.Select(panel =>
+                    $"{panel.Id}: minimum={panel.View.MinHeight}, actual={panel.View.Bounds.Height}")));
 
-            foreach (var panel in workbench.Layouts.PanelAdapters.Values)
+            foreach (var panel in workbench.Layouts.PanelAdapters.Values.Where(panel => legacyPanels.Contains(panel.Id)))
             {
                 Assert.True(panel.View.IsEffectivelyVisible, panel.Id);
                 Assert.True(panel.View.Bounds.Height > 0, panel.Id);

@@ -8,7 +8,7 @@ namespace Yohuke.DanmuNeo.Views.Components;
 /// <summary>
 /// 工作台唯一持有的业务视图，布局操作只重组这些实例。
 /// </summary>
-public sealed class WorkbenchPanelSet : IDisposable
+public sealed partial class WorkbenchPanelSet : IDisposable
 {
     private readonly WorkbenchContext context;
     private readonly WorkbenchInteractionCoordinator interactions;
@@ -21,7 +21,7 @@ public sealed class WorkbenchPanelSet : IDisposable
         this.context = context;
         Composer = new(context);
         interactions = new(context, Composer);
-        Player = new(context);
+        Player = new(context, context.Application.FrameCaptureService);
         SuperChat = new(context, interactions);
         Danmu = new(context, interactions);
         History = new(context);
@@ -29,6 +29,7 @@ public sealed class WorkbenchPanelSet : IDisposable
         Forwarding = new(context);
         Moderation = new(context, context.Application.ModerationManager);
         AccountMedals = new(context, context.Application.AccountMedals);
+        LiveCaptures = new(context, context.Application.LiveCaptures);
         Panels = new Dictionary<string, WorkbenchPanelView>
         {
             [WorkbenchPanelIds.LIVE_PLAYER] = Player,
@@ -39,10 +40,12 @@ public sealed class WorkbenchPanelSet : IDisposable
             [WorkbenchPanelIds.LYRICS] = Lyrics,
             [WorkbenchPanelIds.FORWARDING] = Forwarding,
             [WorkbenchPanelIds.MODERATION] = Moderation,
-            [WorkbenchPanelIds.ACCOUNT_MEDALS] = AccountMedals
+            [WorkbenchPanelIds.ACCOUNT_MEDALS] = AccountMedals,
+            [WorkbenchPanelIds.LIVE_CAPTURES] = LiveCaptures
         };
         Lyrics.LyricLibraryRequested += owner => LyricLibraryRequested?.Invoke(owner);
         context.SelectionChanged += Context_OnSelectionChanged;
+        InitializeCaptureBindings();
     }
 
     /// <summary>追帧面板。</summary>
@@ -72,6 +75,9 @@ public sealed class WorkbenchPanelSet : IDisposable
     /// <summary>当前账号或指定账号的粉丝牌面板。</summary>
     public AccountMedalsPanelView AccountMedals { get; }
 
+    /// <summary>全局永久直播截图图库。</summary>
+    public LiveCapturesPanelView LiveCaptures { get; }
+
     /// <summary>以稳定面板 ID 索引的唯一视图集合。</summary>
     public IReadOnlyDictionary<string, WorkbenchPanelView> Panels { get; }
 
@@ -81,6 +87,7 @@ public sealed class WorkbenchPanelSet : IDisposable
     /// <summary>注入显示面板及激活所属窗口的入口。</summary>
     public void SetPanelActivator(Action<string> activate)
     {
+        capturePanelActivator = activate;
         interactions.SetPanelActivator(activate);
     }
 
@@ -93,8 +100,11 @@ public sealed class WorkbenchPanelSet : IDisposable
     /// <summary>交互锁定时结束长按操作，保留面板显示。</summary>
     public void SetInteractionBlocked(bool blocked)
     {
+        captureInteractionBlocked = blocked;
+        RefreshCaptureState();
         if (blocked)
         {
+            captureCancellation?.Cancel();
             StopHeldActions();
         }
     }
@@ -138,6 +148,7 @@ public sealed class WorkbenchPanelSet : IDisposable
     /// <inheritdoc/>
     public void Dispose()
     {
+        DisposeCaptureBindings();
         context.SelectionChanged -= Context_OnSelectionChanged;
 
         foreach (var panel in Panels.Values)
@@ -148,6 +159,8 @@ public sealed class WorkbenchPanelSet : IDisposable
 
     private void Context_OnSelectionChanged(object? sender, EventArgs e)
     {
+        captureCancellation?.Cancel();
+        RefreshCaptureState();
         StopHeldActions();
     }
 }

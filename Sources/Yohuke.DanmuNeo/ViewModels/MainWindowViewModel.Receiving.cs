@@ -41,6 +41,11 @@ public partial class MainWindowViewModel
     /// <inheritdoc/>
     public async ValueTask DisposeAsync()
     {
+        if (!isDisposed)
+        {
+            await FlushCapturesAsync();
+        }
+
         await ShutdownReceptionAsync();
         Dispose();
     }
