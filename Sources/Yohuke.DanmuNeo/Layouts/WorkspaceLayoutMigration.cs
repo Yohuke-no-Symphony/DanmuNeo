@@ -73,7 +73,9 @@ internal static class WorkspaceLayoutMigration
                     ? [live, tools]
                     : [root.Children[0] with { Proportion = sidebarProportion }, live, tools]
             },
-            HiddenPanelIds = legacySettings.IsSidebarCollapsed ? [WorkbenchPanelIds.WORKSPACE] : []
+            HiddenPanelIds = legacySettings.IsSidebarCollapsed
+                ? [.. file.CurrentLayout.HiddenPanelIds, WorkbenchPanelIds.WORKSPACE]
+                : [.. file.CurrentLayout.HiddenPanelIds]
         };
 
         return file with { CurrentLayout = layout };

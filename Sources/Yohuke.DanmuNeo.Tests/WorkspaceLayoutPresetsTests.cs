@@ -49,10 +49,10 @@ public class WorkspaceLayoutPresetsTests
         Assert.Equal(new[]
         {
             WorkbenchPanelIds.DANMU, WorkbenchPanelIds.HISTORY,
-            WorkbenchPanelIds.LYRICS, WorkbenchPanelIds.FORWARDING, WorkbenchPanelIds.LOG, WorkbenchPanelIds.MODERATION, WorkbenchPanelIds.ACCOUNT_MEDALS, WorkbenchPanelIds.LIVE_CAPTURES
+            WorkbenchPanelIds.LYRICS, WorkbenchPanelIds.FORWARDING, WorkbenchPanelIds.LOG, WorkbenchPanelIds.MODERATION, WorkbenchPanelIds.ACCOUNT_MEDALS
         }, right.Children[1].PanelIds);
         Assert.Equal(WorkbenchPanelIds.DANMU, right.Children[1].ActivePanelId);
-        Assert.Empty(layout.HiddenPanelIds);
+        Assert.Equal([WorkbenchPanelIds.LIVE_CAPTURES], layout.HiddenPanelIds);
     }
 
     /// <summary>
@@ -69,8 +69,8 @@ public class WorkspaceLayoutPresetsTests
         {
             WorkbenchPanelIds.SUPER_CHAT, WorkbenchPanelIds.DANMU, WorkbenchPanelIds.HISTORY
         }, right.Children.Select(child => child.PanelIds[0]));
-        Assert.Equal([WorkbenchPanelIds.HISTORY, WorkbenchPanelIds.LOG, WorkbenchPanelIds.MODERATION, WorkbenchPanelIds.ACCOUNT_MEDALS, WorkbenchPanelIds.LIVE_CAPTURES], right.Children[2].PanelIds);
-        Assert.Equal(new[] { WorkbenchPanelIds.LYRICS, WorkbenchPanelIds.FORWARDING }, layout.HiddenPanelIds);
+        Assert.Equal([WorkbenchPanelIds.HISTORY, WorkbenchPanelIds.LOG, WorkbenchPanelIds.MODERATION, WorkbenchPanelIds.ACCOUNT_MEDALS], right.Children[2].PanelIds);
+        Assert.Equal(new[] { WorkbenchPanelIds.LYRICS, WorkbenchPanelIds.FORWARDING, WorkbenchPanelIds.LIVE_CAPTURES }, layout.HiddenPanelIds);
     }
 
     /// <summary>
@@ -89,10 +89,10 @@ public class WorkspaceLayoutPresetsTests
         Assert.Equal(new[]
         {
             WorkbenchPanelIds.DANMU, WorkbenchPanelIds.SUPER_CHAT,
-            WorkbenchPanelIds.HISTORY, secondaryToolId, WorkbenchPanelIds.LOG, WorkbenchPanelIds.MODERATION, WorkbenchPanelIds.ACCOUNT_MEDALS, WorkbenchPanelIds.LIVE_CAPTURES
+            WorkbenchPanelIds.HISTORY, secondaryToolId, WorkbenchPanelIds.LOG, WorkbenchPanelIds.MODERATION, WorkbenchPanelIds.ACCOUNT_MEDALS
         }, right.Children[1].PanelIds);
         Assert.Equal(WorkbenchPanelIds.DANMU, right.Children[1].ActivePanelId);
-        Assert.Empty(layout.HiddenPanelIds);
+        Assert.Equal([WorkbenchPanelIds.LIVE_CAPTURES], layout.HiddenPanelIds);
     }
 
     /// <summary>

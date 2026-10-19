@@ -54,7 +54,7 @@ public class WorkspaceLayoutMigrationTests
         });
         var layout = file.CurrentLayout;
 
-        Assert.Equal([WorkbenchPanelIds.WORKSPACE], layout.HiddenPanelIds);
+        Assert.Equal([WorkbenchPanelIds.LIVE_CAPTURES, WorkbenchPanelIds.WORKSPACE], layout.HiddenPanelIds);
         Assert.Equal(new[] { 0.75, 0.25 }, layout.Main!.Children.Select(child => child.Proportion));
         Assert.Equal(WorkbenchPanelIds.LIVE_PLAYER, Assert.Single(layout.Main.Children[0].Children[0].PanelIds));
         Assert.True(WorkspaceLayoutValidator.TryValidate(file, out var error), error);

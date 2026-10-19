@@ -22,18 +22,20 @@ public class WorkspaceLayoutValidatorTests
     }
 
     /// <summary>
-    /// 面板可以全部位于浮窗，窗口坐标可处于主屏幕左侧。
+    /// 可见面板可以全部位于浮窗，窗口坐标可处于主屏幕左侧。
     /// </summary>
     [Fact]
     public void FloatingLayoutPreservesPhysicalPositionAndLogicalSize()
     {
-        var layout = new WorkspaceLayoutSnapshot
+        var initial = WorkspaceLayoutPresets.Create(WorkspaceLayoutPresets.DEFAULT);
+        var layout = initial with
         {
+            Main = null,
             FloatingWindows =
             [
                 new()
                 {
-                    Layout = WorkspaceLayoutPresets.Create(WorkspaceLayoutPresets.DEFAULT).Main!,
+                    Layout = initial.Main!,
                     Bounds = new() { X = -1200, Y = 100, Width = 800, Height = 600, Scaling = 2 }
                 }
             ],

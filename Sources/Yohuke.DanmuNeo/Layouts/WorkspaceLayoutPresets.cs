@@ -53,16 +53,16 @@ internal static class WorkspaceLayoutPresets
             DEFAULT => Split(WorkspaceLayoutOrientation.Vertical, 0.3,
                 Tabs(0.3, WorkbenchPanelIds.SUPER_CHAT),
                 Tabs(0.7, WorkbenchPanelIds.DANMU, WorkbenchPanelIds.HISTORY,
-                    WorkbenchPanelIds.LYRICS, WorkbenchPanelIds.FORWARDING, WorkbenchPanelIds.LOG, WorkbenchPanelIds.MODERATION, WorkbenchPanelIds.ACCOUNT_MEDALS, WorkbenchPanelIds.LIVE_CAPTURES)),
+                    WorkbenchPanelIds.LYRICS, WorkbenchPanelIds.FORWARDING, WorkbenchPanelIds.LOG, WorkbenchPanelIds.MODERATION, WorkbenchPanelIds.ACCOUNT_MEDALS)),
             TRANSLATION => Split(WorkspaceLayoutOrientation.Vertical, 0.3,
                 Tabs(0.25, WorkbenchPanelIds.SUPER_CHAT),
                 Tabs(0.5, WorkbenchPanelIds.DANMU),
-                Tabs(0.25, WorkbenchPanelIds.HISTORY, WorkbenchPanelIds.LOG, WorkbenchPanelIds.MODERATION, WorkbenchPanelIds.ACCOUNT_MEDALS, WorkbenchPanelIds.LIVE_CAPTURES)),
+                Tabs(0.25, WorkbenchPanelIds.HISTORY, WorkbenchPanelIds.LOG, WorkbenchPanelIds.MODERATION, WorkbenchPanelIds.ACCOUNT_MEDALS)),
             _ => Split(WorkspaceLayoutOrientation.Vertical, 0.3,
                 Tabs(0.45, WorkbenchPanelIds.LIVE_PLAYER),
                 Tabs(0.55, WorkbenchPanelIds.DANMU, WorkbenchPanelIds.SUPER_CHAT, WorkbenchPanelIds.HISTORY,
                     presetId == LYRICS ? WorkbenchPanelIds.FORWARDING : WorkbenchPanelIds.LYRICS, WorkbenchPanelIds.LOG,
-                    WorkbenchPanelIds.MODERATION, WorkbenchPanelIds.ACCOUNT_MEDALS, WorkbenchPanelIds.LIVE_CAPTURES))
+                    WorkbenchPanelIds.MODERATION, WorkbenchPanelIds.ACCOUNT_MEDALS))
         };
 
         return new()
@@ -74,8 +74,8 @@ internal static class WorkspaceLayoutPresets
                     Tabs(0.25, WorkbenchPanelIds.COMPOSER)),
                 right),
             HiddenPanelIds = presetId == TRANSLATION
-                ? [WorkbenchPanelIds.LYRICS, WorkbenchPanelIds.FORWARDING]
-                : [],
+                ? [WorkbenchPanelIds.LYRICS, WorkbenchPanelIds.FORWARDING, WorkbenchPanelIds.LIVE_CAPTURES]
+                : [WorkbenchPanelIds.LIVE_CAPTURES],
             FocusedPanelId = WorkbenchPanelIds.COMPOSER
         };
     }

@@ -369,11 +369,18 @@ public class WorkbenchDockMigrationTests
 
     private static void AssertAllPanelsRemainEditable(WorkbenchLayoutTestContext context)
     {
+        var captureWasVisible = context.Controller.IsVisible(WorkbenchPanelIds.LIVE_CAPTURES);
         foreach (var panelId in WorkbenchPanelIds.All)
         {
             context.Controller.ShowPanel(panelId);
             Pump(context);
             AssertEditablePanel(context, panelId);
+        }
+
+        if (!captureWasVisible)
+        {
+            context.Controller.HidePanel(WorkbenchPanelIds.LIVE_CAPTURES, false);
+            Pump(context);
         }
 
         Assert.True(WorkspaceLayoutValidator.TryValidate(context.Controller.Capture(), out var error), error);
@@ -453,7 +460,7 @@ public class WorkbenchDockMigrationTests
 
         return file with
         {
-            CurrentLayout = new()
+            CurrentLayout = file.CurrentLayout with
             {
                 Main = main with
                 {

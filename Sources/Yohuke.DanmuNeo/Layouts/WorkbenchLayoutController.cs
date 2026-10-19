@@ -12,6 +12,8 @@ namespace Yohuke.DanmuNeo.Layouts;
 
 internal sealed class WorkbenchLayoutController : IAsyncDisposable
 {
+    private const double CAPTURE_WINDOW_WIDTH = 1040;
+    private const double CAPTURE_WINDOW_HEIGHT = 680;
     private readonly Window owner;
     private readonly Action<Window>? registerFloatingWindow;
     private readonly Action<Window>? unregisterFloatingWindow;
@@ -129,7 +131,12 @@ internal sealed class WorkbenchLayoutController : IAsyncDisposable
                 }
 
                 panel.OriginalOwner = null;
-                factory.AddDockable(FindReopenDock(), panel);
+                var destination = FindReopenDock();
+                factory.AddDockable(destination, panel);
+                if (panelId == WorkbenchPanelIds.LIVE_CAPTURES)
+                {
+                    OpenDefaultCaptureWindow(destination, panel);
+                }
             }
         }
 
@@ -165,7 +172,11 @@ internal sealed class WorkbenchLayoutController : IAsyncDisposable
     {
         EnsureUsable();
         ShowPanel(panelId);
-        factory.FloatDockable(GetPanel(panelId));
+        var panel = GetPanel(panelId);
+        if (!IsFloating(panel))
+        {
+            factory.FloatDockable(panel);
+        }
         ScheduleCapture();
     }
 
@@ -439,8 +450,7 @@ internal sealed class WorkbenchLayoutController : IAsyncDisposable
                 root.HiddenDockables!.Add(panels[id]);
             }
 
-            var screens = owner.Screens.All.Select(screen => new WorkspaceScreenArea(screen.WorkingArea.X,
-                screen.WorkingArea.Y, screen.WorkingArea.Width, screen.WorkingArea.Height, screen.Scaling)).ToArray();
+            var screens = GetScreenAreas();
 
             foreach (var floating in snapshot.FloatingWindows)
             {
@@ -667,6 +677,33 @@ internal sealed class WorkbenchLayoutController : IAsyncDisposable
                 owner.Activate();
             }
         }
+    }
+
+    private bool IsFloating(WorkbenchDockPanel panel)
+    {
+        return (root.Windows ?? []).Any(window => window.Layout is { } layout &&
+            WorkbenchDockSnapshotCodec.Enumerate(layout).Contains(panel));
+    }
+
+    private void OpenDefaultCaptureWindow(IDock source, WorkbenchDockPanel panel)
+    {
+        var scaling = owner.DesktopScaling;
+        var size = owner.FrameSize ?? owner.ClientSize;
+        var bounds = WorkspaceLayoutBounds.Clamp(new()
+        {
+            X = owner.Position.X + (size.Width - CAPTURE_WINDOW_WIDTH) * scaling / 2,
+            Y = owner.Position.Y + (size.Height - CAPTURE_WINDOW_HEIGHT) * scaling / 2,
+            Width = CAPTURE_WINDOW_WIDTH,
+            Height = CAPTURE_WINDOW_HEIGHT,
+            Scaling = scaling
+        }, GetScreenAreas());
+        factory.SplitToWindow(source, panel, bounds.X, bounds.Y, bounds.Width, bounds.Height);
+    }
+
+    private WorkspaceScreenArea[] GetScreenAreas()
+    {
+        return owner.Screens.All.Select(screen => new WorkspaceScreenArea(screen.WorkingArea.X,
+            screen.WorkingArea.Y, screen.WorkingArea.Width, screen.WorkingArea.Height, screen.Scaling)).ToArray();
     }
 
     private IToolDock FindReopenDock()

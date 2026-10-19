@@ -52,9 +52,12 @@ public class ToolPanelsRenderTests
             main.UpdateLayout();
             var panel = workbench.Panels.Panels[panelId];
             Assert.True(panel.IsEffectivelyVisible);
-            var bottomRight = panel.TranslatePoint(new(panel.Bounds.Width, panel.Bounds.Height), main)!.Value;
-            Assert.InRange(bottomRight.X, 0, main.Bounds.Width + 0.5);
-            Assert.InRange(bottomRight.Y, 0, main.Bounds.Height + 0.5);
+            var host = panelId == WorkbenchPanelIds.LIVE_CAPTURES
+                ? Assert.Single(workbench.Layouts.FloatingWindows) : main;
+            host.UpdateLayout();
+            var bottomRight = panel.TranslatePoint(new(panel.Bounds.Width, panel.Bounds.Height), host)!.Value;
+            Assert.InRange(bottomRight.X, 0, host.Bounds.Width + 0.5);
+            Assert.InRange(bottomRight.Y, 0, host.Bounds.Height + 0.5);
             var tool = Assert.Single(panel.GetVisualAncestors().OfType<ToolControl>());
             var contentOrigin = panel.TranslatePoint(default, tool)!.Value;
             var contentRight = panel.TranslatePoint(new(panel.Bounds.Width, 0), tool)!.Value.X;
