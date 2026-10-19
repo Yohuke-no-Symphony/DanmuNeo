@@ -7,7 +7,7 @@ using Yohuke.DanmuNeo.Models.Workspace;
 namespace Yohuke.DanmuNeo.Services;
 
 /// <summary>按账号串行协调自动与手动换牌，始终让后续手动意图在在途自动请求之后执行。</summary>
-public sealed class MedalSwitchCoordinator : IDisposable, IAsyncDisposable
+public sealed partial class MedalSwitchCoordinator : IDisposable, IAsyncDisposable
 {
     private readonly object gate = new();
     private readonly IBilibiliMedalService service;
@@ -15,6 +15,7 @@ public sealed class MedalSwitchCoordinator : IDisposable, IAsyncDisposable
     private readonly Func<Task> saveState;
     private readonly Func<TimeSpan> getTimeout;
     private readonly IAppLogService log;
+    private readonly TimeProvider timeProvider;
     private readonly CancellationTokenSource lifetime = new();
     private readonly Dictionary<string, MedalAccountQueue> queues = [];
     private readonly HashSet<Task> operations = [];
@@ -25,13 +26,14 @@ public sealed class MedalSwitchCoordinator : IDisposable, IAsyncDisposable
 
     /// <summary>构造协调器，不主动查询牌墙或修改佩戴状态。</summary>
     public MedalSwitchCoordinator(IBilibiliMedalService service, IBilibiliAccountSessionService sessions,
-        Func<Task> saveState, Func<TimeSpan> getTimeout, IAppLogService log)
+        Func<Task> saveState, Func<TimeSpan> getTimeout, IAppLogService log, TimeProvider? timeProvider = null)
     {
         this.service = service;
         this.sessions = sessions;
         this.saveState = saveState;
         this.getTimeout = getTimeout;
         this.log = log;
+        this.timeProvider = timeProvider ?? TimeProvider.System;
         sessions.Changed += OnSessionChanged;
     }
 
@@ -61,14 +63,21 @@ public sealed class MedalSwitchCoordinator : IDisposable, IAsyncDisposable
     public Task<AccountMedalCollection> WearManuallyAsync(BilibiliAccount account, long medalId,
         CancellationToken cancellationToken = default)
     {
-        return Track(() => WriteManuallyAsync(account, medalId, cancellationToken));
+        return Track(() => WriteManuallyAsync(account, medalId, true, cancellationToken));
     }
 
     /// <summary>先关闭并保存账号自动设置，再摘下服务端确认的当前牌子。</summary>
     public Task<AccountMedalCollection> TakeOffManuallyAsync(BilibiliAccount account,
         CancellationToken cancellationToken = default)
     {
-        return Track(() => WriteManuallyAsync(account, null, cancellationToken));
+        return Track(() => WriteManuallyAsync(account, null, false, cancellationToken));
+    }
+
+    /// <summary>摘下界面中已确认佩戴的牌子，不让写前滞后的牌墙替换用户意图。</summary>
+    public Task<AccountMedalCollection> TakeOffManuallyAsync(BilibiliAccount account, long medalId,
+        CancellationToken cancellationToken = default)
+    {
+        return Track(() => WriteManuallyAsync(account, medalId, false, cancellationToken));
     }
 
     /// <summary>保存账号级自动偏好，启用后重新处理当前活跃目标。</summary>
@@ -258,7 +267,7 @@ public sealed class MedalSwitchCoordinator : IDisposable, IAsyncDisposable
                     {
                         continue;
                     }
-                    var collection = await ReadAsync(context, cancellation.Token).ConfigureAwait(false);
+                    var collection = await ReadAsync(context, queue, cancellation.Token).ConfigureAwait(false);
                     if (!IsCurrentAutomatic(target))
                     {
                         continue;
@@ -269,19 +278,24 @@ public sealed class MedalSwitchCoordinator : IDisposable, IAsyncDisposable
                     {
                         EnsureCurrentCredentials(context);
                         await service.WearAsync(match.Id, context.Cookie, getTimeout(), cancellation.Token).ConfigureAwait(false);
-                        collection = await ReadAsync(context, cancellation.Token).ConfigureAwait(false);
+                        collection = await ConfirmWriteAsync(context, queue, collection, match.Id, cancellation.Token).ConfigureAwait(false);
                     }
                     else if (match is null && collection.IsComplete && wearing is not null)
                     {
                         EnsureCurrentCredentials(context);
                         await service.TakeOffAsync(wearing.Id, context.Cookie, getTimeout(), cancellation.Token).ConfigureAwait(false);
-                        collection = await ReadAsync(context, cancellation.Token).ConfigureAwait(false);
+                        collection = await ConfirmWriteAsync(context, queue, collection, null, cancellation.Token).ConfigureAwait(false);
                     }
                     else if (match is null && !collection.IsComplete)
                     {
                         log.Warning(Localization.Get("Medals.Source"), Localization.Get("Medals.Incomplete"));
                     }
                     Publish(context, collection);
+                }
+                catch (BilibiliAuthenticationException)
+                {
+                    queue.PendingWearingChange = null;
+                    throw;
                 }
                 finally
                 {
@@ -314,7 +328,7 @@ public sealed class MedalSwitchCoordinator : IDisposable, IAsyncDisposable
         {
             var context = await CreateContextAsync(intent, waiting.Token, true).ConfigureAwait(false);
             using var request = CancellationTokenSource.CreateLinkedTokenSource(waiting.Token, context.CredentialCancellationToken);
-            var collection = await ReadAsync(context, request.Token).ConfigureAwait(false);
+            var collection = await ReadAsync(context, queue, request.Token).ConfigureAwait(false);
             Publish(context, collection);
             return collection;
         }
@@ -324,7 +338,7 @@ public sealed class MedalSwitchCoordinator : IDisposable, IAsyncDisposable
         }
     }
 
-    private async Task<AccountMedalCollection> WriteManuallyAsync(BilibiliAccount account, long? medalId,
+    private async Task<AccountMedalCollection> WriteManuallyAsync(BilibiliAccount account, long? medalId, bool wear,
         CancellationToken cancellationToken)
     {
         var intent = CaptureIntent(account);
@@ -338,11 +352,11 @@ public sealed class MedalSwitchCoordinator : IDisposable, IAsyncDisposable
             var context = await CreateContextAsync(intent, waiting.Token, true).ConfigureAwait(false);
             using var writeLifetime = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token,
                 context.CredentialCancellationToken);
-            var collection = await ReadAsync(context, writeLifetime.Token).ConfigureAwait(false);
+            var collection = await ReadAsync(context, queue, writeLifetime.Token).ConfigureAwait(false);
             var selected = medalId is { } id
                 ? collection.Items.FirstOrDefault(item => item.Id == id)
                 : collection.Items.FirstOrDefault(item => item.IsWearing);
-            if (selected is null)
+            if (selected is null && (wear || medalId is not > 0))
             {
                 if (medalId is null && collection.IsComplete)
                 {
@@ -351,24 +365,27 @@ public sealed class MedalSwitchCoordinator : IDisposable, IAsyncDisposable
                 }
                 throw new InvalidOperationException(Localization.Get("Medals.SelectionMissing"));
             }
+            var selectedId = selected?.Id ?? medalId!.Value;
             EnsureCurrentCredentials(context);
             try
             {
-                if (medalId.HasValue)
+                if (wear)
                 {
-                    await service.WearAsync(selected.Id, context.Cookie, getTimeout(), writeLifetime.Token).ConfigureAwait(false);
+                    await service.WearAsync(selectedId, context.Cookie, getTimeout(), writeLifetime.Token).ConfigureAwait(false);
                 }
                 else
                 {
-                    await service.TakeOffAsync(selected.Id, context.Cookie, getTimeout(), writeLifetime.Token).ConfigureAwait(false);
+                    await service.TakeOffAsync(selectedId, context.Cookie, getTimeout(), writeLifetime.Token).ConfigureAwait(false);
                 }
             }
             catch (BilibiliAuthenticationException)
             {
+                queue.PendingWearingChange = null;
                 sessions.ReportAuthenticationFailure(account.Id, context.Cookie);
                 throw;
             }
-            collection = await ReadAsync(context, writeLifetime.Token).ConfigureAwait(false);
+            collection = await ConfirmWriteAsync(context, queue, collection, wear ? selectedId : null,
+                writeLifetime.Token).ConfigureAwait(false);
             Publish(context, collection);
             return collection;
         }
@@ -438,7 +455,8 @@ public sealed class MedalSwitchCoordinator : IDisposable, IAsyncDisposable
         return intent with { Uid = state.Uid };
     }
 
-    private async Task<AccountMedalCollection> ReadAsync(MedalAccountOperationContext context, CancellationToken cancellationToken)
+    private async Task<AccountMedalCollection> ReadAsync(MedalAccountOperationContext context, MedalAccountQueue queue,
+        CancellationToken cancellationToken)
     {
         try
         {
@@ -446,10 +464,11 @@ public sealed class MedalSwitchCoordinator : IDisposable, IAsyncDisposable
                 .ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
             EnsureCurrentCredentials(context);
-            return collection;
+            return ResolvePendingChange(queue, collection);
         }
         catch (BilibiliAuthenticationException)
         {
+            queue.PendingWearingChange = null;
             sessions.ReportAuthenticationFailure(context.Account.Id, context.Cookie);
             throw;
         }

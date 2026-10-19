@@ -74,6 +74,8 @@
     "Medals.TakeOff": "摘下当前",
     "Medals.Wearing": "佩戴中",
     "Medals.Loading": "正在读取或更新粉丝牌…",
+    "Medals.ConfirmationPending": "操作已提交，等待牌墙同步；可刷新确认。",
+    "Medals.ConfirmationTimedOut": "同步确认已超时，当前显示服务器状态；请刷新后重试。",
     "Medals.PreferenceSaved": "账号自动换牌设置已保存。",
     "Medals.RefreshRequired": "账号凭据已变更，请刷新牌墙。",
     "Medals.ShutdownFailed": "退出时有粉丝牌操作未完成。",

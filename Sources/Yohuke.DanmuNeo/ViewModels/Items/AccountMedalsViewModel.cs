@@ -55,7 +55,7 @@ public partial class AccountMedalsViewModel : ObservableObject, IDisposable
     /// <summary>是否可主动刷新。</summary>
     public bool CanRefresh => isActive && !IsBusy && SelectedAccount is not null;
     /// <summary>是否可手动佩戴当前选择。</summary>
-    public bool CanWear => CanRefresh && SelectedMedal is not null;
+    public bool CanWear => CanRefresh && SelectedMedal is { IsWearing: false };
     /// <summary>是否可摘下当前佩戴的牌子。</summary>
     public bool CanTakeOff => CanRefresh && Medals.Any(item => item.IsWearing);
     /// <summary>已选择账号的自动偏好；不属于房间配置。</summary>
@@ -137,7 +137,7 @@ public partial class AccountMedalsViewModel : ObservableObject, IDisposable
     [RelayCommand(CanExecute = nameof(CanWear))]
     public Task WearSelectedAsync()
     {
-        if (SelectedMedal is not { } medal)
+        if (!CanWear || SelectedMedal is not { } medal)
         {
             return Task.CompletedTask;
         }
@@ -149,8 +149,12 @@ public partial class AccountMedalsViewModel : ObservableObject, IDisposable
     [RelayCommand(CanExecute = nameof(CanTakeOff))]
     public Task TakeOffAsync()
     {
+        if (!CanTakeOff || Medals.FirstOrDefault(item => item.IsWearing) is not { } medal)
+        {
+            return Task.CompletedTask;
+        }
         return PendingOperation = RunOperationAsync(async (account, token) =>
-            await coordinator.TakeOffManuallyAsync(account, token));
+            await coordinator.TakeOffManuallyAsync(account, medal.Id, token));
     }
 
     /// <inheritdoc/>
@@ -274,13 +278,36 @@ public partial class AccountMedalsViewModel : ObservableObject, IDisposable
     {
         isDirty = false;
         var previousId = SelectedMedal?.Id;
-        Medals.Clear();
-        foreach (var medal in collection.Items)
+        for (var index = Medals.Count - 1; index >= 0; index--)
         {
-            Medals.Add(medal);
+            if (collection.Items.All(item => item.Id != Medals[index].Id))
+            {
+                Medals.RemoveAt(index);
+            }
+        }
+        for (var index = 0; index < collection.Items.Count; index++)
+        {
+            var medal = collection.Items[index];
+            var existing = Medals.FirstOrDefault(item => item.Id == medal.Id);
+            if (existing is null)
+            {
+                Medals.Insert(index, medal);
+                continue;
+            }
+            var previousIndex = Medals.IndexOf(existing);
+            if (previousIndex != index)
+            {
+                Medals.Move(previousIndex, index);
+            }
+            if (existing != medal)
+            {
+                Medals[index] = medal;
+            }
         }
         SelectedMedal = Medals.FirstOrDefault(item => item.Id == previousId);
-        SetStatus(collection.IsComplete ? "Medals.Loaded" : "Medals.Incomplete");
+        SetStatus(collection.IsWearingStatePending ? "Medals.ConfirmationPending" :
+            collection.WearingSyncState == MedalWearingSyncState.TimedOut ? "Medals.ConfirmationTimedOut" :
+            collection.IsComplete ? "Medals.Loaded" : "Medals.Incomplete");
         NotifyCommands();
     }
 

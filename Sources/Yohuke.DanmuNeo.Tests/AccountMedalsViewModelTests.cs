@@ -163,6 +163,44 @@ public class AccountMedalsViewModelTests
         Assert.True(viewModel.Medals.Single(item => item.Id == 11).IsWearing);
     }
 
+    /// <summary>一次点击佩戴后保留行选择和未变化的行引用，摘下也只提交一次。</summary>
+    [AvaloniaFact]
+    public async Task SingleWearAndTakeOffKeepSelectionWithDelayedWall()
+    {
+        using var log = new AppLogService();
+        using var sessions = new BilibiliAccountSessionService(new MedalValidationService());
+        var account = MedalSwitchCoordinatorTests.Account();
+        sessions.Register(account);
+        await sessions.ValidateAsync(account);
+        var service = new FakeMedalService();
+        var old = service.Collection;
+        await using var coordinator = new MedalSwitchCoordinator(service, sessions, () => Task.CompletedTask,
+            () => TimeSpan.FromSeconds(3), log);
+        using var viewModel = new AccountMedalsViewModel(new([account]), coordinator, log);
+        viewModel.UpdateCurrentAccount(account);
+        await viewModel.ActivateAsync();
+        Dispatcher.UIThread.RunJobs();
+        viewModel.SelectedMedal = viewModel.Medals.Single(item => item.Id == 11);
+        var unchanged = viewModel.Medals.Single(item => item.Id == 33);
+        service.ReadResponse = _ => old;
+
+        await viewModel.WearSelectedCommand.ExecuteAsync(null);
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal(11, viewModel.SelectedMedal?.Id);
+        Assert.True(viewModel.SelectedMedal?.IsWearing);
+        Assert.Same(unchanged, viewModel.Medals.Single(item => item.Id == 33));
+        Assert.False(viewModel.WearSelectedCommand.CanExecute(null));
+        Assert.True(viewModel.TakeOffCommand.CanExecute(null));
+        Assert.Equal(["wear:11"], service.Writes);
+        await viewModel.TakeOffCommand.ExecuteAsync(null);
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(["wear:11", "off:11"], service.Writes);
+        Assert.DoesNotContain(viewModel.Medals, item => item.IsWearing);
+        Assert.Equal(11, viewModel.SelectedMedal?.Id);
+        Assert.False(viewModel.TakeOffCommand.CanExecute(null));
+    }
+
     /// <summary>Cookie变化立即清空旧牌墙，账号删除后不自动切换到其他账号。</summary>
     [AvaloniaFact]
     public async Task CredentialAndAccountRemovalInvalidatePanelState()

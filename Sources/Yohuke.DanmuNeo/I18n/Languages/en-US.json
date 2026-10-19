@@ -74,6 +74,8 @@
     "Medals.TakeOff": "Take off current",
     "Medals.Wearing": "Wearing",
     "Medals.Loading": "Loading or updating medals…",
+    "Medals.ConfirmationPending": "Change submitted; waiting for the medal wall to sync. Refresh to confirm.",
+    "Medals.ConfirmationTimedOut": "Confirmation timed out. Showing the server state; refresh before trying again.",
     "Medals.PreferenceSaved": "The account automatic switching preference was saved.",
     "Medals.RefreshRequired": "Account credentials changed. Refresh the medal wall.",
     "Medals.ShutdownFailed": "A medal operation did not finish during shutdown.",

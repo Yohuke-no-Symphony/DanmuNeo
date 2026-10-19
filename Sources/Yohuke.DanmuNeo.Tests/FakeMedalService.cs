@@ -14,6 +14,7 @@ internal sealed class FakeMedalService : IBilibiliMedalService
     internal int OwnerReadCount { get; private set; }
     internal long OwnerUid { get; set; } = 100;
     internal Exception? ReadError { get; set; }
+    internal Func<int, AccountMedalCollection>? ReadResponse { get; set; }
     internal TaskCompletionSource? FirstWriteStarted { get; set; }
     internal TaskCompletionSource? ReleaseFirstWrite { get; set; }
     internal TaskCompletionSource? ReadStarted { get; set; }
@@ -48,7 +49,7 @@ internal sealed class FakeMedalService : IBilibiliMedalService
         {
             throw ReadError;
         }
-        return Collection;
+        return ReadResponse?.Invoke(ReadCount) ?? Collection;
     }
 
     /// <inheritdoc/>
