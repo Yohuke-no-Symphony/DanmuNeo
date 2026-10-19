@@ -109,6 +109,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IAsyncDis
         MusicLyricSearchResults = [];
         ShortcutBindingGroups = [];
         Workspaces = new(State.Workspaces.OrderBy(workspace => workspace.SortOrder).Select(CreateWorkspaceViewModel));
+        ModerationManager = new(Accounts, Workspaces, this.moderationService, this.accountSessions, Log,
+            () => TimeSpan.FromSeconds(double.IsFinite(Settings.TimeoutSeconds)
+                ? Math.Clamp(Settings.TimeoutSeconds, 0.1, 120) : 3.05));
         selectedWorkspace = Workspaces.FirstOrDefault(workspace => workspace.Id == State.SelectedWorkspaceId) ??
                             Workspaces.FirstOrDefault();
         RefreshThemeModeOptions();
@@ -1856,6 +1859,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IAsyncDis
             return;
         }
 
+        ModerationManager.Dispose();
         _ = ShutdownReceptionAsync();
         isDisposed = true;
         Localization.LanguageChanged -= OnLanguageChanged;

@@ -60,7 +60,7 @@ public class BilibiliModerationServiceTests
         using var client = new HttpClient(handler);
         var service = new BilibiliModerationService(client);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.GetPermissionAsync("100", "SESSDATA=test"));
+        await Assert.ThrowsAnyAsync<InvalidOperationException>(() => service.GetPermissionAsync("100", "SESSDATA=test"));
 
         Assert.Equal(2, handler.Requests.Count);
         Assert.Equal("/xlive/web-room/v2/index/getRoomPlayInfo", handler.Requests[1].AbsolutePath);
@@ -80,7 +80,7 @@ public class BilibiliModerationServiceTests
         using var client = new HttpClient(handler);
         var service = new BilibiliModerationService(client);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.GetPermissionAsync("100", "SESSDATA=test"));
+        await Assert.ThrowsAnyAsync<InvalidOperationException>(() => service.GetPermissionAsync("100", "SESSDATA=test"));
         Assert.Single(handler.Requests);
     }
 

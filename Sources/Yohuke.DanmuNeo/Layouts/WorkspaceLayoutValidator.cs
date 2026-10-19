@@ -14,7 +14,13 @@ internal static class WorkspaceLayoutValidator
     internal static bool TryValidate(WorkspaceLayoutSnapshot layout, out string error, out string errorKey,
         bool legacy = false)
     {
-        var valid = TryValidateSnapshot(layout, out errorKey, legacy);
+        return TryValidate(layout, out error, out errorKey, legacy ? 1 : WorkspaceLayoutFile.CURRENT_VERSION);
+    }
+
+    internal static bool TryValidate(WorkspaceLayoutSnapshot layout, out string error, out string errorKey,
+        int version)
+    {
+        var valid = TryValidateSnapshot(layout, out errorKey, version);
         error = errorKey.Length == 0 ? string.Empty : Localization.Get(errorKey);
         return valid;
     }
@@ -31,9 +37,15 @@ internal static class WorkspaceLayoutValidator
         return valid;
     }
 
-    private static bool TryValidateSnapshot(WorkspaceLayoutSnapshot layout, out string error, bool legacy)
+    private static bool TryValidateSnapshot(WorkspaceLayoutSnapshot layout, out string error, int version)
     {
         error = "";
+        var expected = WorkbenchPanelIds.ForVersion(version);
+        if (expected.Count == 0)
+        {
+            error = "Layout.Validation.UnsupportedVersion";
+            return false;
+        }
 
         if (layout is null || layout.FloatingWindows is null || layout.HiddenPanelIds is null)
         {
@@ -77,10 +89,6 @@ internal static class WorkspaceLayoutValidator
             }
         }
 
-        var expected = legacy
-            ? WorkbenchPanelIds.All.Where(id => id != WorkbenchPanelIds.LOG)
-            : WorkbenchPanelIds.All;
-
         if (!panelIds.SetEquals(expected))
         {
             error = "Layout.Validation.IncompletePanels";
@@ -106,7 +114,7 @@ internal static class WorkspaceLayoutValidator
             return false;
         }
 
-        if (!TryValidateSnapshot(file.CurrentLayout, out error, false))
+        if (!TryValidateSnapshot(file.CurrentLayout, out error, WorkspaceLayoutFile.CURRENT_VERSION))
         {
             return false;
         }
@@ -134,7 +142,7 @@ internal static class WorkspaceLayoutValidator
                 return false;
             }
 
-            if (!TryValidateSnapshot(preset.Layout, out error, false))
+            if (!TryValidateSnapshot(preset.Layout, out error, WorkspaceLayoutFile.CURRENT_VERSION))
             {
                 return false;
             }

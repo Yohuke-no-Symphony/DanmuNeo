@@ -1,3 +1,4 @@
+using Yohuke.DanmuNeo.Apis;
 using Yohuke.DanmuNeo.Models.Workspace;
 using Yohuke.DanmuNeo.Services;
 
@@ -8,6 +9,32 @@ namespace Yohuke.DanmuNeo.Tests;
 /// </summary>
 public class RoomModerationTests
 {
+    /// <summary>右键权限查询与禁言接口确认未登录时，统一阻止该凭据继续发送。</summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AuthenticationFailureInvalidatesCapturedAccount(bool duringWrite)
+    {
+        using var sessions = new BilibiliAccountSessionService(new ControlledAccountValidationService());
+        using var context = new RoomModerationTestContext(accountSessions: sessions);
+        sessions.Register(context.Account);
+        if (duringWrite)
+        {
+            Assert.True(await context.Room.RefreshModerationPermissionAsync(context.Item));
+            context.Service.MuteException = new BilibiliAuthenticationException("登录已过期");
+            await context.Room.MuteDanmuAsync(context.Item);
+        }
+        else
+        {
+            context.Service.RespondAsync = _ => Task.FromException<RoomModerationPermission>(
+                new BilibiliAuthenticationException("登录已过期"));
+            Assert.False(await context.Room.RefreshModerationPermissionAsync(context.Item));
+        }
+
+        Assert.Equal(AccountValidationStatus.Expired, sessions.GetState(context.Account.Id).Status);
+        Assert.False(sessions.CanSend(context.Account.Id, context.Account.Cookie));
+    }
+
     /// <summary>
     /// 菜单授权后执行命令仍会再次查询，并用同一账号和目标弹幕执行禁言。
     /// </summary>

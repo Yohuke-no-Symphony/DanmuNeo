@@ -35,10 +35,10 @@ public class LogLayoutIntegrationTests
         Assert.Equal(JsonSerializer.Serialize(layout.FloatingWindows),
             JsonSerializer.Serialize(migrated.CurrentLayout.FloatingWindows));
         Assert.Equal(layout.FocusedPanelId, migrated.CurrentLayout.FocusedPanelId);
-        Assert.Equal([WorkbenchPanelIds.LOG], migrated.CurrentLayout.HiddenPanelIds);
+        Assert.Equal(WorkbenchPanelIds.All.Except(WorkbenchPanelIds.ForVersion(1)), migrated.CurrentLayout.HiddenPanelIds);
         var preset = Assert.Single(migrated.UserPresets);
         Assert.Equal("保留的布局", preset.Name);
-        Assert.Equal([WorkbenchPanelIds.LOG], preset.Layout.HiddenPanelIds);
+        Assert.Equal(WorkbenchPanelIds.All.Except(WorkbenchPanelIds.ForVersion(1)), preset.Layout.HiddenPanelIds);
         Assert.Equal(JsonSerializer.Serialize(layout.Main), JsonSerializer.Serialize(preset.Layout.Main));
         Assert.True(WorkspaceLayoutValidator.TryValidate(migrated, out var error), error);
     }
@@ -86,7 +86,7 @@ public class LogLayoutIntegrationTests
             var recovered = await store.LoadAsync();
 
             Assert.Equal(WorkspaceLayoutFile.CURRENT_VERSION, recovered.Version);
-            Assert.Equal([WorkbenchPanelIds.LOG], recovered.CurrentLayout.HiddenPanelIds);
+            Assert.Equal(WorkbenchPanelIds.All.Except(WorkbenchPanelIds.ForVersion(1)), recovered.CurrentLayout.HiddenPanelIds);
             Assert.Equal(-1200, Assert.Single(recovered.CurrentLayout.FloatingWindows).Bounds.X);
             Assert.Single(Directory.GetFiles(store.CorruptDirectory));
             var saved = WorkspaceLayoutSerializer.Deserialize(await File.ReadAllTextAsync(store.FilePath));
@@ -159,7 +159,7 @@ public class LogLayoutIntegrationTests
         {
             Main = new()
             {
-                PanelIds = [.. WorkbenchPanelIds.All.Where(id => id is not (WorkbenchPanelIds.LOG or WorkbenchPanelIds.LYRICS))],
+                PanelIds = [.. WorkbenchPanelIds.ForVersion(1).Where(id => id != WorkbenchPanelIds.LYRICS)],
                 ActivePanelId = WorkbenchPanelIds.COMPOSER
             },
             FloatingWindows =

@@ -7,9 +7,12 @@ namespace Yohuke.DanmuNeo.Services;
 /// <summary>
 /// 通过 B 站直播接口确认权限并执行禁言。
 /// </summary>
-public class BilibiliModerationService : IBilibiliModerationService
+public partial class BilibiliModerationService : IBilibiliModerationService
 {
     private readonly HttpClient? httpClient;
+
+    /// <inheritdoc/>
+    public event EventHandler<long>? Changed;
 
     /// <summary>
     /// 初始化服务；注入的 HTTP 客户端由调用方管理。
@@ -38,7 +41,7 @@ public class BilibiliModerationService : IBilibiliModerationService
 
         if (userResponse.Code != 0)
         {
-            throw CreateError(userResponse.Message, userResponse.Msg, "Services.BilibiliModeration.PermissionQueryFailed");
+            throw CreateError(userResponse.Code, userResponse.Message, userResponse.Msg, "Services.BilibiliModeration.PermissionQueryFailed");
         }
 
         var userInfo = userResponse.Data?.Info;
@@ -54,7 +57,7 @@ public class BilibiliModerationService : IBilibiliModerationService
 
         if (roomResponse.Code != 0)
         {
-            throw CreateError(roomResponse.Message, roomResponse.Msg, "Services.BilibiliModeration.RoomQueryFailed");
+            throw CreateError(roomResponse.Code, roomResponse.Message, roomResponse.Msg, "Services.BilibiliModeration.RoomQueryFailed");
         }
 
         var roomInfo = roomResponse.Data;
@@ -86,12 +89,7 @@ public class BilibiliModerationService : IBilibiliModerationService
         ArgumentOutOfRangeException.ThrowIfLessThan(roomId, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(userUid, 1);
 
-        if (string.IsNullOrWhiteSpace(ApiCookieHelper.GetValue(cookie, "SESSDATA")) ||
-            string.IsNullOrWhiteSpace(ApiCookieHelper.GetValue(cookie, "bili_jct")))
-        {
-            throw LocalizedExceptionText.Create("Services.BilibiliModeration.CredentialsIncomplete",
-                text => new InvalidOperationException(text));
-        }
+        ValidateCredentials(cookie);
 
         using var api = new BilibiliApi(cookie, httpClient: httpClient);
         var response =
@@ -100,19 +98,35 @@ public class BilibiliModerationService : IBilibiliModerationService
 
         if (response.Code != 0)
         {
-            throw CreateError(response.Message, response.Msg, "Services.BilibiliModeration.MuteFailed");
+            throw CreateError(response.Code, response.Message, response.Msg, "Services.BilibiliModeration.MuteFailed");
         }
+
+        Changed?.Invoke(this, roomId);
     }
 
-    private static InvalidOperationException CreateError(string? message, string? msg, string fallbackKey)
+    private static InvalidOperationException CreateError(int code, string? message, string? msg, string fallbackKey)
     {
-        if (!string.IsNullOrWhiteSpace(message))
+        var error = !string.IsNullOrWhiteSpace(message) ? message : msg;
+
+        if (code == -101)
         {
-            return new(message);
+            return string.IsNullOrWhiteSpace(error)
+                ? LocalizedExceptionText.Create(fallbackKey, text => new BilibiliAuthenticationException(text))
+                : new BilibiliAuthenticationException(error);
         }
 
-        return !string.IsNullOrWhiteSpace(msg)
-            ? new(msg)
-            : LocalizedExceptionText.Create(fallbackKey, text => new InvalidOperationException(text));
+        return string.IsNullOrWhiteSpace(error)
+            ? LocalizedExceptionText.Create(fallbackKey, text => new InvalidOperationException(text))
+            : new InvalidOperationException(error);
+    }
+
+    private static void ValidateCredentials(string cookie)
+    {
+        if (string.IsNullOrWhiteSpace(ApiCookieHelper.GetValue(cookie, "SESSDATA")) ||
+            string.IsNullOrWhiteSpace(ApiCookieHelper.GetValue(cookie, "bili_jct")))
+        {
+            throw LocalizedExceptionText.Create("Services.BilibiliModeration.CredentialsIncomplete",
+                text => new InvalidOperationException(text));
+        }
     }
 }

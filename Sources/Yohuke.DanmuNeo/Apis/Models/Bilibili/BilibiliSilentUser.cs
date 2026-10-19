@@ -23,8 +23,16 @@ public class BilibiliSilentUser
     /// <summary>
     /// 用户名。
     /// </summary>
-    [JsonProperty("uname")]
+    [JsonProperty("tname")]
     public string? Name { get; set; }
+
+    /// <summary>平台返回的禁言时间文本。</summary>
+    [JsonProperty("ctime")]
+    public string? CreatedAtText { get; set; }
+
+    /// <summary>执行禁言的账号昵称。</summary>
+    [JsonProperty("name")]
+    public string? ExecutorName { get; set; }
 
     /// <summary>
     /// 未显式映射的字段。

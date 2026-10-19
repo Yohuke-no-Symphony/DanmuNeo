@@ -6,7 +6,7 @@ using Yohuke.DanmuNeo.Windowing;
 namespace Yohuke.DanmuNeo.Views.Components;
 
 /// <summary>
-/// 工作台唯一持有的七个业务视图，布局操作只重组这些实例。
+/// 工作台唯一持有的业务视图，布局操作只重组这些实例。
 /// </summary>
 public sealed class WorkbenchPanelSet : IDisposable
 {
@@ -27,6 +27,7 @@ public sealed class WorkbenchPanelSet : IDisposable
         History = new(context);
         Lyrics = new(context);
         Forwarding = new(context);
+        Moderation = new(context, context.Application.ModerationManager);
         Panels = new Dictionary<string, WorkbenchPanelView>
         {
             [WorkbenchPanelIds.LIVE_PLAYER] = Player,
@@ -35,7 +36,8 @@ public sealed class WorkbenchPanelSet : IDisposable
             [WorkbenchPanelIds.DANMU] = Danmu,
             [WorkbenchPanelIds.HISTORY] = History,
             [WorkbenchPanelIds.LYRICS] = Lyrics,
-            [WorkbenchPanelIds.FORWARDING] = Forwarding
+            [WorkbenchPanelIds.FORWARDING] = Forwarding,
+            [WorkbenchPanelIds.MODERATION] = Moderation
         };
         Lyrics.LyricLibraryRequested += owner => LyricLibraryRequested?.Invoke(owner);
         context.SelectionChanged += Context_OnSelectionChanged;
@@ -61,6 +63,9 @@ public sealed class WorkbenchPanelSet : IDisposable
 
     /// <summary>转发面板。</summary>
     public ForwardingPanelView Forwarding { get; }
+
+    /// <summary>按所选账号管理跨房间禁言的工具面板。</summary>
+    public ModerationPanelView Moderation { get; }
 
     /// <summary>以稳定面板 ID 索引的唯一视图集合。</summary>
     public IReadOnlyDictionary<string, WorkbenchPanelView> Panels { get; }

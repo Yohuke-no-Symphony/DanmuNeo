@@ -11,7 +11,7 @@ internal static class WorkspaceLayoutMigration
 
     internal static WorkspaceLayoutFile Upgrade(WorkspaceLayoutFile file)
     {
-        if (file.Version != 1)
+        if (file.Version < 1 || file.Version >= WorkspaceLayoutFile.CURRENT_VERSION)
         {
             return file;
         }
@@ -22,12 +22,23 @@ internal static class WorkspaceLayoutMigration
                 message => new InvalidDataException(message));
         }
 
-        return file with
+        while (file.Version < WorkspaceLayoutFile.CURRENT_VERSION)
         {
-            Version = WorkspaceLayoutFile.CURRENT_VERSION,
-            CurrentLayout = AddLogPanel(file.CurrentLayout),
-            UserPresets = file.UserPresets.Select(preset => preset with { Layout = AddLogPanel(preset.Layout) }).ToList()
-        };
+            var sourceVersion = file.Version;
+            var additions = WorkbenchPanelIds.ForVersion(sourceVersion + 1)
+                .Except(WorkbenchPanelIds.ForVersion(sourceVersion), StringComparer.Ordinal).ToArray();
+            file = file with
+            {
+                Version = sourceVersion + 1,
+                CurrentLayout = AddHiddenPanels(file.CurrentLayout, sourceVersion, additions),
+                UserPresets = file.UserPresets.Select(preset => preset with
+                {
+                    Layout = AddHiddenPanels(preset.Layout, sourceVersion, additions)
+                }).ToList()
+            };
+        }
+
+        return file;
     }
 
     internal static WorkspaceLayoutFile CreateInitial(AppSettings? legacySettings)
@@ -79,14 +90,15 @@ internal static class WorkspaceLayoutMigration
         return proportion is > 0 and < 1 ? proportion : DEFAULT_SIDEBAR_PROPORTION;
     }
 
-    private static WorkspaceLayoutSnapshot AddLogPanel(WorkspaceLayoutSnapshot layout)
+    private static WorkspaceLayoutSnapshot AddHiddenPanels(WorkspaceLayoutSnapshot layout, int sourceVersion,
+        IReadOnlyList<string> additions)
     {
-        if (!WorkspaceLayoutValidator.TryValidate(layout, out _, out var errorKey, legacy: true))
+        if (!WorkspaceLayoutValidator.TryValidate(layout, out _, out var errorKey, sourceVersion))
         {
             throw LocalizedExceptionText.Create(errorKey, message => new InvalidDataException(message));
         }
 
-        return layout with { HiddenPanelIds = [.. layout.HiddenPanelIds, WorkbenchPanelIds.LOG] };
+        return layout with { HiddenPanelIds = [.. layout.HiddenPanelIds, .. additions] };
     }
 
     private static (double Live, double Tools) GetContentProportions(double liveWidth, double toolWidth)

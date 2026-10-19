@@ -76,17 +76,20 @@ public class WorkbenchPanelTests
 
         Assert.False(context.IsCurrent(firstSelection));
         Assert.Same(second, context.CurrentRoom);
-        Assert.Equal(7, panels.Panels.Count);
+        Assert.Equal(WorkbenchPanelIds.All.Count - 2, panels.Panels.Count);
 
         foreach (var pair in panels.Panels)
         {
             Assert.Same(original[pair.Key], pair.Value);
-            Assert.Same(second, pair.Value.DataContext);
+            if (pair.Value is WorkbenchRoomPanel)
+            {
+                Assert.Same(second, pair.Value.DataContext);
+            }
         }
 
         workspace.SelectedRoom = fixture.Room;
         Assert.Same(fixture.Room, context.CurrentRoom);
-        Assert.All(panels.Panels.Values, panel => Assert.Same(fixture.Room, panel.DataContext));
+        Assert.All(panels.Panels.Values.OfType<WorkbenchRoomPanel>(), panel => Assert.Same(fixture.Room, panel.DataContext));
     }
 
     /// <summary>

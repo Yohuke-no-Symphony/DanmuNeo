@@ -23,6 +23,12 @@ public class ModerationHttpHandler : HttpMessageHandler
     /// </summary>
     public List<string> RequestCookies { get; } = [];
 
+    /// <summary>各次请求的原始表单。</summary>
+    public List<string> Forms { get; } = [];
+
+    /// <summary>各次请求的方法。</summary>
+    public List<HttpMethod> Methods { get; } = [];
+
     /// <summary>
     /// 最后请求的表单。
     /// </summary>
@@ -57,10 +63,12 @@ public class ModerationHttpHandler : HttpMessageHandler
     {
         Requests.Add(request.RequestUri!);
         Method = request.Method;
+        Methods.Add(request.Method);
         ContentType = request.Content?.Headers.ContentType?.MediaType;
         Cookie = request.Headers.TryGetValues("Cookie", out var values) ? string.Join(";", values) : "";
         RequestCookies.Add(Cookie);
         Form = request.Content is null ? "" : await request.Content.ReadAsStringAsync(cancellationToken);
+        Forms.Add(Form);
         return new(HttpStatusCode.OK) { Content = new StringContent(Responses.Dequeue()) };
     }
 }

@@ -52,6 +52,7 @@ public partial class MainWindowViewModel
 
     private async Task CompleteReceptionAsync()
     {
+        ModerationManager.Dispose();
         foreach (var room in Workspaces.SelectMany(workspace => workspace.Rooms))
         {
             room.Dispose();

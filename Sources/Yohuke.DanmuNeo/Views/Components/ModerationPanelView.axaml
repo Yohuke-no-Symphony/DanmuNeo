@@ -1,0 +1,121 @@
+<components:WorkbenchPanelView xmlns="https://github.com/avaloniaui"
+                               xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                               xmlns:components="clr-namespace:Yohuke.DanmuNeo.Views.Components"
+                               xmlns:vm="clr-namespace:Yohuke.DanmuNeo.ViewModels"
+                               xmlns:state="clr-namespace:Yohuke.DanmuNeo.Models.State"
+                               xmlns:workspace="clr-namespace:Yohuke.DanmuNeo.Models.Workspace"
+                               x:Class="Yohuke.DanmuNeo.Views.Components.ModerationPanelView"
+                               x:DataType="vm:ModerationManagerViewModel"
+                               x:CompileBindings="True"
+                               x:Name="Root">
+    <Border Padding="{StaticResource WorkbenchPanelPadding}">
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Spacing="8">
+                <WrapPanel>
+                    <ComboBox Name="ModerationAccount"
+                              Width="220"
+                              MaxWidth="{Binding $parent[WrapPanel].Bounds.Width}"
+                              Margin="0,0,6,6"
+                              ItemsSource="{Binding Accounts}"
+                              SelectedItem="{Binding SelectedAccount, Mode=TwoWay}"
+                              PlaceholderText="{Loc Key=Moderation.SelectAccount}"
+                              ToolTip.Tip="{Loc Key=Moderation.AccountHint}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="state:BilibiliAccount">
+                                <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <Button Name="ModerationRefresh"
+                            Classes="iconButton"
+                            Margin="0,0,0,6"
+                            Command="{Binding RefreshCommand}"
+                            ToolTip.Tip="{Loc Key=Moderation.Refresh}">
+                        <LucideIcon Kind="RefreshCw" />
+                    </Button>
+                </WrapPanel>
+                <TextBlock Text="{Binding StatusText}" Classes="muted" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding SummaryText}" Classes="muted" TextWrapping="Wrap" />
+                <ItemsControl ItemsSource="{Binding Issues}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="x:String">
+                            <TextBlock Text="{Binding}" Classes="muted" TextWrapping="Wrap" Margin="0,0,0,4" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Text="{Loc Key=Moderation.FindUser}" Classes="sectionTitle" />
+                <ComboBox Name="ModerationTargetRoom"
+                          HorizontalAlignment="Stretch"
+                          ItemsSource="{Binding ManageableRooms}"
+                          SelectedItem="{Binding SelectedTargetRoom, Mode=TwoWay}"
+                          PlaceholderText="{Loc Key=Moderation.TargetRoom}"
+                          ToolTip.Tip="{Loc Key=Moderation.TargetRoom}">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="workspace:ModerationRoomOption">
+                            <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+                <WrapPanel>
+                    <TextBox Name="ModerationSearch"
+                             Width="220"
+                             MaxWidth="{Binding $parent[WrapPanel].Bounds.Width}"
+                             Margin="0,0,6,6"
+                             Text="{Binding SearchKeyword, Mode=TwoWay}"
+                             Watermark="{Loc Key=Moderation.SearchHint}"
+                             KeyDown="Search_OnKeyDown" />
+                    <Button Name="ModerationFindUser" Classes="iconButton" Margin="0,0,6,6"
+                            Command="{Binding SearchUsersCommand}"
+                            ToolTip.Tip="{Loc Key=Moderation.FindUser}">
+                        <LucideIcon Kind="Search" />
+                    </Button>
+                    <Button Name="ModerationLoadMoreUsers" Margin="0,0,0,6"
+                            IsVisible="{Binding HasMoreUsers}"
+                            Content="{Loc Key=Moderation.LoadMore}"
+                            Command="{Binding LoadMoreUsersCommand}" />
+                </WrapPanel>
+                <ItemsControl Name="ModerationUserResults" ItemsSource="{Binding UserSearchResults}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="workspace:ModerationUser">
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,6" ColumnSpacing="8">
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding UserName}" TextWrapping="Wrap" />
+                                    <TextBlock Text="{Binding Uid, StringFormat='UID {0}'}" Classes="muted" />
+                                </StackPanel>
+                                <Button Name="ModerationMuteUser" Grid.Column="1"
+                                        Content="{Loc Key=Moderation.Mute}"
+                                        Command="{Binding #Root.Manager.MuteUserCommand}"
+                                        CommandParameter="{Binding}" />
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Text="{Loc Key=Moderation.Records}" Classes="sectionTitle" />
+                <ItemsControl Name="ModerationRecords" ItemsSource="{Binding Records}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="workspace:ModerationRecord">
+                            <Border BorderBrush="{DynamicResource AppBorderBrush}"
+                                    BorderThickness="0,0,0,1" Padding="0,6">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                    <StackPanel Spacing="3">
+                                        <TextBlock Text="{Binding UserName}" TextWrapping="Wrap" />
+                                        <TextBlock Text="{Binding UserUid, StringFormat='UID {0}'}" Classes="muted" />
+                                        <TextBlock Text="{Binding RoomLabel}" Classes="muted" TextWrapping="Wrap" />
+                                        <TextBlock Text="{Binding CreatedAtText}" Classes="muted" TextWrapping="Wrap" />
+                                        <TextBlock Text="{Binding ExecutorName}" Classes="muted"
+                                                   ToolTip.Tip="{Loc Key=Moderation.Executor}" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <Button Name="ModerationUnmuteUser" Grid.Column="1"
+                                            VerticalAlignment="Center"
+                                            Content="{Loc Key=Moderation.Unmute}"
+                                            Command="{Binding #Root.Manager.UnmuteUserCommand}"
+                                            CommandParameter="{Binding}" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </ScrollViewer>
+    </Border>
+</components:WorkbenchPanelView>

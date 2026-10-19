@@ -34,6 +34,7 @@ internal sealed class WorkbenchDockPanel : Tool, IDeferredContentPresentation
             WorkbenchPanelIds.LYRICS => "Workbench.Panel.Lyrics",
             WorkbenchPanelIds.FORWARDING => "Workbench.Panel.Forwarding",
             WorkbenchPanelIds.LOG => "Workbench.Panel.Log",
+            WorkbenchPanelIds.MODERATION => "Workbench.Panel.Moderation",
             _ => throw new ArgumentOutOfRangeException(nameof(panelId))
         });
     }

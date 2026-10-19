@@ -11,14 +11,14 @@ public class BilibiliSilentUserListData
     /// <summary>
     /// 禁言用户列表。
     /// </summary>
-    [JsonProperty("list")]
-    public List<BilibiliSilentUser> List { get; set; } = [];
+    [JsonProperty("data")]
+    public List<BilibiliSilentUser>? List { get; set; }
 
     /// <summary>
-    /// 总数。
+    /// 总页数；缺失时保留空值，以区别于明确的空名单。
     /// </summary>
-    [JsonProperty("count")]
-    public int Count { get; set; }
+    [JsonProperty("total_page")]
+    public int? TotalPages { get; set; }
 
     /// <summary>
     /// 未显式映射的字段。

@@ -1,4 +1,5 @@
 using Avalonia.Headless.XUnit;
+using Yohuke.DanmuNeo.Layouts;
 using Yohuke.DanmuNeo.Views.Components;
 using Yohuke.DanmuNeo.Windowing;
 
@@ -7,6 +8,22 @@ namespace Yohuke.DanmuNeo.Tests;
 /// <summary>验证应用级工具与房间级面板在同一工作台中的绑定边界。</summary>
 public class WorkbenchApplicationPanelTests
 {
+    /// <summary>全局禁言面板在移除当前工作区选择后继续使用独立账号上下文。</summary>
+    [AvaloniaFact]
+    public void ModerationPanelRemainsUsableWithoutWorkspaceSelection()
+    {
+        using var fixture = new LiveRoomFeedViewTestContext();
+        using var context = new WorkbenchContext(fixture.ViewModel);
+        using var panels = new WorkbenchPanelSet(context);
+        var panel = panels.Panels[WorkbenchPanelIds.MODERATION];
+
+        fixture.ViewModel.SelectedWorkspace = null;
+
+        Assert.True(panel.IsEnabled);
+        Assert.Same(fixture.ViewModel.ModerationManager, panel.DataContext);
+        Assert.Null(context.CurrentRoom);
+    }
+
     /// <summary>未选房间及切换房间时，应用面板保持可用并保留自己的业务上下文。</summary>
     [AvaloniaFact]
     public void ApplicationPanelKeepsOwnContextWithoutCurrentRoom()

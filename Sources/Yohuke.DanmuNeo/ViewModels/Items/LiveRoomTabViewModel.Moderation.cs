@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Yohuke.DanmuNeo.Apis;
 using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Models.Workspace;
 using Yohuke.DanmuNeo.Services;
@@ -89,6 +90,11 @@ public partial class LiveRoomTabViewModel
         }
         catch (Exception exception)
         {
+            if (exception is BilibiliAuthenticationException)
+            {
+                receptionServices?.AccountSessions?.ReportAuthenticationFailure(accountId, cookie);
+            }
+
             if (IsCurrentModerationOperation(tokenSource, roomId, accountId, cookie))
             {
                 log?.Error(source, Localization.Get("Room.Log.ModerationPermissionFailed"), exception);
@@ -163,6 +169,11 @@ public partial class LiveRoomTabViewModel
         }
         catch (Exception exception)
         {
+            if (exception is BilibiliAuthenticationException)
+            {
+                receptionServices?.AccountSessions?.ReportAuthenticationFailure(accountId, cookie);
+            }
+
             if (IsCurrentModerationOperation(tokenSource, roomId, accountId, cookie))
             {
                 log?.Error(source, Localization.Format("Room.Log.MuteFailed", userUid), exception);
