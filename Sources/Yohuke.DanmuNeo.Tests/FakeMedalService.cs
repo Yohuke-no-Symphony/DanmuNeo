@@ -18,13 +18,20 @@ internal sealed class FakeMedalService : IBilibiliMedalService
     internal TaskCompletionSource? ReleaseFirstWrite { get; set; }
     internal TaskCompletionSource? ReadStarted { get; set; }
     internal TaskCompletionSource? ReleaseRead { get; set; }
+    internal TaskCompletionSource? OwnerReadStarted { get; set; }
+    internal TaskCompletionSource? ReleaseOwnerRead { get; set; }
 
     /// <inheritdoc/>
-    public Task<long> GetRoomOwnerUidAsync(string roomId, string? cookie = null, TimeSpan? timeout = null,
+    public async Task<long> GetRoomOwnerUidAsync(string roomId, string? cookie = null, TimeSpan? timeout = null,
         CancellationToken cancellationToken = default)
     {
         OwnerReadCount++;
-        return Task.FromResult(OwnerUid);
+        OwnerReadStarted?.TrySetResult();
+        if (ReleaseOwnerRead is not null)
+        {
+            await ReleaseOwnerRead.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        return OwnerUid;
     }
 
     /// <inheritdoc/>

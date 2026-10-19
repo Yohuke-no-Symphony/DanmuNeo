@@ -536,6 +536,13 @@ public sealed class MedalSwitchCoordinator : IDisposable, IAsyncDisposable
             {
                 return;
             }
+
+            if (sessions.GetState(accountId).Status != AccountValidationStatus.Valid)
+            {
+                var queue = GetQueue(accountId);
+                queue.LastQueuedRevision = -1;
+                queue.LastQueuedUid = 0;
+            }
         }
         _ = QueueActive();
     }

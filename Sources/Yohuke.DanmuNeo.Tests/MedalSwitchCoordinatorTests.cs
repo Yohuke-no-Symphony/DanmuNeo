@@ -1,6 +1,7 @@
 using System.Threading;
 using Yohuke.DanmuNeo.Apis;
 using Yohuke.DanmuNeo.Models.State;
+using Yohuke.DanmuNeo.Models.Workspace;
 using Yohuke.DanmuNeo.Services;
 
 namespace Yohuke.DanmuNeo.Tests;
@@ -8,6 +9,40 @@ namespace Yohuke.DanmuNeo.Tests;
 /// <summary>验证换牌请求的账号、当前房间及写入顺序边界。</summary>
 public class MedalSwitchCoordinatorTests
 {
+    /// <summary>账号重新验证期间放弃的活跃目标，会在同一凭据恢复有效后重新排队。</summary>
+    [Fact]
+    public async Task ValidationRecoveryRetriesAnInterruptedAutomaticTarget()
+    {
+        var validation = new ControlledAccountValidationService();
+        using var sessions = new BilibiliAccountSessionService(validation);
+        using var log = new AppLogService();
+        var account = Account(true);
+        sessions.Register(account);
+        var initialValidation = sessions.ValidateAsync(account);
+        validation.Requests[0].SetResult(new() { Status = AccountValidationStatus.Valid, Uid = 42 });
+        await initialValidation;
+        var service = new FakeMedalService
+        {
+            OwnerReadStarted = new(TaskCreationOptions.RunContinuationsAsynchronously),
+            ReleaseOwnerRead = new(TaskCreationOptions.RunContinuationsAsynchronously)
+        };
+        await using var coordinator = new MedalSwitchCoordinator(service, sessions, () => Task.CompletedTask,
+            () => TimeSpan.FromSeconds(3), log);
+        var automatic = coordinator.SetActiveRoomAsync(account, "100");
+        await service.OwnerReadStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var repeatedValidation = sessions.ValidateAsync(account);
+        service.ReleaseOwnerRead.SetResult();
+        await automatic;
+        Assert.Empty(service.Writes);
+
+        validation.Requests[1].SetResult(new() { Status = AccountValidationStatus.Valid, Uid = 42 });
+        await repeatedValidation;
+        await coordinator.WhenIdleAsync();
+
+        Assert.Equal(2, service.OwnerReadCount);
+        Assert.Equal("wear:11", Assert.Single(service.Writes));
+    }
+
     /// <summary>自动关闭不查询房间或牌墙，启用后解析真实 UID 且相同目标不重复查询。</summary>
     [Fact]
     public async Task DisabledAutomaticDoesNotRequestAndStableTargetIsDeduplicated()
