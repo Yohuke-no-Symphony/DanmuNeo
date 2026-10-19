@@ -1,18 +1,34 @@
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Interactivity;
 using Dock.Avalonia.Controls;
+using Dock.Model.Core;
 
 namespace Yohuke.DanmuNeo.Layouts;
 
 internal sealed class WorkbenchToolChromeControl : ToolChromeControl
 {
+    private Button? closeButton;
+
     protected override Type StyleKeyOverride => typeof(ToolChromeControl);
 
     /// <summary>
-    /// 为 Dock 面板的标题按钮应用紧凑样式。
+    /// 在宿主接线前接管面板关闭，并为标题按钮应用紧凑样式。
     /// </summary>
     protected override void OnApplyTemplate(TemplateAppliedEventArgs e)
     {
+        if (closeButton is not null)
+        {
+            closeButton.Click -= OnCloseButtonClick;
+        }
+
+        closeButton = e.NameScope.Find<Button>("PART_CloseButton");
+
+        if (closeButton is not null)
+        {
+            closeButton.Click += OnCloseButtonClick;
+        }
+
         base.OnApplyTemplate(e);
 
         foreach (var name in new[]
@@ -22,6 +38,16 @@ internal sealed class WorkbenchToolChromeControl : ToolChromeControl
             {
                 button.Classes.Add("dockChromeButton");
             }
+        }
+    }
+
+    private void OnCloseButtonClick(object? sender, RoutedEventArgs e)
+    {
+        e.Handled = true;
+
+        if (DataContext is IDock { Factory: { } factory, ActiveDockable: { } dockable })
+        {
+            factory.CloseDockable(dockable);
         }
     }
 }
