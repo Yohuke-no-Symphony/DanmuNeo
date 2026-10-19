@@ -13,7 +13,7 @@ public partial class BilibiliApi : BaseApi
     private readonly List<string> cookies = [];
     private readonly List<string> csrfs = [];
     private readonly int rnd;
-    private readonly BilibiliWbiSigner signer = new();
+    private readonly BilibiliWbiSigner signer;
 
     /// <summary>
     /// 初始化 B 站 API。
@@ -29,6 +29,7 @@ public partial class BilibiliApi : BaseApi
     public BilibiliApi(IEnumerable<string> cookies, TimeSpan? timeout = null, HttpClient? httpClient = null)
         : base(httpClient, timeout)
     {
+        signer = new(timeout, Client);
         rnd = DateTimeOffset.UtcNow.ToUnixTimeSeconds() > int.MaxValue
             ? int.MaxValue
             : (int)DateTimeOffset.UtcNow.ToUnixTimeSeconds();
@@ -426,6 +427,22 @@ public partial class BilibiliApi : BaseApi
             headers,
             timeout,
             cancellationToken);
+    }
+
+    /// <summary>获取当前账号正在直播的关注，接口不提供完整关注名单或分页。</summary>
+    public Task<ApiResponse<BilibiliFollowingPortalData>> GetFollowedLiveRoomsAsync(
+        int number = 0,
+        TimeSpan? timeout = null,
+        CancellationToken cancellationToken = default)
+    {
+        var headers = CreateDefaultHeaders();
+        headers["Cookie"] = GetCookie(number);
+        headers["Referer"] = "https://www.bilibili.com/";
+        return GetJsonAsync<ApiResponse<BilibiliFollowingPortalData>>(
+            "https://api.bilibili.com/x/polymer/web-dynamic/v1/portal",
+            headers: headers,
+            timeout: timeout,
+            cancellationToken: cancellationToken);
     }
 
     /// <summary>

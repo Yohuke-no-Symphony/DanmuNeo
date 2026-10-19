@@ -8,7 +8,7 @@ namespace Yohuke.DanmuNeo.Tests;
 public class LiveRoomSearchViewModelTests
 {
     /// <summary>
-    /// 搜索裁剪关键词并使用目标工作区账号；空关键词不请求。
+    /// 搜索裁剪关键词并使用目标工作区账号。
     /// </summary>
     [Fact]
     public async Task SearchTrimsKeywordAndUsesWorkspaceAccount()
@@ -16,9 +16,6 @@ public class LiveRoomSearchViewModelTests
         using var context = new LiveRoomSearchTestContext();
         var viewModel = context.ViewModel;
         viewModel.OpenAddRoomDialog(viewModel.Workspaces[0]);
-        viewModel.LiveRoomSearchText = "  ";
-        await viewModel.SearchLiveRoomsAsync();
-        Assert.Empty(context.SearchService.Requests);
         viewModel.LiveRoomSearchText = "  主播  ";
         await viewModel.SearchLiveRoomsAsync();
 
@@ -96,7 +93,7 @@ public class LiveRoomSearchViewModelTests
         viewModel.OpenAddRoomDialog(null);
         viewModel.LiveRoomSearchText = "旧";
         var oldSearch = viewModel.SearchLiveRoomsCommand.ExecuteAsync(null);
-        Assert.False(viewModel.SearchLiveRoomsCommand.CanExecute(null));
+        Assert.True(viewModel.SearchLiveRoomsCommand.CanExecute(null));
         viewModel.CloseAddDialog();
         viewModel.OpenAddRoomDialog(null);
         viewModel.LiveRoomSearchText = "新";

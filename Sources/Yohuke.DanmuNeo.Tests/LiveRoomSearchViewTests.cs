@@ -88,8 +88,10 @@ public class LiveRoomSearchViewTests
         {
             window.Show();
             Dispatcher.UIThread.RunJobs();
-            var expander = view.GetVisualDescendants().OfType<Expander>().Single();
-            expander.IsExpanded = true;
+            Assert.Empty(view.GetVisualDescendants().OfType<Expander>());
+            var manualRoomId = view.GetVisualDescendants().OfType<TextBox>()
+                .Single(control => control.Name == "ManualRoomIdTextBox");
+            Assert.True(manualRoomId.IsEffectivelyVisible);
             window.UpdateLayout();
             Dispatcher.UIThread.RunJobs();
             window.UpdateLayout();
@@ -121,4 +123,39 @@ public class LiveRoomSearchViewTests
             window.Close();
         }
     }
+    /// <summary>同级手动表单能通过真实绑定离线添加，无需展开或在线查找。</summary>
+    [AvaloniaFact]
+    public async Task ManualRoomFormAddsOfflineThroughBoundCommand()
+    {
+        using var context = new LiveRoomSearchTestContext();
+        context.ViewModel.Accounts[0].Cookie = "";
+        context.ViewModel.OpenAddRoomDialog(null);
+        var view = new AddWorkspaceDialogView { DataContext = context.ViewModel };
+        var window = new Window { Width = 820, Height = 600, Content = view };
+
+        try
+        {
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+            var roomId = view.GetVisualDescendants().OfType<TextBox>()
+                .Single(control => control.Name == "ManualRoomIdTextBox");
+            roomId.Text = "12345";
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal("12345", context.ViewModel.NewRoomId);
+            var button = view.GetVisualDescendants().OfType<Button>()
+                .Single(control => Equals(control.Content, "手动添加"));
+            Assert.True(button.Command!.CanExecute(null));
+            button.Command.Execute(null);
+            await view.ConfirmAddDialogCommand.ExecutionTask!;
+
+            Assert.Equal("12345", Assert.Single(context.ViewModel.Workspaces[0].Rooms).RoomId);
+            Assert.Empty(context.SearchService.FollowRequests);
+            Assert.Empty(context.SearchService.Requests);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
 }

@@ -11,6 +11,11 @@ public class LiveRoomSearchPage
     public IReadOnlyList<LiveRoomSearchResult> Results { get; init; } = [];
 
     /// <summary>
+    /// 各查找来源的问题；不会丢弃其他来源的成功结果。
+    /// </summary>
+    public IReadOnlyList<LiveRoomSearchIssue> Issues { get; init; } = [];
+
+    /// <summary>
     /// 当前页码。
     /// </summary>
     public int Page { get; init; } = 1;

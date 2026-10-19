@@ -36,9 +36,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly IBilibiliLiveRoomSearchService liveRoomSearchService;
     private readonly IBilibiliModerationService moderationService;
     private readonly IBilibiliUserNameService userNameService;
-    private CancellationTokenSource? liveRoomSearchTokenSource;
-    private string activeLiveRoomSearchKeyword = "";
-    private int liveRoomSearchPage;
     private long addDialogSession;
     private bool isDisposed;
     private Task workspaceMarkGroupSaveTask = Task.CompletedTask;
@@ -473,26 +470,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty] private string newRoomOwnerUid = "";
 
-    [ObservableProperty] private string liveRoomSearchText = "";
-
-    [ObservableProperty] private string liveRoomSearchStatus = Localization.Get("App.Search.Hint");
-
-    [ObservableProperty] [NotifyCanExecuteChangedFor(nameof(SearchLiveRoomsCommand), nameof(LoadMoreLiveRoomsCommand))]
-    private bool isLiveRoomSearching;
-
-    [ObservableProperty] [NotifyCanExecuteChangedFor(nameof(LoadMoreLiveRoomsCommand))]
-    private bool hasMoreLiveRoomSearchResults;
-
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(SearchLiveRoomsCommand), nameof(LoadMoreLiveRoomsCommand),
-        nameof(AddSearchedRoomCommand))]
-    private bool isAddingRoomToWorkspace;
-
-    /// <summary>
-    /// 当前弹窗的主播搜索结果。
-    /// </summary>
-    public ObservableCollection<LiveRoomSearchResult> LiveRoomSearchResults { get; } = [];
-
     /// <summary>
     /// 添加弹窗实际指定的工作区名称。
     /// </summary>
@@ -614,6 +591,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         if (!value)
         {
             CancelLiveRoomSearch();
+            EndRoomSearchObservation();
         }
 
         SearchLiveRoomsCommand.NotifyCanExecuteChanged();
@@ -767,6 +745,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(IsAddingRoom));
         OnPropertyChanged(nameof(AddDialogWorkspaceName));
         IsAddDialogOpen = true;
+        BeginRoomSearchObservation();
+        LiveRoomSearchTask = StartLiveRoomSearchAsync(true);
     }
 
     /// <summary>
@@ -808,228 +788,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
 
         await AddRoomToWorkspaceAsync(workspace, NewRoomId.Trim(), NewRoomName.Trim(), NewRoomOwnerUid.Trim());
-    }
-
-    /// <summary>
-    /// 按主播昵称发起新搜索。
-    /// </summary>
-    [RelayCommand(CanExecute = nameof(CanSearchLiveRooms), AllowConcurrentExecutions = true)]
-    public async Task SearchLiveRoomsAsync()
-    {
-        if (!IsAddDialogOpen || !IsAddingRoom || IsAddingRoomToWorkspace || isDisposed)
-        {
-            return;
-        }
-
-        CancelLiveRoomSearch();
-        LiveRoomSearchResults.Clear();
-        HasMoreLiveRoomSearchResults = false;
-        liveRoomSearchPage = 0;
-        activeLiveRoomSearchKeyword = LiveRoomSearchText.Trim();
-
-        if (string.IsNullOrWhiteSpace(activeLiveRoomSearchKeyword))
-        {
-            SetLocalizedProperty(nameof(LiveRoomSearchStatus), "App.Search.EnterName");
-            Log.Warning(Localization.Get("App.Log.RoomSearch"), LiveRoomSearchStatus);
-            return;
-        }
-
-        await SearchLiveRoomPageAsync(1);
-    }
-
-    /// <summary>
-    /// 加载当前关键词的下一页主播结果。
-    /// </summary>
-    [RelayCommand(CanExecute = nameof(CanLoadMoreLiveRooms), AllowConcurrentExecutions = true)]
-    public async Task LoadMoreLiveRoomsAsync()
-    {
-        if (CanLoadMoreLiveRooms())
-        {
-            await SearchLiveRoomPageAsync(liveRoomSearchPage + 1);
-        }
-    }
-
-    /// <summary>
-    /// 将搜索结果加入弹窗指定的工作区。
-    /// </summary>
-    [RelayCommand(CanExecute = nameof(CanAddSearchedRoom))]
-    public async Task AddSearchedRoomAsync(LiveRoomSearchResult? result)
-    {
-        if (CanAddSearchedRoom(result) && addDialogWorkspace is { } workspace)
-        {
-            await AddRoomToWorkspaceAsync(workspace, result!.RoomId, result.OwnerName, result.OwnerUid);
-        }
-    }
-
-    private bool CanSearchLiveRooms()
-    {
-        return !isDisposed && IsAddDialogOpen && IsAddingRoom && !IsLiveRoomSearching && !IsAddingRoomToWorkspace;
-    }
-
-    private bool CanLoadMoreLiveRooms()
-    {
-        return CanSearchLiveRooms() && HasMoreLiveRoomSearchResults;
-    }
-
-    private bool CanAddSearchedRoom(LiveRoomSearchResult? result)
-    {
-        return !isDisposed && IsAddDialogOpen && IsAddingRoom && !IsAddingRoomToWorkspace &&
-               result is not null && LiveRoomSearchResults.Contains(result) &&
-               addDialogWorkspace is { } workspace && Workspaces.Contains(workspace);
-    }
-
-    private async Task SearchLiveRoomPageAsync(int page)
-    {
-        var workspace = addDialogWorkspace;
-
-        if (workspace is null || !Workspaces.Contains(workspace))
-        {
-            CloseAddDialog();
-            return;
-        }
-
-        var tokenSource = new CancellationTokenSource();
-        liveRoomSearchTokenSource = tokenSource;
-        IsLiveRoomSearching = true;
-        SetLocalizedProperty(nameof(LiveRoomSearchStatus), "App.Search.Searching");
-
-        try
-        {
-            var account = accountSelectionService.Resolve(State, workspace.State, null);
-            var resultPage = await liveRoomSearchService.SearchAsync(
-                activeLiveRoomSearchKeyword, page, account?.Cookie,
-                TimeSpan.FromSeconds(Settings.TimeoutSeconds), tokenSource.Token);
-
-            if (!IsCurrentLiveRoomSearch(tokenSource))
-            {
-                return;
-            }
-
-            foreach (var result in resultPage.Results)
-            {
-                if (LiveRoomSearchResults.All(existing => existing.RoomId != result.RoomId))
-                {
-                    LiveRoomSearchResults.Add(result);
-                }
-            }
-
-            liveRoomSearchPage = page;
-            HasMoreLiveRoomSearchResults = resultPage.HasMore;
-            SetLocalizedProperty(nameof(LiveRoomSearchStatus), LiveRoomSearchResults.Count == 0
-                ? "App.Search.Empty" : "App.Search.Found", LiveRoomSearchResults.Count);
-            Log.Information(Localization.Format("App.Log.RoomSearchWorkspace", workspace.Name), LiveRoomSearchStatus);
-        }
-        catch (OperationCanceledException) when (tokenSource.IsCancellationRequested)
-        {
-        }
-        catch (Exception exception)
-        {
-            if (IsCurrentLiveRoomSearch(tokenSource))
-            {
-                SetLocalizedProperty(nameof(LiveRoomSearchStatus), "App.Search.Failed", new Func<string>(() => LocalizedExceptionText.Get(exception)));
-                LogErrorOnce(Localization.Format("App.Log.RoomSearchWorkspace", workspace.Name), LiveRoomSearchStatus, exception);
-            }
-        }
-        finally
-        {
-            if (ReferenceEquals(liveRoomSearchTokenSource, tokenSource))
-            {
-                liveRoomSearchTokenSource = null;
-                IsLiveRoomSearching = false;
-                AddSearchedRoomCommand.NotifyCanExecuteChanged();
-            }
-
-            tokenSource.Dispose();
-        }
-    }
-
-    private bool IsCurrentLiveRoomSearch(CancellationTokenSource tokenSource)
-    {
-        return !isDisposed && IsAddDialogOpen && IsAddingRoom && !tokenSource.IsCancellationRequested &&
-               ReferenceEquals(liveRoomSearchTokenSource, tokenSource);
-    }
-
-    private void CancelLiveRoomSearch()
-    {
-        var tokenSource = liveRoomSearchTokenSource;
-        liveRoomSearchTokenSource = null;
-        tokenSource?.Cancel();
-        IsLiveRoomSearching = false;
-    }
-
-    private void ResetLiveRoomSearch()
-    {
-        addDialogSession++;
-        CancelLiveRoomSearch();
-        LiveRoomSearchText = "";
-        LiveRoomSearchResults.Clear();
-        HasMoreLiveRoomSearchResults = false;
-        activeLiveRoomSearchKeyword = "";
-        liveRoomSearchPage = 0;
-        SetLocalizedProperty(nameof(LiveRoomSearchStatus), "App.Search.Hint");
-        SearchLiveRoomsCommand.NotifyCanExecuteChanged();
-        AddSearchedRoomCommand.NotifyCanExecuteChanged();
-    }
-
-    private async Task AddRoomToWorkspaceAsync(WorkspaceViewModel workspace, string roomId, string roomName,
-        string ownerUid)
-    {
-        if (isDisposed || IsAddingRoomToWorkspace || !Workspaces.Contains(workspace))
-        {
-            return;
-        }
-
-        if (!long.TryParse(roomId, out var parsedRoomId) || parsedRoomId <= 0)
-        {
-            SetLocalizedProperty(nameof(LiveRoomSearchStatus), "App.Search.InvalidRoomId");
-            Log.Warning(Localization.Format("App.Log.RoomWorkspace", workspace.Name), LiveRoomSearchStatus);
-            return;
-        }
-
-        var session = addDialogSession;
-        IsAddingRoomToWorkspace = true;
-
-        try
-        {
-            roomId = parsedRoomId.ToString(System.Globalization.CultureInfo.InvariantCulture);
-            SelectedWorkspace = workspace;
-            var room = workspace.Rooms.FirstOrDefault(existing =>
-                long.TryParse(existing.RoomId, out var existingRoomId) && existingRoomId == parsedRoomId);
-
-            if (room is null)
-            {
-                room = workspace.AddRoom(roomId, roomName, ownerUid);
-                ConfigureRoom(room, workspace);
-            }
-
-            workspace.SelectedRoom = room;
-            workspace.IsExpanded = true;
-            RefreshTreeSelection();
-            RefreshForwardSourceRooms();
-            await SaveAsync();
-            Log.Information(Localization.Format("App.Log.RoomWorkspace", workspace.Name), Localization.Format("App.Room.Selected", room.Header, room.RoomId));
-
-            if (session == addDialogSession)
-            {
-                NewRoomId = "";
-                NewRoomName = "";
-                NewRoomOwnerUid = "";
-                CloseAddDialog();
-            }
-        }
-        catch (Exception exception)
-        {
-            LogErrorOnce(Localization.Format("App.Log.RoomWorkspace", workspace.Name), Localization.Get("App.Room.AddFailed"), exception);
-
-            if (session == addDialogSession)
-            {
-                SetLocalizedProperty(nameof(LiveRoomSearchStatus), "App.Room.AddFailedDetail", new Func<string>(() => LocalizedExceptionText.Get(exception)));
-            }
-        }
-        finally
-        {
-            IsAddingRoomToWorkspace = false;
-        }
     }
 
     /// <summary>

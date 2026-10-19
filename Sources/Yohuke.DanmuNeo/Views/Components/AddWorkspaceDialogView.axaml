@@ -72,6 +72,8 @@
                                                                    TextTrimming="CharacterEllipsis" />
                                                         <TextBlock Text="{Binding DetailLine}"
                                                                    Classes="muted" />
+                                                        <TextBlock Text="{Binding SourceLabel}"
+                                                                   Classes="muted" />
                                                     </StackPanel>
                                                     <Button Grid.Column="1"
                                                             x:Name="AddSearchedRoomButton"
@@ -91,16 +93,30 @@
                                     IsVisible="{Binding HasMoreLiveRoomSearchResults}"
                                     Command="{Binding LoadMoreLiveRoomsCommand}" />
                         </StackPanel>
-                        <Expander Grid.Row="3" Header="{Loc Key=UI.AddWorkspaceDialogView.AddRoomManually}">
-                            <StackPanel Spacing="10" Margin="0,10,0,0">
-                                <TextBox Watermark="{Loc Key=UI.AddWorkspaceDialogView.RoomName}"
+                        <StackPanel Grid.Row="3" Spacing="10">
+                            <TextBlock Text="{Loc Key=UI.AddWorkspaceDialogView.AddRoomManually}"
+                                       Classes="sectionTitle" />
+                            <TextBlock Text="{Loc Key=UI.AddWorkspaceDialogView.ManualOfflineHint}"
+                                       Classes="muted" TextWrapping="Wrap" />
+                            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto"
+                                  ColumnSpacing="10" RowSpacing="10">
+                                <TextBlock Text="{Loc Key=UI.AddWorkspaceDialogView.RoomName}"
+                                           VerticalAlignment="Center" />
+                                <TextBox Grid.Column="1" x:Name="ManualRoomNameTextBox"
+                                         Watermark="{Loc Key=UI.AddWorkspaceDialogView.RoomName}"
                                          Text="{Binding NewRoomName}" />
-                                <TextBox Watermark="{Loc Key=UI.AddWorkspaceDialogView.RoomId}"
+                                <TextBlock Grid.Row="1" Text="{Loc Key=UI.AddWorkspaceDialogView.RoomId}"
+                                           VerticalAlignment="Center" />
+                                <TextBox Grid.Row="1" Grid.Column="1" x:Name="ManualRoomIdTextBox"
+                                         Watermark="{Loc Key=UI.AddWorkspaceDialogView.RoomId}"
                                          Text="{Binding NewRoomId}" />
-                                <TextBox Watermark="{Loc Key=UI.AddWorkspaceDialogView.OptionalStreamerUid}"
+                                <TextBlock Grid.Row="2" Text="{Loc Key=UI.AddWorkspaceDialogView.OptionalStreamerUid}"
+                                           VerticalAlignment="Center" />
+                                <TextBox Grid.Row="2" Grid.Column="1" x:Name="ManualRoomOwnerUidTextBox"
+                                         Watermark="{Loc Key=UI.AddWorkspaceDialogView.OptionalStreamerUid}"
                                          Text="{Binding NewRoomOwnerUid}" />
-                            </StackPanel>
-                        </Expander>
+                            </Grid>
+                        </StackPanel>
                     </Grid>
                 </StackPanel>
             </ScrollViewer>

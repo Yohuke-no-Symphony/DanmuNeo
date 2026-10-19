@@ -52,8 +52,7 @@ public class WorkbenchAuxiliaryLayoutTests
             Assert.True(addRoom.CanResize);
             AssertSurfaceFillsClientArea(addRoom);
             SaveFrame(addRoom, "surface-add-room.png");
-            var expander = addRoom.GetVisualDescendants().OfType<Expander>().Single();
-            expander.IsExpanded = true;
+            Assert.Empty(addRoom.GetVisualDescendants().OfType<Expander>());
             PumpLayout(addRoom);
             Assert.Equal(initialHeight, addRoom.ClientSize.Height);
 
@@ -141,7 +140,7 @@ public class WorkbenchAuxiliaryLayoutTests
             await context.ViewModel.SearchLiveRoomsAsync();
             Assert.Empty(context.ViewModel.LiveRoomSearchResults);
             AssertWindowBoundsStable(dialog, size, position);
-            dialog.GetVisualDescendants().OfType<Expander>().Single().IsExpanded = true;
+            Assert.Empty(dialog.GetVisualDescendants().OfType<Expander>());
             AssertWindowBoundsStable(dialog, size, position);
             AssertFullyVisible(dialog.GetVisualDescendants().OfType<Button>()
                 .Single(button => Equals(button.Content, "取消")), dialog);

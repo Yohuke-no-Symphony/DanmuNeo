@@ -28,8 +28,8 @@ public class BilibiliWbiSigner : BaseApi
     /// <summary>
     /// 初始化 WBI 签名器。
     /// </summary>
-    public BilibiliWbiSigner(TimeSpan? timeout = null)
-        : base(timeout: timeout)
+    public BilibiliWbiSigner(TimeSpan? timeout = null, HttpClient? httpClient = null)
+        : base(httpClient, timeout)
     {
     }
 

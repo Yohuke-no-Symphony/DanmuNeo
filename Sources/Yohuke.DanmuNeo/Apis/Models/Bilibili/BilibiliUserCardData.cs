@@ -26,6 +26,10 @@ public class BilibiliUserCardData
     [JsonProperty("face")]
     public string? Face { get; set; }
 
+    /// <summary>用户关联的直播间；未开通时为空。</summary>
+    [JsonProperty("live_room")]
+    public BilibiliUserLiveRoom? LiveRoom { get; set; }
+
     /// <summary>
     /// 未显式映射的字段。
     /// </summary>

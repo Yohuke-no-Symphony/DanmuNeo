@@ -15,7 +15,7 @@ public sealed class LiveRoomSearchTestContext : IDisposable
     /// <summary>
     /// 创建两个空工作区和可控制的搜索服务。
     /// </summary>
-    public LiveRoomSearchTestContext()
+    public LiveRoomSearchTestContext(IBilibiliAccountSessionService? accountSessions = null)
     {
         StateService = new(directory);
         StateService.Save(new()
@@ -23,7 +23,8 @@ public sealed class LiveRoomSearchTestContext : IDisposable
             Accounts = [new() { Id = "account", Cookie = "buvid3=test-account", IsGlobalDefault = true }],
             Workspaces = [new() { Name = "目标工作区", SortOrder = 0 }, new() { Name = "其他工作区", SortOrder = 1 }]
         });
-        ViewModel = new(StateService, SearchService, AvatarService, danmuConfigService: new FakeBilibiliDanmuConfigService());
+        ViewModel = new(StateService, SearchService, AvatarService,
+            danmuConfigService: new FakeBilibiliDanmuConfigService(), accountSessions: accountSessions);
     }
 
     /// <summary>
