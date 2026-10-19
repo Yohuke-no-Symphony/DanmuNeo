@@ -38,7 +38,7 @@ internal sealed class WorkbenchSession : IAsyncDisposable
         Panels = new(Context);
         windows = new(mainWindow);
         windows.RegisterBusinessWindow(mainWindow);
-        var views = Panels.Panels.ToDictionary(pair => pair.Key, pair => pair.Value);
+        var views = Panels.Panels.ToDictionary(pair => pair.Key, pair => (Control)pair.Value);
         views.Add(WorkbenchPanelIds.WORKSPACE, new WorkspaceSidebarView { DataContext = application });
         logPanel = new(application.Log);
         views.Add(WorkbenchPanelIds.LOG, logPanel);

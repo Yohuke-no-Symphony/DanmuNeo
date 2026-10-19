@@ -27,7 +27,7 @@ public sealed class WorkbenchPanelSet : IDisposable
         History = new(context);
         Lyrics = new(context);
         Forwarding = new(context);
-        Panels = new Dictionary<string, Control>
+        Panels = new Dictionary<string, WorkbenchPanelView>
         {
             [WorkbenchPanelIds.LIVE_PLAYER] = Player,
             [WorkbenchPanelIds.COMPOSER] = Composer,
@@ -63,7 +63,7 @@ public sealed class WorkbenchPanelSet : IDisposable
     public ForwardingPanelView Forwarding { get; }
 
     /// <summary>以稳定面板 ID 索引的唯一视图集合。</summary>
-    public IReadOnlyDictionary<string, Control> Panels { get; }
+    public IReadOnlyDictionary<string, WorkbenchPanelView> Panels { get; }
 
     /// <summary>请求打开单实例歌词库窗口。</summary>
     public event Action<Window?>? LyricLibraryRequested;
@@ -130,7 +130,7 @@ public sealed class WorkbenchPanelSet : IDisposable
     {
         context.SelectionChanged -= Context_OnSelectionChanged;
 
-        foreach (var panel in Panels.Values.Cast<WorkbenchRoomPanel>())
+        foreach (var panel in Panels.Values)
         {
             panel.Dispose();
         }

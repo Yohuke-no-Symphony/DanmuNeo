@@ -1,7 +1,4 @@
-using Yohuke.DanmuNeo.I18n;
 using System.ComponentModel;
-using Avalonia;
-using Avalonia.Controls;
 using Yohuke.DanmuNeo.ViewModels.Items;
 using Yohuke.DanmuNeo.Windowing;
 
@@ -10,44 +7,15 @@ namespace Yohuke.DanmuNeo.Views.Components;
 /// <summary>
 /// 将可复用的业务视图显式连接到工作台上下文。
 /// </summary>
-public class WorkbenchRoomPanel : UserControl, IDisposable
+public class WorkbenchRoomPanel : WorkbenchPanelView
 {
-    /// <summary>
-    /// 显式上下文的绑定属性。
-    /// </summary>
-    public static readonly DirectProperty<WorkbenchRoomPanel, WorkbenchContext> ContextProperty =
-        AvaloniaProperty.RegisterDirect<WorkbenchRoomPanel, WorkbenchContext>(nameof(Context), panel => panel.Context);
-
-    private WorkbenchContext context = null!;
     private LiveRoomTabViewModel? observedRoom;
-    private bool isDisposed;
 
-    /// <summary>
-    /// 未注入上下文的设计时实例不接收业务交互。
-    /// </summary>
-    public WorkbenchRoomPanel()
+    /// <inheritdoc/>
+    protected override void OnContextInitialized()
     {
-        IsEnabled = false;
-    }
-
-    /// <summary>
-    /// 由工作台显式注入的上下文。
-    /// </summary>
-    public WorkbenchContext Context => context;
-
-    /// <summary>
-    /// 初始化面板绑定；一个面板实例只能连接一次。
-    /// </summary>
-    protected void InitializeContext(WorkbenchContext context)
-    {
-        if (Context is not null)
-        {
-            throw new InvalidOperationException(Localization.Get("UI.WorkbenchRoomPanel.ContextAlreadyInitialized"));
-        }
-
-        SetAndRaise(ContextProperty, ref this.context, context);
-        context.PropertyChanged += Context_OnPropertyChanged;
-        SetRoom(context.CurrentRoom);
+        Context.PropertyChanged += Context_OnPropertyChanged;
+        SetRoom(Context.CurrentRoom);
     }
 
     /// <summary>
@@ -57,28 +25,14 @@ public class WorkbenchRoomPanel : UserControl, IDisposable
     {
     }
 
-    /// <summary>
-    /// 释放业务视图的事件和平台控件。
-    /// </summary>
-    protected virtual void DisposePanel()
-    {
-    }
-
     /// <inheritdoc/>
-    public void Dispose()
+    protected override void OnContextReleased()
     {
-        if (isDisposed)
+        if (Context is not null)
         {
-            return;
-        }
-
-        isDisposed = true;
-        if (context is not null)
-        {
-            context.PropertyChanged -= Context_OnPropertyChanged;
+            Context.PropertyChanged -= Context_OnPropertyChanged;
         }
         SetRoom(null);
-        DisposePanel();
     }
 
     private void Context_OnPropertyChanged(object? sender, PropertyChangedEventArgs e)
