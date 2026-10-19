@@ -48,6 +48,7 @@ internal sealed class WorkbenchSession : IAsyncDisposable
         Layouts.PanelClosedByUser += OnPanelClosed;
         Layouts.PersistenceFailed += OnPersistenceFailed;
         auxiliary = new(application, windows, Layouts);
+        Panels.SetCaptureNoteEditor(auxiliary.EditCaptureNoteAsync);
         menuCatalog = new(Layouts, auxiliary.OpenSettings, auxiliary.SaveLayoutAs, auxiliary.ManageLayouts,
             auxiliary.OpenAbout, auxiliary.CheckForUpdates, () => windows.IsInteractionBlocked);
         application.Log.Changed += OnLogChanged;

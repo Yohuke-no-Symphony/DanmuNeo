@@ -115,7 +115,7 @@ public sealed partial class LiveCapturesViewModel : ObservableObject, IDisposabl
     }
 
     /// <summary>保留原帧后尝试落盘；失败仍在图库中保留记录供保存重试。</summary>
-    public async Task CaptureAsync(LiveCapturedFrame frame, string roomName,
+    public async Task<LiveCaptureItemViewModel> CaptureAsync(LiveCapturedFrame frame, string roomName,
         CancellationToken cancellationToken = default)
     {
         Dispatcher.UIThread.VerifyAccess();
@@ -147,6 +147,7 @@ public sealed partial class LiveCapturesViewModel : ObservableObject, IDisposabl
             {
                 SetStatus("Captures.SaveFailed", exception.Message);
             }
+            return item;
         }
         finally
         {
@@ -309,6 +310,12 @@ public sealed partial class LiveCapturesViewModel : ObservableObject, IDisposabl
     public void ReportCaptureFailure(string message)
     {
         SetStatus("Captures.CaptureFailed", message);
+    }
+
+    /// <summary>备注编辑失败时保留已保存的截图并显示独立错误。</summary>
+    public void ReportNoteFailure(string message)
+    {
+        SetStatus("Captures.NoteFailed", message);
     }
 
     /// <summary>显示文件选择器等平台导出边界的错误。</summary>

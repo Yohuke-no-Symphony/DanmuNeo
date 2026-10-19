@@ -131,6 +131,7 @@ public class WorkbenchCaptureIntegrationTests
             Assert.Equal(1, fixture.Store.LoadCount);
             var workbench = Assert.IsType<WorkbenchSession>(main.Workbench);
             var token = fixture.EnablePlayer();
+            workbench.Panels.SetCaptureNoteEditor((_, _) => Task.FromResult<string?>(null));
             Dispatcher.UIThread.RunJobs();
             fixture.Room.InputDraft = "保留草稿";
             workbench.Panels.FocusInputDraft();

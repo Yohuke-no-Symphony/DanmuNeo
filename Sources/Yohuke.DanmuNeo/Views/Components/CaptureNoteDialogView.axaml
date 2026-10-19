@@ -1,0 +1,33 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:items="using:Yohuke.DanmuNeo.ViewModels.Items"
+             x:Class="Yohuke.DanmuNeo.Views.Components.CaptureNoteDialogView"
+             x:DataType="items:LiveCaptureItemViewModel">
+    <Border Background="{DynamicResource AppCardBrush}" Padding="24">
+        <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="16">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                <TextBlock Text="{Binding Title}" FontWeight="SemiBold"
+                           TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Title}"/>
+                <TextBlock Grid.Column="1" Text="{Binding ListTimeText}" Classes="muted"
+                           VerticalAlignment="Center" ToolTip.Tip="{Binding CapturedAtText}"/>
+            </Grid>
+            <TextBox x:Name="NoteInput" Grid.Row="1" MinHeight="110" MaxHeight="220"
+                     Text="{Binding Note, Mode=OneTime}" AcceptsReturn="True" TextWrapping="Wrap"
+                     MaxLength="10000" Watermark="{Loc Key=Captures.NoteHint}"/>
+            <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                <Button x:Name="SkipNoteButton" Click="OnSkipClicked">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <LucideIcon Kind="SkipForward" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Loc Key=Captures.Skip}"/>
+                    </StackPanel>
+                </Button>
+                <Button x:Name="SaveNoteButton" Classes="primaryButton" Click="OnSaveClicked">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <LucideIcon Kind="Save" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Loc Key=Window.Save}"/>
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Grid>
+    </Border>
+</UserControl>

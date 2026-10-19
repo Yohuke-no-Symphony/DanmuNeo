@@ -19,9 +19,11 @@ public sealed partial class WorkbenchPanelSet
     private readonly HashSet<ShortcutBindingState> captureBindings = [];
     private LiveRoomTabViewModel? captureRoom;
     private CancellationTokenSource? captureCancellation;
+    private CancellationTokenSource? captureNoteCancellation;
     private Task captureTask = Task.CompletedTask;
     private IDisposable? captureButtonBinding;
     private Action<string>? capturePanelActivator;
+    private Func<LiveCaptureItemViewModel, CancellationToken, Task<string?>>? captureNoteEditor;
     private bool captureInteractionBlocked;
     private bool capturesDisposed;
 
@@ -46,7 +48,13 @@ public sealed partial class WorkbenchPanelSet
     internal async Task CompletePendingCaptureAsync()
     {
         captureCancellation?.Cancel();
+        captureNoteCancellation?.Cancel();
         await captureTask;
+    }
+
+    internal void SetCaptureNoteEditor(Func<LiveCaptureItemViewModel, CancellationToken, Task<string?>> editor)
+    {
+        captureNoteEditor = editor;
     }
 
     private void InitializeCaptureBindings()
@@ -74,16 +82,19 @@ public sealed partial class WorkbenchPanelSet
                 throw new OperationCanceledException(Localization.Get("Captures.SessionChanged"));
             }
 
-            await gallery.CaptureAsync(frame, roomName);
+            var item = await gallery.CaptureAsync(frame, roomName);
             if (gallery.HasPendingOriginals && !capturesDisposed)
             {
-                context.Application.SetLocalizedStatus("Captures.PendingSaveStatus");
-                context.Application.Log.Error(Localization.Get("Captures.Source"), gallery.StatusText);
-                if (!captureInteractionBlocked)
-                {
-                    capturePanelActivator?.Invoke(WorkbenchPanelIds.LIVE_CAPTURES);
-                }
+                ShowCaptureSaveFailure("Captures.PendingSaveStatus");
+                return;
             }
+            if (capturesDisposed || captureInteractionBlocked || cancellation.IsCancellationRequested)
+            {
+                return;
+            }
+
+            captureCancellation = null;
+            await EditCapturedNoteAsync(item);
         }
         catch (OperationCanceledException)
         {
@@ -108,6 +119,56 @@ public sealed partial class WorkbenchPanelSet
             {
                 gallery.IsCapturing = false;
             }
+        }
+    }
+
+    private async Task EditCapturedNoteAsync(LiveCaptureItemViewModel item)
+    {
+        if (captureNoteEditor is not { } editor)
+        {
+            return;
+        }
+
+        using var cancellation = new CancellationTokenSource();
+        captureNoteCancellation = cancellation;
+        var gallery = context.Application.LiveCaptures;
+        try
+        {
+            var note = await editor(item, cancellation.Token);
+            if (note is not null && !capturesDisposed)
+            {
+                item.Note = note;
+                await gallery.SaveAsync();
+                if (gallery.HasPendingChanges)
+                {
+                    ShowCaptureSaveFailure("Captures.PendingNoteSaveStatus");
+                }
+            }
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception)
+        {
+            if (!capturesDisposed)
+            {
+                gallery.ReportNoteFailure(AppLogSanitizer.Sanitize(LocalizedExceptionText.Get(exception)));
+                ShowCaptureSaveFailure("Captures.PendingNoteSaveStatus");
+            }
+        }
+        finally
+        {
+            captureNoteCancellation = null;
+        }
+    }
+
+    private void ShowCaptureSaveFailure(string statusKey)
+    {
+        context.Application.SetLocalizedStatus(statusKey);
+        context.Application.Log.Error(Localization.Get("Captures.Source"), context.Application.LiveCaptures.StatusText);
+        if (!captureInteractionBlocked)
+        {
+            capturePanelActivator?.Invoke(WorkbenchPanelIds.LIVE_CAPTURES);
         }
     }
 
@@ -199,6 +260,7 @@ public sealed partial class WorkbenchPanelSet
 
         capturesDisposed = true;
         captureCancellation?.Cancel();
+        captureNoteCancellation?.Cancel();
         Player.CaptureRequested -= OnCaptureRequested;
         Player.CaptureAvailabilityChanged -= OnCaptureAvailabilityChanged;
         LiveCaptures.CaptureRequested -= OnCaptureRequested;
@@ -214,6 +276,7 @@ public sealed partial class WorkbenchPanelSet
         captureBindings.Clear();
         captureButtonBinding?.Dispose();
         capturePanelActivator = null;
+        captureNoteEditor = null;
         context.Application.LiveCaptures.SetCaptureSourceAvailable(false);
         Player.SetCaptureGesture(null);
     }

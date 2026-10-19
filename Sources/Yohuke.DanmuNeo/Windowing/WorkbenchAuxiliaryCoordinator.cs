@@ -12,7 +12,7 @@ using Yohuke.DanmuNeo.Views.Components;
 
 namespace Yohuke.DanmuNeo.Windowing;
 
-internal sealed class WorkbenchAuxiliaryCoordinator : IDisposable
+internal sealed partial class WorkbenchAuxiliaryCoordinator : IDisposable
 {
     private readonly MainWindowViewModel application;
     private readonly WorkbenchWindowRegistry windows;
