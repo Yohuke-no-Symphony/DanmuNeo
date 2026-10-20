@@ -19,6 +19,13 @@ public class WorkbenchRoomPanel : WorkbenchPanelView
     }
 
     /// <summary>
+    /// 在旧房间的数据上下文解除前结束由界面持有的编辑事务。
+    /// </summary>
+    protected virtual void OnCurrentRoomChanging(LiveRoomTabViewModel? oldRoom, LiveRoomTabViewModel? newRoom)
+    {
+    }
+
+    /// <summary>
     /// 切换当前房间的 UI 订阅，不改变业务运行状态。
     /// </summary>
     protected virtual void OnCurrentRoomChanged(LiveRoomTabViewModel? oldRoom, LiveRoomTabViewModel? newRoom)
@@ -46,6 +53,7 @@ public class WorkbenchRoomPanel : WorkbenchPanelView
     private void SetRoom(LiveRoomTabViewModel? room)
     {
         var oldRoom = observedRoom;
+        OnCurrentRoomChanging(oldRoom, room);
         observedRoom = room;
         DataContext = room;
         IsEnabled = room is not null;

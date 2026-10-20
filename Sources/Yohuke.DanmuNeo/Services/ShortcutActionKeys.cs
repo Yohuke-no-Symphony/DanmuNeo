@@ -3,7 +3,7 @@ namespace Yohuke.DanmuNeo.Services;
 /// <summary>
 /// 快捷键动作键。
 /// </summary>
-public static class ShortcutActionKeys
+public static partial class ShortcutActionKeys
 {
     /// <summary>
     /// 开始监听直播间。

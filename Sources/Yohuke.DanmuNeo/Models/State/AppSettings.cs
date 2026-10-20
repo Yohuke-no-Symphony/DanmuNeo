@@ -5,6 +5,12 @@ namespace Yohuke.DanmuNeo.Models.State;
 /// </summary>
 public class AppSettings
 {
+    /// <summary>是否自动保存直播记录文件。</summary>
+    public bool LiveMarkerAutoSaveEnabled { get; set; } = true;
+
+    /// <summary>是否显示直播记录的实际时间列。</summary>
+    public bool LiveMarkerShowRealTime { get; set; } = true;
+
     /// <summary>
     /// 界面语言标识，system 表示跟随系统。
     /// </summary>

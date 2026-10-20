@@ -30,6 +30,7 @@ public sealed partial class WorkbenchPanelSet : IDisposable
         Moderation = new(context, context.Application.ModerationManager);
         AccountMedals = new(context, context.Application.AccountMedals);
         LiveCaptures = new(context, context.Application.LiveCaptures);
+        LiveMarker = new(context);
         Panels = new Dictionary<string, WorkbenchPanelView>
         {
             [WorkbenchPanelIds.LIVE_PLAYER] = Player,
@@ -41,7 +42,8 @@ public sealed partial class WorkbenchPanelSet : IDisposable
             [WorkbenchPanelIds.FORWARDING] = Forwarding,
             [WorkbenchPanelIds.MODERATION] = Moderation,
             [WorkbenchPanelIds.ACCOUNT_MEDALS] = AccountMedals,
-            [WorkbenchPanelIds.LIVE_CAPTURES] = LiveCaptures
+            [WorkbenchPanelIds.LIVE_CAPTURES] = LiveCaptures,
+            [WorkbenchPanelIds.LIVE_MARKER] = LiveMarker
         };
         Lyrics.LyricLibraryRequested += owner => LyricLibraryRequested?.Invoke(owner);
         context.SelectionChanged += Context_OnSelectionChanged;
@@ -77,6 +79,9 @@ public sealed partial class WorkbenchPanelSet : IDisposable
 
     /// <summary>全局永久直播截图图库。</summary>
     public LiveCapturesPanelView LiveCaptures { get; }
+
+    /// <summary>当前房间的独立直播记录面板。</summary>
+    public LiveMarkerPanelView LiveMarker { get; }
 
     /// <summary>以稳定面板 ID 索引的唯一视图集合。</summary>
     public IReadOnlyDictionary<string, WorkbenchPanelView> Panels { get; }

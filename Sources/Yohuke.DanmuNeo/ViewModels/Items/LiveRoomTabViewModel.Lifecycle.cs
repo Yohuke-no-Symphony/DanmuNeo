@@ -25,6 +25,7 @@ public partial class LiveRoomTabViewModel
         }
 
         isDisposed = true;
+        LiveMarker.Dispose();
         sendLifetimeTokenSource.Cancel();
         lyricSessionTokenSource.Cancel();
         draftDeliveryProgress = null;

@@ -5,7 +5,7 @@ namespace Yohuke.DanmuNeo.Services;
 /// <summary>
 /// 快捷键动作目录。
 /// </summary>
-public static class ShortcutActionCatalog
+public static partial class ShortcutActionCatalog
 {
     /// <summary>
     /// 全部快捷键动作。
@@ -27,6 +27,7 @@ public static class ShortcutActionCatalog
             OperatingSystem.IsMacOS() ? "Meta+C" : "Ctrl+C"),
         new(ShortcutActionKeys.LYRIC_SEEK_BACKWARD, "lyric", "App.Shortcut.Group.lyric", "App.Shortcut.Action.LyricSeekBackward", "Ctrl+Shift+Left"),
         new(ShortcutActionKeys.LYRIC_SEEK_FORWARD, "lyric", "App.Shortcut.Group.lyric", "App.Shortcut.Action.LyricSeekForward", "Ctrl+Shift+Right"),
-        new(ShortcutActionKeys.LYRIC_SEEK_NEXT, "lyric", "App.Shortcut.Group.lyric", "App.Shortcut.Action.LyricSeekNext", "Ctrl+Shift+Down")
+        new(ShortcutActionKeys.LYRIC_SEEK_NEXT, "lyric", "App.Shortcut.Group.lyric", "App.Shortcut.Action.LyricSeekNext", "Ctrl+Shift+Down"),
+        .. CreateLiveMarkerActions()
     ];
 }

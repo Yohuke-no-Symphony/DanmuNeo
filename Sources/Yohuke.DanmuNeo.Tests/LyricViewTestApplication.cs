@@ -35,6 +35,10 @@ public class LyricViewTestApplication : Application
         Styles.Add(new DockFluentTheme());
         Styles.Add(new StyleInclude(new Uri("avares://Yohuke.DanmuNeo/"))
         {
+            Source = new("avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml")
+        });
+        Styles.Add(new StyleInclude(new Uri("avares://Yohuke.DanmuNeo/"))
+        {
             Source = new("avares://Yohuke.DanmuNeo/Views/Styles/WorkbenchTheme.axaml")
         });
     }

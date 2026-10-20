@@ -5,6 +5,9 @@ namespace Yohuke.DanmuNeo.Models.State;
 /// </summary>
 public class LiveRoomTabState
 {
+    /// <summary>该房间标签上次打开的直播记录文件。</summary>
+    public string LiveMarkerFilePath { get; set; } = "";
+
     /// <summary>
     /// 标签页 ID。
     /// </summary>

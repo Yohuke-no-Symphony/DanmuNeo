@@ -71,6 +71,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
     public LiveRoomTabViewModel(LiveRoomTabState state)
     {
         State = state;
+        LiveMarker = new(state);
         inputDraft = state.InputDraft;
         lyricInput = state.LyricText;
         translatedLyricInput = state.TranslatedLyricText;
@@ -93,6 +94,9 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
     /// 直播间状态。
     /// </summary>
     public LiveRoomTabState State { get; }
+
+    /// <summary>该房间标签独立持有的直播记录文档。</summary>
+    public LiveMarkerViewModel LiveMarker { get; }
 
     /// <summary>
     /// 弹幕列表。
@@ -160,6 +164,7 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
             StopLivePlayer();
             StopListening();
             historyReconciler.Clear();
+            LiveMarker.CancelPendingOperation();
             State.RoomId = value;
             NotifyDanmuConfigurationAccountChanged();
             InvalidateDraftSendFeedback();
@@ -519,7 +524,8 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
         IAppLogService? log = null,
         string? logWorkspace = null,
         LiveRoomReceptionServices? receptionServices = null,
-        string? receptionWorkspaceId = null)
+        string? receptionWorkspaceId = null,
+        LiveMarkerServices? liveMarkerServices = null)
     {
         ObjectDisposedException.ThrowIf(isDisposed, this);
         StopLivePlayer();
@@ -557,6 +563,12 @@ public partial class LiveRoomTabViewModel : ViewModelBase, IDisposable
         this.resolveAccountById = resolveAccountById;
         this.liveDanmuSocketFactory = liveDanmuSocketFactory ?? new BilibiliLiveDanmuSocketFactory();
         this.moderationService = moderationService ?? new BilibiliModerationService();
+        if (liveMarkerServices is not null)
+        {
+            LiveMarker.Configure(liveMarkerServices, () => RoomId, () => this.resolveAccount(this)?.Cookie,
+                getSettings, saveState, log);
+        }
+
         foreach (var rule in ForwardRules)
         {
             ConfigureForwardRule(rule);

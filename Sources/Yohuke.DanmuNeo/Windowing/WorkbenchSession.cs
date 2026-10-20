@@ -10,7 +10,7 @@ using Yohuke.DanmuNeo.Views.Components;
 
 namespace Yohuke.DanmuNeo.Windowing;
 
-internal sealed class WorkbenchSession : IAsyncDisposable
+internal sealed partial class WorkbenchSession : IAsyncDisposable
 {
     private readonly Window mainWindow;
     private readonly Menu windowMenu;
@@ -48,11 +48,15 @@ internal sealed class WorkbenchSession : IAsyncDisposable
         Layouts.PanelClosedByUser += OnPanelClosed;
         Layouts.PersistenceFailed += OnPersistenceFailed;
         auxiliary = new(application, windows, Layouts);
+        Panels.LiveMarker.ConfirmLeaveAsync = auxiliary.ConfirmLiveMarkerLeaveAsync;
+        application.ConfirmLiveMarkerLeaveAsync = auxiliary.ConfirmLiveMarkerLeaveAsync;
+        application.CommitLiveMarkerEditing = Panels.LiveMarker.CommitEditing;
         Panels.SetCaptureNoteEditor(auxiliary.EditCaptureNoteAsync);
         menuCatalog = new(Layouts, auxiliary.OpenSettings, auxiliary.SaveLayoutAs, auxiliary.ManageLayouts,
             auxiliary.OpenAbout, auxiliary.CheckForUpdates, () => windows.IsInteractionBlocked);
         application.Log.Changed += OnLogChanged;
         UpdateLogPresentation();
+        InitializeLiveMarkerPresentation();
         shortcuts = new(Context, Panels, Layouts.ShowPanel, auxiliary.OpenSettings, () => windows.IsInteractionBlocked);
         windows.BusinessWindowAdded += AttachWindow;
         windows.BusinessWindowRemoved += DetachWindow;
@@ -96,6 +100,7 @@ internal sealed class WorkbenchSession : IAsyncDisposable
         application.CancelShortcutRecording();
         await Panels.CompletePendingCaptureAsync();
         await application.FlushCapturesAsync();
+        await application.CompleteLiveMarkerWritesAsync();
 
         if (application.IsSettingsOpen)
         {
@@ -116,6 +121,11 @@ internal sealed class WorkbenchSession : IAsyncDisposable
         windows.SetShutdownPending(value);
     }
 
+    internal Task<bool> PrepareForShutdownAsync()
+    {
+        return application.PrepareLiveMarkersToLeaveAsync(application.Workspaces.SelectMany(workspace => workspace.Rooms));
+    }
+
     /// <inheritdoc/>
     public async ValueTask DisposeAsync()
     {
@@ -126,10 +136,13 @@ internal sealed class WorkbenchSession : IAsyncDisposable
 
         await Layouts.DisposeAsync();
         disposed = true;
+        ReleaseLiveMarkerPresentation();
         Localization.LanguageChanged -= OnLanguageChanged;
         application.Log.Changed -= OnLogChanged;
         application.PropertyChanged -= OnApplicationChanged;
         Panels.LyricLibraryRequested -= OpenLyricLibrary;
+        application.ConfirmLiveMarkerLeaveAsync = null;
+        application.CommitLiveMarkerEditing = null;
         Layouts.PanelClosedByUser -= OnPanelClosed;
         Layouts.PersistenceFailed -= OnPersistenceFailed;
         auxiliary.Dispose();
@@ -227,6 +240,7 @@ internal sealed class WorkbenchSession : IAsyncDisposable
     private void OnLanguageChanged(object? sender, EventArgs e)
     {
         UpdateLogPresentation();
+        UpdateLiveMarkerPresentation();
     }
 
     private void OnApplicationChanged(object? sender, PropertyChangedEventArgs e)

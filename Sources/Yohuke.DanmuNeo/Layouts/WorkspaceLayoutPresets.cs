@@ -52,15 +52,16 @@ internal static class WorkspaceLayoutPresets
         {
             DEFAULT => Split(WorkspaceLayoutOrientation.Vertical, 0.3,
                 Tabs(0.3, WorkbenchPanelIds.SUPER_CHAT),
-                Tabs(0.7, WorkbenchPanelIds.DANMU, WorkbenchPanelIds.HISTORY,
+                Tabs(0.7, WorkbenchPanelIds.DANMU, WorkbenchPanelIds.HISTORY, WorkbenchPanelIds.LIVE_MARKER,
                     WorkbenchPanelIds.LYRICS, WorkbenchPanelIds.FORWARDING, WorkbenchPanelIds.LOG, WorkbenchPanelIds.MODERATION, WorkbenchPanelIds.ACCOUNT_MEDALS)),
             TRANSLATION => Split(WorkspaceLayoutOrientation.Vertical, 0.3,
                 Tabs(0.25, WorkbenchPanelIds.SUPER_CHAT),
                 Tabs(0.5, WorkbenchPanelIds.DANMU),
-                Tabs(0.25, WorkbenchPanelIds.HISTORY, WorkbenchPanelIds.LOG, WorkbenchPanelIds.MODERATION, WorkbenchPanelIds.ACCOUNT_MEDALS)),
+                Tabs(0.25, WorkbenchPanelIds.HISTORY, WorkbenchPanelIds.LIVE_MARKER, WorkbenchPanelIds.LOG,
+                    WorkbenchPanelIds.MODERATION, WorkbenchPanelIds.ACCOUNT_MEDALS)),
             _ => Split(WorkspaceLayoutOrientation.Vertical, 0.3,
                 Tabs(0.45, WorkbenchPanelIds.LIVE_PLAYER),
-                Tabs(0.55, WorkbenchPanelIds.DANMU, WorkbenchPanelIds.SUPER_CHAT, WorkbenchPanelIds.HISTORY,
+                Tabs(0.55, WorkbenchPanelIds.DANMU, WorkbenchPanelIds.SUPER_CHAT, WorkbenchPanelIds.HISTORY, WorkbenchPanelIds.LIVE_MARKER,
                     presetId == LYRICS ? WorkbenchPanelIds.FORWARDING : WorkbenchPanelIds.LYRICS, WorkbenchPanelIds.LOG,
                     WorkbenchPanelIds.MODERATION, WorkbenchPanelIds.ACCOUNT_MEDALS))
         };

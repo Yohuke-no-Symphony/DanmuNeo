@@ -48,7 +48,7 @@ public class WorkspaceLayoutPresetsTests
         Assert.Equal([WorkbenchPanelIds.SUPER_CHAT], right.Children[0].PanelIds);
         Assert.Equal(new[]
         {
-            WorkbenchPanelIds.DANMU, WorkbenchPanelIds.HISTORY,
+            WorkbenchPanelIds.DANMU, WorkbenchPanelIds.HISTORY, WorkbenchPanelIds.LIVE_MARKER,
             WorkbenchPanelIds.LYRICS, WorkbenchPanelIds.FORWARDING, WorkbenchPanelIds.LOG, WorkbenchPanelIds.MODERATION, WorkbenchPanelIds.ACCOUNT_MEDALS
         }, right.Children[1].PanelIds);
         Assert.Equal(WorkbenchPanelIds.DANMU, right.Children[1].ActivePanelId);
@@ -69,7 +69,8 @@ public class WorkspaceLayoutPresetsTests
         {
             WorkbenchPanelIds.SUPER_CHAT, WorkbenchPanelIds.DANMU, WorkbenchPanelIds.HISTORY
         }, right.Children.Select(child => child.PanelIds[0]));
-        Assert.Equal([WorkbenchPanelIds.HISTORY, WorkbenchPanelIds.LOG, WorkbenchPanelIds.MODERATION, WorkbenchPanelIds.ACCOUNT_MEDALS], right.Children[2].PanelIds);
+        Assert.Equal([WorkbenchPanelIds.HISTORY, WorkbenchPanelIds.LIVE_MARKER, WorkbenchPanelIds.LOG,
+            WorkbenchPanelIds.MODERATION, WorkbenchPanelIds.ACCOUNT_MEDALS], right.Children[2].PanelIds);
         Assert.Equal(new[] { WorkbenchPanelIds.LYRICS, WorkbenchPanelIds.FORWARDING, WorkbenchPanelIds.LIVE_CAPTURES }, layout.HiddenPanelIds);
     }
 
@@ -89,7 +90,8 @@ public class WorkspaceLayoutPresetsTests
         Assert.Equal(new[]
         {
             WorkbenchPanelIds.DANMU, WorkbenchPanelIds.SUPER_CHAT,
-            WorkbenchPanelIds.HISTORY, secondaryToolId, WorkbenchPanelIds.LOG, WorkbenchPanelIds.MODERATION, WorkbenchPanelIds.ACCOUNT_MEDALS
+            WorkbenchPanelIds.HISTORY, WorkbenchPanelIds.LIVE_MARKER, secondaryToolId, WorkbenchPanelIds.LOG,
+            WorkbenchPanelIds.MODERATION, WorkbenchPanelIds.ACCOUNT_MEDALS
         }, right.Children[1].PanelIds);
         Assert.Equal(WorkbenchPanelIds.DANMU, right.Children[1].ActivePanelId);
         Assert.Equal([WorkbenchPanelIds.LIVE_CAPTURES], layout.HiddenPanelIds);
@@ -129,5 +131,37 @@ public class WorkspaceLayoutPresetsTests
     public void UnknownPresetIsRejected()
     {
         Assert.Throws<ArgumentException>(() => WorkspaceLayoutPresets.Create("missing"));
+    }
+
+    /// <summary>全部新内置布局恰好包含十三个面板，直播记录位于历史后的同一标签组。</summary>
+    [Theory]
+    [InlineData(WorkspaceLayoutPresets.DEFAULT)]
+    [InlineData(WorkspaceLayoutPresets.TRANSLATION)]
+    [InlineData(WorkspaceLayoutPresets.LYRICS)]
+    [InlineData(WorkspaceLayoutPresets.FORWARDING)]
+    public void BuiltInLayoutsIncludeLiveMarkerBesideHistoryWithoutDuplicatePanels(string presetId)
+    {
+        var layout = WorkspaceLayoutPresets.Create(presetId);
+        var nodes = FlattenNodes(layout.Main!).ToArray();
+        var historyGroup = Assert.Single(nodes, node => node.PanelIds.Contains(WorkbenchPanelIds.HISTORY));
+        var historyIndex = historyGroup.PanelIds.IndexOf(WorkbenchPanelIds.HISTORY);
+        Assert.Equal(WorkbenchPanelIds.LIVE_MARKER, historyGroup.PanelIds[historyIndex + 1]);
+        Assert.DoesNotContain(WorkbenchPanelIds.LIVE_MARKER, layout.HiddenPanelIds);
+        var panels = nodes.SelectMany(node => node.PanelIds).Concat(layout.HiddenPanelIds).ToArray();
+        Assert.Equal(13, panels.Length);
+        Assert.Equal(13, panels.Distinct(StringComparer.Ordinal).Count());
+        Assert.Equal(WorkbenchPanelIds.All.Order(), panels.Order());
+    }
+
+    private static IEnumerable<WorkspaceLayoutNode> FlattenNodes(WorkspaceLayoutNode node)
+    {
+        yield return node;
+        foreach (var child in node.Children)
+        {
+            foreach (var descendant in FlattenNodes(child))
+            {
+                yield return descendant;
+            }
+        }
     }
 }

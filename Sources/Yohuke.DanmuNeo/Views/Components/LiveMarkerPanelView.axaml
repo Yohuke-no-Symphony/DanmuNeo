@@ -1,0 +1,201 @@
+<components:WorkbenchRoomPanel xmlns="https://github.com/avaloniaui"
+                               xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                               xmlns:components="clr-namespace:Yohuke.DanmuNeo.Views.Components"
+                               xmlns:items="clr-namespace:Yohuke.DanmuNeo.ViewModels.Items"
+                               xmlns:converters="using:Avalonia.Data.Converters"
+                               x:Class="Yohuke.DanmuNeo.Views.Components.LiveMarkerPanelView"
+                               x:DataType="items:LiveRoomTabViewModel"
+                               x:CompileBindings="True">
+    <components:WorkbenchRoomPanel.Styles>
+        <Style Selector="TextBox.markerInput">
+            <Setter Property="Height" Value="{StaticResource WorkbenchControlHeight}" />
+            <Setter Property="MinHeight" Value="{StaticResource WorkbenchControlHeight}" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="Margin" Value="0" />
+        </Style>
+        <Style Selector="ComboBox.markerColorSelector">
+            <Setter Property="MinWidth" Value="100" />
+            <Setter Property="Height" Value="{StaticResource WorkbenchControlHeight}" />
+            <Setter Property="MinHeight" Value="{StaticResource WorkbenchControlHeight}" />
+        </Style>
+    </components:WorkbenchRoomPanel.Styles>
+    <Border Padding="{StaticResource WorkbenchPanelPadding}">
+        <Grid x:Name="MarkerContent"
+              DataContext="{Binding LiveMarker}"
+              x:DataType="items:LiveMarkerViewModel"
+              RowDefinitions="Auto,*,Auto"
+              RowSpacing="8">
+            <WrapPanel x:Name="MarkerFileToolbar" ItemSpacing="4" LineSpacing="4"
+                       IsEnabled="{Binding CanUseFiles}">
+                <Button x:Name="MarkerNewButton" Classes="iconButton" Tag="liveMarker.new"
+                        ToolTip.Tip="{Loc Key=LiveMarker.New}" AutomationProperties.Name="{Loc Key=LiveMarker.New}"
+                        Click="FileAction_OnClick">
+                    <LucideIcon Kind="FilePlus" />
+                </Button>
+                <Button x:Name="MarkerOpenButton" Classes="iconButton" Tag="liveMarker.open"
+                        ToolTip.Tip="{Loc Key=LiveMarker.Open}" AutomationProperties.Name="{Loc Key=LiveMarker.Open}"
+                        Click="FileAction_OnClick">
+                    <LucideIcon Kind="FolderOpen" />
+                </Button>
+                <Button x:Name="MarkerSaveButton" Classes="iconButton" Tag="liveMarker.save"
+                        IsEnabled="{Binding HasDocument}"
+                        ToolTip.Tip="{Loc Key=LiveMarker.Save}" AutomationProperties.Name="{Loc Key=LiveMarker.Save}"
+                        Click="FileAction_OnClick">
+                    <LucideIcon Kind="Save" />
+                </Button>
+                <Button x:Name="MarkerSaveAsButton" Classes="iconButton" Tag="liveMarker.saveAs"
+                        IsEnabled="{Binding HasDocument}"
+                        ToolTip.Tip="{Loc Key=LiveMarker.SaveAs}" AutomationProperties.Name="{Loc Key=LiveMarker.SaveAs}"
+                        Click="FileAction_OnClick">
+                    <LucideIcon Kind="SaveAll" />
+                </Button>
+                <Button x:Name="MarkerCloseButton" Classes="iconButton" Tag="liveMarker.close"
+                        IsEnabled="{Binding HasDocument}"
+                        ToolTip.Tip="{Loc Key=LiveMarker.Close}" AutomationProperties.Name="{Loc Key=LiveMarker.Close}"
+                        Click="FileAction_OnClick">
+                    <LucideIcon Kind="FileX" />
+                </Button>
+                <Button x:Name="MarkerExportTextButton" Classes="iconButton" Tag="liveMarker.exportText"
+                        IsEnabled="{Binding HasDocument}"
+                        ToolTip.Tip="{Loc Key=LiveMarker.ExportText}" AutomationProperties.Name="{Loc Key=LiveMarker.ExportText}"
+                        Click="FileAction_OnClick">
+                    <LucideIcon Kind="FileText" />
+                </Button>
+                <Button x:Name="MarkerExportExcelButton" Classes="iconButton" Tag="liveMarker.exportExcel"
+                        IsEnabled="{Binding HasDocument}"
+                        ToolTip.Tip="{Loc Key=LiveMarker.ExportExcel}" AutomationProperties.Name="{Loc Key=LiveMarker.ExportExcel}"
+                        Click="FileAction_OnClick">
+                    <LucideIcon Kind="Sheet" />
+                </Button>
+                <Button x:Name="MarkerMoreButton" Classes="iconButton"
+                        ToolTip.Tip="{Loc Key=LiveMarker.More}" AutomationProperties.Name="{Loc Key=LiveMarker.More}">
+                    <LucideIcon Kind="Ellipsis" />
+                    <Button.Flyout>
+                        <MenuFlyout>
+                            <MenuItem Header="{Loc Key=LiveMarker.Undo}" Tag="liveMarker.undo" Click="EditAction_OnClick" />
+                            <MenuItem Header="{Loc Key=LiveMarker.Redo}" Tag="liveMarker.redo" Click="EditAction_OnClick" />
+                            <MenuItem Header="{Loc Key=LiveMarker.Delete}" Tag="liveMarker.delete" Click="EditAction_OnClick" />
+                            <Separator />
+                            <MenuItem x:Name="MarkerAutoSaveMenuItem" Header="{Loc Key=LiveMarker.AutoSave}"
+                                      ToggleType="CheckBox" IsChecked="{Binding AutoSaveEnabled, Mode=TwoWay}" />
+                            <MenuItem x:Name="MarkerShowRealTimeMenuItem" Header="{Loc Key=LiveMarker.ShowRealTime}"
+                                      ToggleType="CheckBox" IsChecked="{Binding ShowRealTimeColumn, Mode=TwoWay}" />
+                        </MenuFlyout>
+                    </Button.Flyout>
+                </Button>
+            </WrapPanel>
+
+            <Grid Grid.Row="1">
+                <DataGrid x:Name="MarkerDataGrid"
+                          ItemsSource="{Binding Entries}"
+                          SelectedItem="{Binding SelectedEntry, Mode=TwoWay}"
+                          IsEnabled="{Binding CanEdit}"
+                          AutoGenerateColumns="False"
+                          CanUserSortColumns="False"
+                          CanUserReorderColumns="False"
+                          SelectionMode="Single"
+                          HeadersVisibility="Column"
+                          GridLinesVisibility="Horizontal"
+                          RowHeight="34"
+                          BeginningEdit="DataGrid_OnBeginningEdit"
+                          CellEditEnding="DataGrid_OnCellEditEnding"
+                          RowEditEnding="DataGrid_OnRowEditEnding"
+                          RowEditEnded="DataGrid_OnRowEditEnded"
+                          KeyDown="DataGrid_OnKeyDown">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="{Loc Key=LiveMarker.LiveTime}"
+                                            Width="124" MinWidth="110"
+                                            Binding="{Binding LiveTimeText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                            x:DataType="items:LiveMarkerEntryViewModel" />
+                        <DataGridTextColumn Header="{Loc Key=LiveMarker.RealTime}"
+                                            Width="238" MinWidth="190" IsReadOnly="True"
+                                            Binding="{Binding RealTimeText}"
+                                            x:DataType="items:LiveMarkerEntryViewModel" />
+                        <DataGridTextColumn Header="{Loc Key=LiveMarker.Message}"
+                                            Width="*" MinWidth="132"
+                                            Binding="{Binding Message, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                            x:DataType="items:LiveMarkerEntryViewModel" />
+                        <DataGridTemplateColumn Header="{Loc Key=LiveMarker.Color}" Width="96" MinWidth="90">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate x:DataType="items:LiveMarkerEntryViewModel">
+                                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="8,0">
+                                        <Ellipse Width="9" Height="9" Fill="{Binding ColorBrush}" />
+                                        <TextBlock Text="{Binding ColorName}" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                            <DataGridTemplateColumn.CellEditingTemplate>
+                                <DataTemplate x:DataType="items:LiveMarkerEntryViewModel">
+                                    <ComboBox ItemsSource="{Binding ColorOptions}"
+                                              SelectedValue="{Binding MarkerColor, Mode=TwoWay}"
+                                              SelectedValueBinding="{Binding Value}"
+                                              HorizontalAlignment="Stretch"
+                                              AutomationProperties.Name="{Loc Key=LiveMarker.Color}">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate x:DataType="items:LiveMarkerColorOption">
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <Ellipse Width="9" Height="9" Fill="{Binding Brush}" />
+                                                    <TextBlock Text="{Binding Name}" />
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellEditingTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+                <TextBlock Text="{Loc Key=LiveMarker.OpenHint}" Classes="muted"
+                           IsVisible="{Binding !HasDocument}" TextWrapping="Wrap"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" Margin="12" />
+            </Grid>
+
+            <StackPanel Grid.Row="2" Spacing="6">
+                <Grid x:Name="MarkerInputRow" ColumnDefinitions="Auto,Auto,Auto,*,Auto"
+                      ColumnSpacing="4" IsEnabled="{Binding CanEdit}">
+                    <TextBlock x:Name="MarkerInputTime" Text="{Binding InputTimeText}"
+                               VerticalAlignment="Center" ToolTip.Tip="{Loc Key=LiveMarker.InputTime}" />
+                    <Button x:Name="MarkerLockTimeButton" Grid.Column="1" Classes="iconButton"
+                            IsVisible="{Binding !IsTimeLocked}" Command="{Binding LockTimeCommand}"
+                            ToolTip.Tip="{Loc Key=LiveMarker.LockTime}" AutomationProperties.Name="{Loc Key=LiveMarker.LockTime}">
+                        <LucideIcon Kind="LockOpen" />
+                    </Button>
+                    <Button x:Name="MarkerUnlockTimeButton" Grid.Column="1" Classes="iconButton"
+                            IsVisible="{Binding IsTimeLocked}" Command="{Binding UnlockTimeCommand}"
+                            ToolTip.Tip="{Loc Key=LiveMarker.UnlockTime}" AutomationProperties.Name="{Loc Key=LiveMarker.UnlockTime}">
+                        <LucideIcon Kind="Lock" />
+                    </Button>
+                    <ComboBox x:Name="MarkerColorSelector" Grid.Column="2" Classes="markerColorSelector"
+                              ItemsSource="{Binding ColorOptions}"
+                              SelectedValue="{Binding SelectedColor, Mode=TwoWay}"
+                              SelectedValueBinding="{Binding Value}"
+                              AutomationProperties.Name="{Loc Key=LiveMarker.Color}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="items:LiveMarkerColorOption">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Ellipse Width="9" Height="9" Fill="{Binding Brush}" />
+                                    <TextBlock Text="{Binding Name}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <TextBox x:Name="MarkerInput" Grid.Column="3" Classes="markerInput"
+                             Text="{Binding DraftText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             Watermark="{Loc Key=LiveMarker.InputHint}"
+                             AutomationProperties.Name="{Loc Key=LiveMarker.Message}"
+                             KeyDown="Input_OnKeyDown" />
+                    <Button x:Name="MarkerAddButton" Grid.Column="4" Classes="iconButton primaryButton"
+                            Command="{Binding AddMarkerCommand}"
+                            ToolTip.Tip="{Loc Key=LiveMarker.Add}" AutomationProperties.Name="{Loc Key=LiveMarker.Add}">
+                        <LucideIcon Kind="Plus" />
+                    </Button>
+                </Grid>
+
+                <TextBlock x:Name="MarkerLastError" Text="{Binding LastError}"
+                           IsVisible="{Binding LastError, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}"
+                           Foreground="{DynamicResource AppErrorBrush}" TextWrapping="Wrap"
+                           MaxLines="3" TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+        </Grid>
+    </Border>
+</components:WorkbenchRoomPanel>

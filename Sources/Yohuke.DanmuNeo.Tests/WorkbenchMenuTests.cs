@@ -5,6 +5,7 @@ using Avalonia.VisualTree;
 using Dock.Model.Core;
 using Lucide.Avalonia;
 using SkiaSharp;
+using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Layouts;
 using Yohuke.DanmuNeo.Menus;
 
@@ -235,6 +236,36 @@ public class WorkbenchMenuTests
             .Where(item => item.Id.StartsWith("layout:")).ToArray();
         Assert.All(layouts, item => Assert.True(item.IsCheckable));
         Assert.Equal($"layout:{context.Controller.CurrentPresetId}", Assert.Single(layouts, item => item.IsChecked).Id);
+    }
+
+    /// <summary>直播记录使用独立图标和本地化标题，菜单可恢复隐藏面板并复用同一实例。</summary>
+    [AvaloniaFact]
+    public async Task LiveMarkerMenuRestoresExistingPanelWithBookmarkIcon()
+    {
+        await using var context = new WorkbenchLayoutTestContext();
+        using var catalog = new WorkbenchMenuCatalog(context.Controller, () => { }, () => { }, () => { },
+            () => { }, () => { }, () => false);
+        context.Show();
+        var id = WorkbenchPanelIds.LIVE_MARKER;
+        var panel = context.Controller.PanelAdapters[id];
+        var entry = catalog.Entries.Single(group => group.Id == "views").Children!
+            .Single(item => item.Id == $"panel:{id}");
+        Assert.Equal(Localization.Get("Workbench.Panel.LiveMarker"), entry.Header);
+        Assert.Equal(LucideIconKind.Bookmark, entry.Icon);
+        Assert.Equal(entry.Header, panel.Title);
+        Assert.False(entry.IsCheckable);
+        context.Controller.HidePanel(id);
+        context.Pump();
+
+        entry.Command!.Execute(null);
+        context.Pump();
+        entry.Command.Execute(null);
+        context.Pump();
+
+        Assert.True(context.Controller.IsVisible(id));
+        Assert.Equal(id, context.Controller.Capture().FocusedPanelId);
+        Assert.Same(panel, context.Controller.PanelAdapters[id]);
+        Assert.Same(panel, Assert.IsAssignableFrom<IDock>(panel.Owner).ActiveDockable);
     }
 
     private static void AssertLayoutMenu(Menu menu, NativeMenu nativeMenu, IReadOnlyList<string> expected)

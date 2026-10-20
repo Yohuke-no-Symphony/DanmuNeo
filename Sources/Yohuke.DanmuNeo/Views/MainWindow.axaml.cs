@@ -98,12 +98,24 @@ public partial class MainWindow : Window
 
             if (Workbench is not null)
             {
+                if (!await Workbench.PrepareForShutdownAsync())
+                {
+                    closing = false;
+                    return;
+                }
+
                 Workbench.SetShutdownPending(true);
                 await Workbench.SaveForShutdownAsync();
                 await Workbench.DisposeAsync();
             }
             else if (viewModel is not null)
             {
+                if (!await viewModel.PrepareLiveMarkersToLeaveAsync(viewModel.Workspaces.SelectMany(workspace => workspace.Rooms)))
+                {
+                    closing = false;
+                    return;
+                }
+
                 await viewModel.SaveAsync();
                 await viewModel.DisposeAsync();
             }

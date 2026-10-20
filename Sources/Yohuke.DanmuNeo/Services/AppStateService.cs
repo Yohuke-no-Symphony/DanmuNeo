@@ -525,6 +525,7 @@ public class AppStateService
 
                 room.ForwardRules ??= [];
                 room.TranslatedLyricText ??= "";
+                room.LiveMarkerFilePath ??= "";
 
                 if (!Enum.IsDefined(room.LyricSendMode))
                 {

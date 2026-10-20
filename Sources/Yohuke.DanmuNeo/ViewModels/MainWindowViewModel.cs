@@ -74,11 +74,14 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IAsyncDis
         IBilibiliMedalService? medalService = null,
         ILiveCaptureStore? liveCaptureStore = null,
         ILiveCaptureExportService? liveCaptureExportService = null,
-        ILiveFrameCaptureService? frameCaptureService = null)
+        ILiveFrameCaptureService? frameCaptureService = null,
+        LiveMarkerServices? liveMarkerServices = null)
     {
         Log = log ?? new AppLogService();
         ownsLog = log is null;
         this.stateService = stateService;
+        this.liveMarkerServices = liveMarkerServices ?? new();
+        ownsLiveMarkerServices = liveMarkerServices is null;
         ownedAppUpdateService = appUpdateService is null ? new() : null;
         this.appUpdateService = appUpdateService ?? ownedAppUpdateService!;
         appDirectoryService = new(stateService.ConfigDirectory);
@@ -901,6 +904,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IAsyncDis
             return;
         }
 
+        if (!await PrepareLiveMarkersToLeaveAsync(workspace.Rooms))
+        {
+            return;
+        }
+
         if (ReferenceEquals(addDialogWorkspace, workspace))
         {
             CloseAddDialog();
@@ -950,6 +958,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IAsyncDis
         var workspace = Workspaces.FirstOrDefault(item => item.Rooms.Contains(room));
 
         if (workspace is null)
+        {
+            return;
+        }
+
+        if (!await PrepareLiveMarkersToLeaveAsync([room]))
         {
             return;
         }
@@ -1859,7 +1872,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IAsyncDis
             log: Log,
             logWorkspace: workspace.Name,
             receptionServices: receptionServices,
-            receptionWorkspaceId: workspace.Id);
+            receptionWorkspaceId: workspace.Id,
+            liveMarkerServices: liveMarkerServices);
         _ = room.LoadAvatarAsync();
     }
 
@@ -1891,6 +1905,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable, IAsyncDis
         livePlayerService.Dispose();
         ownedAvatarCacheService?.Dispose();
         emoticonCacheService.Dispose();
+        if (ownsLiveMarkerServices)
+        {
+            liveMarkerServices.Dispose();
+        }
 
         if (ownsLog)
         {

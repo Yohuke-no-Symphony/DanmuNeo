@@ -130,6 +130,23 @@ internal sealed class WorkbenchShortcutRouter : IDisposable
         var inTextInput = e.Source is TextBox || e.Source is Control control &&
             control.FindAncestorOfType<TextBox>() is not null;
 
+        var inMarker = e.Source is Control source &&
+            (ReferenceEquals(source, panels.LiveMarker) || source.FindAncestorOfType<LiveMarkerPanelView>() == panels.LiveMarker);
+        if (action?.StartsWith("liveMarker.", StringComparison.Ordinal) == true)
+        {
+            if (inMarker)
+            {
+                e.Handled = panels.LiveMarker.TryHandleShortcut(action, inTextInput);
+            }
+
+            return;
+        }
+
+        if (inMarker && (inTextInput || e.Key == Key.Tab))
+        {
+            return;
+        }
+
         if (action is null || inTextInput && action is not
             (ShortcutActionKeys.INPUT_CLEAR_DRAFT or ShortcutActionKeys.INPUT_CYCLE_MARK_GROUP or ShortcutActionKeys.LIVE_PLAYER_CAPTURE))
         {

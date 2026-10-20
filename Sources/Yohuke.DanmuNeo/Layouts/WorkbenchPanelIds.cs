@@ -14,6 +14,7 @@ internal static class WorkbenchPanelIds
     internal const string MODERATION = "moderation";
     internal const string ACCOUNT_MEDALS = "accountMedals";
     internal const string LIVE_CAPTURES = "liveCaptures";
+    internal const string LIVE_MARKER = "liveMarker";
 
     private static readonly IReadOnlyList<string> VERSION_ONE = Array.AsReadOnly(new[]
     {
@@ -41,6 +42,12 @@ internal static class WorkbenchPanelIds
         ACCOUNT_MEDALS, LIVE_CAPTURES
     });
 
+    private static readonly IReadOnlyList<string> VERSION_SIX = Array.AsReadOnly(new[]
+    {
+        WORKSPACE, LIVE_PLAYER, COMPOSER, SUPER_CHAT, DANMU, HISTORY, LYRICS, FORWARDING, LOG, MODERATION,
+        ACCOUNT_MEDALS, LIVE_CAPTURES, LIVE_MARKER
+    });
+
     internal static IReadOnlyList<string> All => ForVersion(WorkspaceLayoutFile.CURRENT_VERSION);
 
     internal static IReadOnlyList<string> ForVersion(int version)
@@ -52,6 +59,7 @@ internal static class WorkbenchPanelIds
             3 => VERSION_THREE,
             4 => VERSION_FOUR,
             5 => VERSION_FIVE,
+            6 => VERSION_SIX,
             _ => []
         };
     }
