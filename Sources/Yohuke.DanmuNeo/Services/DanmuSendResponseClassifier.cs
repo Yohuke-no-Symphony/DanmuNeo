@@ -16,6 +16,10 @@ public static class DanmuSendResponseClassifier
         {
             return DanmuSendFailureKind.None;
         }
+        if (IsExplicitLengthLimit(message) || IsExplicitLengthLimit(msg))
+        {
+            return DanmuSendFailureKind.LengthExceeded;
+        }
         if (IsExplicitFrequencyLimit(message) || IsExplicitFrequencyLimit(msg))
         {
             return DanmuSendFailureKind.RateLimited;
@@ -35,5 +39,10 @@ public static class DanmuSendResponseClassifier
     {
         return text is not null &&
                (text.Contains("频率过快", StringComparison.Ordinal) || text.Contains("频率过高", StringComparison.Ordinal));
+    }
+
+    private static bool IsExplicitLengthLimit(string? text)
+    {
+        return text?.Contains("超出限制长度", StringComparison.Ordinal) == true;
     }
 }

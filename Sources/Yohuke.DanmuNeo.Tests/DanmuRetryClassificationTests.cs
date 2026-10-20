@@ -14,6 +14,8 @@ public class DanmuRetryClassificationTests
     [InlineData(999, "发送频率过快，请稍后再试", DanmuSendFailureKind.RateLimited)]
     [InlineData(999, "发送频率过高", DanmuSendFailureKind.RateLimited)]
     [InlineData(0, "发送频率过快", DanmuSendFailureKind.None)]
+    [InlineData(10020, "超出限制长度", DanmuSendFailureKind.LengthExceeded)]
+    [InlineData(0, "超出限制长度", DanmuSendFailureKind.None)]
     public void BusinessClassificationRequiresExplicitFrequencyResponse(int code, string? message, DanmuSendFailureKind expected)
     {
         Assert.Equal(expected, DanmuSendResponseClassifier.Classify(code, message, null));

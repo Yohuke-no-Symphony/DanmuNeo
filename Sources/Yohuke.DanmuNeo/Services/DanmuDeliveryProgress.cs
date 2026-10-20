@@ -21,6 +21,7 @@ public sealed class DanmuDeliveryProgress
 
     /// <summary>不包含账号凭据的稳定操作标识。</summary>
     public string OperationId { get; } = Guid.NewGuid().ToString("N");
+    internal int? PreferredMessageLength { get; set; }
     /// <summary>此操作的不可变内容快照。</summary>
     public DanmuSendRequest Request { get; }
     /// <summary>所有正文是否已经被接口接受。</summary>

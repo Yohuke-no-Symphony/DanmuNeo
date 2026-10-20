@@ -1,5 +1,8 @@
 using Avalonia.Controls;
+using Avalonia.Data.Converters;
 using Avalonia.Input;
+using Lucide.Avalonia;
+using Yohuke.DanmuNeo.Models.Workspace;
 using Yohuke.DanmuNeo.Windowing;
 
 namespace Yohuke.DanmuNeo.Views.Components;
@@ -9,6 +12,15 @@ namespace Yohuke.DanmuNeo.Views.Components;
 /// </summary>
 public partial class DraftComposerPanelView : WorkbenchRoomPanel
 {
+    /// <summary>将所选弹幕位置转换为紧凑选择器的方向角标。</summary>
+    public static FuncValueConverter<DanmuModeOption?, LucideIconKind> ModeBadgeIconConverter { get; } = new(option => option?.Value switch
+    {
+        1 => LucideIconKind.MoveLeft,
+        4 => LucideIconKind.ArrowDownToLine,
+        5 => LucideIconKind.ArrowUpToLine,
+        _ => LucideIconKind.BadgeQuestionMark
+    });
+
     /// <summary>
     /// 创建并连接输入面板。
     /// </summary>

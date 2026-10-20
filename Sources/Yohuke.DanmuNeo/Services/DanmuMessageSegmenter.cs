@@ -10,11 +10,16 @@ public static class DanmuMessageSegmenter
     private const string CUT_PUNCTUATION = " 　/，。：！？,.:!?)）】";
 
     /// <summary>从尚未成功的正文起点创建下一段。</summary>
-    public static DanmuSendSegment Next(DanmuMessageContent content, int start, int maxLength)
+    public static DanmuSendSegment Next(DanmuMessageContent content, int start, int maxLength, int? preferredLength = null)
     {
-        var continuation = start > 0 ? CONTINUATION_MARK : "";
-        var budget = maxLength - content.Prefix.Length - content.Suffix.Length - continuation.Length;
         var remaining = content.Body[start..];
+        var firstElementLength = StringInfo.GetNextTextElementLength(remaining);
+        var minimumLength = content.Prefix.Length + content.Suffix.Length + firstElementLength;
+        maxLength = Math.Min(maxLength, Math.Max(preferredLength ?? maxLength, minimumLength));
+        var bodyBudget = maxLength - content.Prefix.Length - content.Suffix.Length;
+        var continuation = start > 0 && bodyBudget > firstElementLength
+            ? CONTINUATION_MARK : "";
+        var budget = bodyBudget - continuation.Length;
         var boundaries = StringInfo.ParseCombiningCharacters(remaining);
         var end = 0;
         var punctuationEnd = 0;
@@ -44,5 +49,15 @@ public static class DanmuMessageSegmenter
             BodyLength = end,
             Message = content.Prefix + continuation + remaining[..end] + content.Suffix
         };
+    }
+
+    internal static int? GetReducedLength(DanmuMessageContent content, DanmuSendSegment rejected, int refreshedLimit)
+    {
+        var minimumLength = content.Prefix.Length + content.Suffix.Length +
+                            StringInfo.GetNextTextElementLength(content.Body.AsSpan(rejected.BodyStart));
+        var reducedLength = refreshedLimit > 0 && refreshedLimit < rejected.Message.Length
+            ? refreshedLimit
+            : Math.Max(minimumLength, rejected.Message.Length - Math.Max(1, rejected.BodyLength / 2));
+        return reducedLength >= minimumLength && reducedLength < rejected.Message.Length ? reducedLength : null;
     }
 }

@@ -34,6 +34,9 @@ public sealed class DanmuSendHttpHandler : HttpMessageHandler
     /// </summary>
     public int RequestCount { get; private set; }
 
+    /// <summary>模拟服务端独立于配置接口执行的实际单条长度限制。</summary>
+    public int? MaximumMessageLength { get; set; }
+
     /// <summary>
     /// 各次发送的解码表单。
     /// </summary>
@@ -60,9 +63,15 @@ public sealed class DanmuSendHttpHandler : HttpMessageHandler
         Forms.Add(form.Split('&', StringSplitOptions.RemoveEmptyEntries)
             .Select(parameter => parameter.Split('=', 2))
             .ToDictionary(pair => WebUtility.UrlDecode(pair[0]), pair => WebUtility.UrlDecode(pair[1])));
+        var body = ResponseBodies.Count > 0 ? ResponseBodies.Dequeue() : ResponseJson;
+        if (MaximumMessageLength is { } limit && Forms[^1].TryGetValue("msg", out var message) && message.Length > limit)
+        {
+            body = "{\"code\":10020,\"message\":\"\",\"msg\":\"超出限制长度\"}";
+        }
+
         return new(ResponseStatuses.Count > 0 ? ResponseStatuses.Dequeue() : StatusCode)
         {
-            Content = new StringContent(ResponseBodies.Count > 0 ? ResponseBodies.Dequeue() : ResponseJson)
+            Content = new StringContent(body)
         };
     }
 }

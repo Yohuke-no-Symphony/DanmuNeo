@@ -3,8 +3,11 @@ using Avalonia.Controls;
 using Avalonia.Controls.Presenters;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
+using Avalonia.Input;
+using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using Lucide.Avalonia;
 using Yohuke.DanmuNeo.Views.Components;
 using Yohuke.DanmuNeo.Windowing;
 
@@ -42,7 +45,7 @@ public class WorkbenchComposerLayoutTests
             var sendRight = send.TranslatePoint(new Point(send.Bounds.Width, 0), border)!.Value.X;
             Assert.InRange(border.Bounds.Width - border.Padding.Right - border.BorderThickness.Right - sendRight, 0,
                 0.5);
-            Assert.True(input.Bounds.Height >= 64);
+            Assert.True(input.Bounds.Height >= input.MinHeight);
             var previousInputHeight = input.Bounds.Height;
             window.Height += 80;
             Pump(window);
@@ -98,13 +101,200 @@ public class WorkbenchComposerLayoutTests
         {
             window.Show();
             Pump(window);
-            Assert.True(composer.Bounds.Height >= 124);
-            Assert.True(composer.Input.Bounds.Height >= 64);
+            Assert.InRange(composer.Input.Bounds.Height, 20, 24);
+            Assert.InRange(composer.Bounds.Height, 76, 88);
         }
         finally
         {
             window.Close();
         }
+    }
+
+    /// <summary>同一面板在宽窄切换时始终显示方形图标，并保持草稿、焦点和选择。</summary>
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ComposerAlwaysUsesSquareSelectorsWithoutChangingDraftOrConfiguration(bool dark)
+    {
+        using var fixture = new LiveRoomFeedViewTestContext();
+        using var context = new WorkbenchContext(fixture.ViewModel);
+        using var composer = new DraftComposerPanelView(context);
+        var window = new Window
+        {
+            Width = 360, Height = 200, Content = composer,
+            RequestedThemeVariant = dark ? Avalonia.Styling.ThemeVariant.Dark : Avalonia.Styling.ThemeVariant.Light
+        };
+
+        try
+        {
+            window.Show();
+            await fixture.Room.DanmuConfigurationTask;
+            Pump(window);
+            var color = composer.FindControl<ComboBox>("DanmuColorSelector")!;
+            var mode = composer.FindControl<ComboBox>("DanmuModeSelector")!;
+            var selectedColor = color.SelectedItem;
+            var selectedMode = mode.SelectedItem;
+            composer.Input.Text = "保留中文草稿和选区";
+            Assert.True(composer.Input.Focus());
+            composer.Input.SelectionStart = 2;
+            composer.Input.SelectionEnd = 5;
+
+            foreach (var width in new[] { 760, 360, 240, 760 })
+            {
+                window.Width = width;
+                Pump(window);
+                Assert.InRange(Math.Abs(color.Bounds.Width - color.Bounds.Height), 0, 0.5);
+                Assert.InRange(Math.Abs(mode.Bounds.Width - mode.Bounds.Height), 0, 0.5);
+                Assert.Equal(34, color.Bounds.Width);
+                Assert.Equal(34, mode.Bounds.Width);
+                Assert.Equal(color.TranslatePoint(default, composer)!.Value.Y, mode.TranslatePoint(default, composer)!.Value.Y);
+
+                Assert.Same(selectedColor, color.SelectedItem);
+                Assert.Same(selectedMode, mode.SelectedItem);
+                Assert.True(composer.Input.IsFocused);
+                Assert.Equal("保留中文草稿和选区", composer.Input.Text);
+                Assert.Equal(2, composer.Input.SelectionStart);
+                Assert.Equal(5, composer.Input.SelectionEnd);
+                Assert.Single(fixture.DanmuConfigService.GetRequests);
+                Assert.Empty(fixture.DanmuConfigService.SetRequests);
+                SaveFrame(window, $"composer-responsive-{width}-{(dark ? "dark" : "light")}.png");
+            }
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>紧凑图标按真实鼠标路径展开正常宽度的选项，选中后保存并更新颜色角标。</summary>
+    [AvaloniaFact]
+    public async Task CompactSelectorsOpenAndSaveOptionsThroughPointerInput()
+    {
+        using var fixture = new LiveRoomFeedViewTestContext();
+        using var context = new WorkbenchContext(fixture.ViewModel);
+        using var composer = new DraftComposerPanelView(context);
+        var window = new Window { Width = 240, Height = 200, Content = composer };
+
+        try
+        {
+            window.Show();
+            await fixture.Room.DanmuConfigurationTask;
+            Pump(window);
+            var color = composer.FindControl<ComboBox>("DanmuColorSelector")!;
+            var mode = composer.FindControl<ComboBox>("DanmuModeSelector")!;
+            Click(color);
+            Assert.True(color.IsDropDownOpen);
+            var red = Assert.IsType<ComboBoxItem>(color.ContainerFromIndex(1));
+            Assert.True(red.Bounds.Width > color.Bounds.Width);
+            Click(red);
+            await fixture.Room.DanmuConfigurationTask;
+            Pump(window);
+            Assert.False(color.IsDropDownOpen);
+            var badge = color.GetVisualDescendants().OfType<Border>()
+                .Single(control => control.Name == "ComposerColorBadge");
+            Assert.Equal(Colors.Red, Assert.IsAssignableFrom<ISolidColorBrush>(badge.Background).Color);
+
+            Click(mode);
+            Assert.True(mode.IsDropDownOpen);
+            Click(Assert.IsType<ComboBoxItem>(mode.ContainerFromIndex(2)));
+            await fixture.Room.DanmuConfigurationTask;
+            Pump(window);
+            Assert.False(mode.IsDropDownOpen);
+            var modeBadge = mode.GetVisualDescendants().OfType<LucideIcon>()
+                .Single(icon => icon.Name == "ComposerModeBadgeIcon");
+            Assert.Equal(LucideIconKind.ArrowUpToLine, modeBadge.Kind);
+            Assert.Equal(2, fixture.DanmuConfigService.SetRequests.Count);
+            Assert.Equal(new() { Color = 0xFF0000, Mode = 5 }, fixture.DanmuConfigService.SetRequests.Last().Options);
+            SaveFrame(window, "composer-compact-selected-options.png");
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>读取失败时紧凑按钮仍显示基础图标，点击可重试读取且不产生保存。</summary>
+    [AvaloniaFact]
+    public async Task CompactSelectorWithNoSelectionKeepsIconAndCanRetryLoading()
+    {
+        using var fixture = new LiveRoomFeedViewTestContext();
+        fixture.DanmuConfigService.Exception = new IOException("读取失败");
+        using var context = new WorkbenchContext(fixture.ViewModel);
+        using var composer = new DraftComposerPanelView(context);
+        var window = new Window { Width = 240, Height = 160, Content = composer };
+
+        try
+        {
+            window.Show();
+            await fixture.Room.DanmuConfigurationTask;
+            Pump(window);
+            var color = composer.FindControl<ComboBox>("DanmuColorSelector")!;
+            Assert.True(color.IsEnabled);
+            Assert.Null(color.SelectedItem);
+            Assert.True(color.SelectionBoxItemTemplate?.Match(null), "紧凑模板必须能呈现无选中项的基础图标");
+            Assert.Contains(color.GetVisualDescendants().OfType<LucideIcon>(), icon => icon.Kind == LucideIconKind.Palette && icon.IsEffectivelyVisible);
+            Assert.False(color.GetVisualDescendants().OfType<Border>()
+                .Single(control => control.Name == "ComposerColorBadge").IsVisible);
+            SaveFrame(window, "composer-compact-empty-selection.png");
+
+            fixture.DanmuConfigService.Exception = null;
+            Click(color);
+            await fixture.Room.DanmuConfigurationTask;
+            Pump(window);
+            Assert.True(color.IsDropDownOpen);
+            Assert.NotNull(color.SelectedItem);
+            Assert.Equal(2, fixture.DanmuConfigService.GetRequests.Count);
+            Assert.Empty(fixture.DanmuConfigService.SetRequests);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>最小一行编辑区域内的长句仍可换行并滚动到光标末尾。</summary>
+    [AvaloniaTheory]
+    [InlineData(760)]
+    [InlineData(240)]
+    public void OneLineMinimumKeepsLongDraftScrollable(double width)
+    {
+        using var fixture = new LiveRoomFeedViewTestContext();
+        using var context = new WorkbenchContext(fixture.ViewModel);
+        using var composer = new DraftComposerPanelView(context);
+        var window = new Window { Width = width, SizeToContent = SizeToContent.Height, Content = composer };
+
+        try
+        {
+            window.Show();
+            Pump(window);
+            window.SizeToContent = SizeToContent.Manual;
+            window.Height = composer.MinHeight;
+            composer.Input.Text = string.Concat(Enumerable.Repeat("一行高度下仍然完整保留并能滚动的中文长句", 20));
+            Assert.True(composer.Input.Focus());
+            composer.Input.CaretIndex = composer.Input.Text.Length;
+            Pump(window);
+            var scroll = composer.Input.GetVisualDescendants().OfType<ScrollViewer>().Single();
+            Assert.InRange(composer.Input.Bounds.Height, 20, 24);
+            Assert.True(scroll.Viewport.Height > 0);
+            Assert.True(scroll.Extent.Height > scroll.Viewport.Height);
+            Assert.True(scroll.Offset.Y > 0);
+            Assert.Equal(composer.Input.Text.Length, composer.Input.CaretIndex);
+            SaveFrame(window, $"composer-{width}-one-line-scrolled-draft.png");
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    private static void Click(Control control)
+    {
+        var owner = Assert.IsAssignableFrom<TopLevel>(TopLevel.GetTopLevel(control));
+        var point = control.TranslatePoint(new Point(control.Bounds.Width / 2, control.Bounds.Height / 2), owner)!.Value;
+        owner.MouseDown(point, MouseButton.Left);
+        owner.MouseUp(point, MouseButton.Left);
+        Dispatcher.UIThread.RunJobs();
+        owner.UpdateLayout();
     }
 
     private static void Pump(Window window)

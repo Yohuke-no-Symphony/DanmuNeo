@@ -7,6 +7,7 @@ using Dock.Avalonia.Controls;
 using Dock.Model.Controls;
 using Dock.Model.Core;
 using Yohuke.DanmuNeo.I18n;
+using Yohuke.DanmuNeo.Windowing;
 
 namespace Yohuke.DanmuNeo.Layouts;
 
@@ -798,6 +799,15 @@ internal sealed class WorkbenchLayoutController : IAsyncDisposable
             }
 
             scope?.Dispose();
+
+            if (!disposing && !disposed)
+            {
+                WorkbenchTextInput.RequestNativeContextRecovery(Host);
+                foreach (var host in floatingHosts)
+                {
+                    WorkbenchTextInput.RequestNativeContextRecovery(host.DockHost);
+                }
+            }
         }
         finally
         {

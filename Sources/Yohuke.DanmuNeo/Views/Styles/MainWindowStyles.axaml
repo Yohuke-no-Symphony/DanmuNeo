@@ -192,7 +192,7 @@
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderBrush" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />
-        <Setter Property="MinHeight" Value="40" />
+        <Setter Property="MinHeight" Value="22" />
         <Setter Property="Padding" Value="0" />
         <Setter Property="FontSize" Value="14" />
         <Setter Property="Cursor" Value="IBeam" />
@@ -267,6 +267,8 @@
     </Style>
 
     <Style Selector="ComboBox.translateComposerConfigSelector">
+        <Setter Property="Width" Value="34" />
+        <Setter Property="Height" Value="34" />
         <Setter Property="MinWidth" Value="0" />
         <Setter Property="MinHeight" Value="34" />
         <Setter Property="HorizontalAlignment" Value="Stretch" />
@@ -274,7 +276,21 @@
         <Setter Property="FontSize" Value="12" />
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderBrush" Value="Transparent" />
-        <Setter Property="Padding" Value="6,5" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
+
+    <Style Selector="ComboBox.translateComposerConfigSelector /template/ Border#Background">
+        <Setter Property="MinWidth" Value="0" />
+    </Style>
+
+    <Style Selector="ComboBox.translateComposerConfigSelector /template/ ContentControl#ContentPresenter">
+        <Setter Property="Grid.ColumnSpan" Value="2" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="ComboBox.translateComposerConfigSelector /template/ PathIcon#DropDownGlyph,
+                     ComboBox.translateComposerConfigSelector /template/ TextBlock#PlaceholderTextBlock">
+        <Setter Property="IsVisible" Value="False" />
     </Style>
 
     <Style Selector="Button.translateComposerSendButton">

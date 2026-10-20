@@ -5,6 +5,8 @@ using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Styling;
 using Avalonia.Threading;
@@ -27,6 +29,9 @@ internal sealed class WindowsWindowChrome : IWindowChrome
     private bool refreshQueued;
     private bool frameRefreshRequested;
     private bool applyingFrame;
+    private bool inputMethodRecoveryQueued;
+    private TextBox? invalidatedCompositionInput;
+    private TextBox? deferredCompositionInput;
 
     internal WindowsWindowChrome(Window window, IWindowTitleBar titleBar)
     {
@@ -65,6 +70,10 @@ internal sealed class WindowsWindowChrome : IWindowChrome
         window.LayoutUpdated += OnLayoutUpdated;
         window.ScalingChanged += OnScalingChanged;
         window.PropertyChanged += OnWindowPropertyChanged;
+        window.Activated += OnActivated;
+        window.AddHandler(InputElement.GotFocusEvent, OnInputGotFocus, RoutingStrategies.Bubble);
+        InputMethod.AddTextInputMethodClientRequeryRequestedHandler(window, OnInputMethodRequeryRequested);
+        window.AddHandler(WorkbenchTextInput.NativeContextInvalidatedEvent, OnNativeInputContextInvalidated, RoutingStrategies.Bubble);
         titleBar.View.PropertyChanged += OnTitleBarPropertyChanged;
         try
         {
@@ -138,6 +147,12 @@ internal sealed class WindowsWindowChrome : IWindowChrome
         window.LayoutUpdated -= OnLayoutUpdated;
         window.ScalingChanged -= OnScalingChanged;
         window.PropertyChanged -= OnWindowPropertyChanged;
+        window.Activated -= OnActivated;
+        window.RemoveHandler(InputElement.GotFocusEvent, OnInputGotFocus);
+        InputMethod.RemoveTextInputMethodClientRequeryRequestedHandler(window, OnInputMethodRequeryRequested);
+        window.RemoveHandler(WorkbenchTextInput.NativeContextInvalidatedEvent, OnNativeInputContextInvalidated);
+        invalidatedCompositionInput = null;
+        deferredCompositionInput = null;
         titleBar.View.PropertyChanged -= OnTitleBarPropertyChanged;
         contentSizing.Dispose();
         captionSurface.Dispose();
@@ -154,6 +169,17 @@ internal sealed class WindowsWindowChrome : IWindowChrome
         {
             switch (message)
             {
+                case WindowsNativeMethods.WM_SETFOCUS:
+                    QueueInputMethodRecovery();
+                    return 0;
+                case WindowsNativeMethods.WM_IME_ENDCOMPOSITION:
+                    if (deferredCompositionInput is not null)
+                    {
+                        deferredCompositionInput = null;
+                        QueueInputMethodRecovery();
+                    }
+
+                    return 0;
                 case WindowsNativeMethods.WM_NCCALCSIZE:
                     if (window.WindowState != WindowState.FullScreen && WindowsNativeMethods.IsIconic(handle) == 0)
                     {
@@ -444,6 +470,105 @@ internal sealed class WindowsWindowChrome : IWindowChrome
 
         frameRefreshRequested = true;
         RefreshQueued();
+    }
+
+    private void OnActivated(object? sender, EventArgs e)
+    {
+        QueueInputMethodRecovery();
+    }
+
+    private void OnInputGotFocus(object? sender, GotFocusEventArgs e)
+    {
+        if (e.Source is TextBox)
+        {
+            QueueInputMethodRecovery();
+        }
+    }
+
+    private void OnInputMethodRequeryRequested(object? sender, RoutedEventArgs e)
+    {
+        QueueInputMethodRecovery();
+    }
+
+    private void OnNativeInputContextInvalidated(object? sender, RoutedEventArgs e)
+    {
+        if (window.FocusManager?.GetFocusedElement() is TextBox input &&
+            ReferenceEquals(TopLevel.GetTopLevel(input), window) && WorkbenchTextInput.IsComposing(input))
+        {
+            invalidatedCompositionInput = input;
+        }
+
+        QueueInputMethodRecovery();
+    }
+
+    private void QueueInputMethodRecovery()
+    {
+        if (disposed || inputMethodRecoveryQueued)
+        {
+            return;
+        }
+
+        inputMethodRecoveryQueued = true;
+        Dispatcher.UIThread.Post(() =>
+        {
+            inputMethodRecoveryQueued = false;
+            if (!disposed)
+            {
+                var focused = window.FocusManager?.GetFocusedElement();
+                var cancelComposition = invalidatedCompositionInput is not null &&
+                                        ReferenceEquals(invalidatedCompositionInput, focused);
+                deferredCompositionInput = !cancelComposition && WorkbenchTextInput.IsComposing(focused)
+                    ? focused as TextBox
+                    : null;
+                if (WorkbenchTextInput.RestoreInputMethod(window, () => RestoreNativeInputWindow(cancelComposition), cancelComposition) ||
+                    !ReferenceEquals(invalidatedCompositionInput, focused))
+                {
+                    invalidatedCompositionInput = null;
+                }
+            }
+        }, DispatcherPriority.Background);
+    }
+
+    private bool RestoreNativeInputWindow(bool cancelComposition)
+    {
+        if (WindowsNativeMethods.GetActiveWindow() != handle || WindowsNativeMethods.GetFocus() != handle)
+        {
+            return false;
+        }
+
+        var keyboardLayout = WindowsNativeMethods.GetKeyboardLayout(0);
+        if (keyboardLayout == 0)
+        {
+            return false;
+        }
+
+        if (cancelComposition && !CancelNativeComposition())
+        {
+            return false;
+        }
+
+        WindowsNativeMethods.SendMessage(handle, WindowsNativeMethods.WM_INPUTLANGCHANGE, 0, keyboardLayout);
+        return true;
+    }
+
+    private bool CancelNativeComposition()
+    {
+        var context = WindowsNativeMethods.ImmGetContext(handle);
+        if (context == 0)
+        {
+            return true;
+        }
+
+        try
+        {
+            var length = WindowsNativeMethods.ImmGetCompositionString(context, WindowsNativeMethods.GCS_COMPSTR, 0, 0);
+            return WindowsNativeMethods.ImmNotifyIME(context, WindowsNativeMethods.NI_COMPOSITIONSTR, WindowsNativeMethods.CPS_CANCEL, 0) != 0 ||
+                   length is 0 or WindowsNativeMethods.IMM_ERROR_NODATA;
+        }
+        finally
+        {
+            WindowsNativeMethods.ImmReleaseContext(handle, context);
+        }
     }
 
     private void OnClosed(object? sender, EventArgs e)

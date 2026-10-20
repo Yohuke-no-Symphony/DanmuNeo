@@ -88,14 +88,17 @@ public class DanmuSendService : IDanmuSendService
                 RecordLocalFailure(progress, "Services.Send.LengthUnavailable");
                 return new() { Progress = progress };
             }
+            var preferredLength = Math.Min(config.Length, progress.PreferredMessageLength ?? int.MaxValue);
+            var refreshedAfterLengthRejection = false;
             for (var contentIndex = 0; contentIndex < request.Contents.Count; contentIndex++)
             {
                 var content = request.Contents[contentIndex];
                 while (progress.GetAcceptedLength(contentIndex) < content.Body.Length)
                 {
                     sendToken.ThrowIfCancellationRequested();
-                    var segment = DanmuMessageSegmenter.Next(content, progress.GetAcceptedLength(contentIndex), config.Length);
+                    var segment = DanmuMessageSegmenter.Next(content, progress.GetAcceptedLength(contentIndex), config.Length, preferredLength);
                     var attemptCount = 0;
+                    var rateAttemptCount = 0;
                     DanmuSendAttemptResult attempt;
                     do
                     {
@@ -106,6 +109,7 @@ public class DanmuSendService : IDanmuSendService
                             return new() { Progress = progress };
                         }
                         attemptCount++;
+                        rateAttemptCount++;
                         try
                         {
                             attempt = await transport.SendOnceAsync(request.RoomId, segment.Message,
@@ -115,13 +119,42 @@ public class DanmuSendService : IDanmuSendService
                         {
                             lastSentAt = timeProvider.GetUtcNow();
                         }
-                        var retryDelay = DanmuSendRetryPolicy.GetDelay(attempt.FailureKind, retryWhenLimited, attemptCount, intervalMs);
+                        if (attempt.FailureKind == DanmuSendFailureKind.LengthExceeded)
+                        {
+                            sendToken.ThrowIfCancellationRequested();
+                            var refreshedLimit = 0;
+                            if (!refreshedAfterLengthRejection)
+                            {
+                                var refreshedConfig = await danmuConfigService.GetConfigAsync(request.RoomId, sendingAccount.Cookie,
+                                    timeout, sendToken, forceRefresh: true);
+                                refreshedAfterLengthRejection = true;
+                                refreshedLimit = refreshedConfig.Length;
+                                if (refreshedLimit > 0)
+                                {
+                                    config = refreshedConfig;
+                                }
+                            }
+
+                            var reducedLength = DanmuMessageSegmenter.GetReducedLength(content, segment, refreshedLimit);
+                            if (reducedLength is null)
+                            {
+                                break;
+                            }
+
+                            preferredLength = Math.Min(preferredLength, reducedLength.Value);
+                            progress.PreferredMessageLength = preferredLength;
+                            segment = DanmuMessageSegmenter.Next(content, segment.BodyStart, config.Length, preferredLength);
+                            rateAttemptCount = 0;
+                            continue;
+                        }
+
+                        var retryDelay = DanmuSendRetryPolicy.GetDelay(attempt.FailureKind, retryWhenLimited, rateAttemptCount, intervalMs);
                         if (retryDelay is null)
                         {
                             break;
                         }
                         log?.Information(Localization.Get("Services.Send.LogSource"),
-                            Localization.Format("Services.Send.RetryScheduled", request.RoomId, attemptCount, retryDelay.Value.TotalSeconds));
+                            Localization.Format("Services.Send.RetryScheduled", request.RoomId, rateAttemptCount, retryDelay.Value.TotalSeconds));
                         await Task.Delay(retryDelay.Value, timeProvider, sendToken);
                     } while (true);
                     if (attempt.FailureKind != DanmuSendFailureKind.None)

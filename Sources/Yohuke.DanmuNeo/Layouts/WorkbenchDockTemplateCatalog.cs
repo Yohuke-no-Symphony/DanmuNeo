@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Recycling;
@@ -9,6 +10,7 @@ using Dock.Controls.ProportionalStackPanel;
 using Dock.Model.Controls;
 using Dock.Model.Core;
 using Dock.Settings;
+using Yohuke.DanmuNeo.Windowing;
 
 namespace Yohuke.DanmuNeo.Layouts;
 
@@ -16,6 +18,7 @@ internal static class WorkbenchDockTemplateCatalog
 {
     internal static void Install(DockControl host, WorkbenchControlRecycling recycling)
     {
+        host.PropertyChanged += OnHostPropertyChanged;
         host.AutoCreateDataTemplates = false;
         ControlRecyclingDataTemplate.SetControlRecycling(host, recycling);
         host.DataTemplates.Add(new WorkbenchDockPanelTemplate());
@@ -27,6 +30,15 @@ internal static class WorkbenchDockTemplateCatalog
             [!ProportionalStackPanelSplitter.IsResizingEnabledProperty] = new Binding(nameof(IProportionalDockSplitter.CanResize)),
             [!ProportionalStackPanelSplitter.PreviewResizeProperty] = new Binding(nameof(IProportionalDockSplitter.ResizePreview))
         }));
+    }
+
+    private static void OnHostPropertyChanged(object? sender, Avalonia.AvaloniaPropertyChangedEventArgs e)
+    {
+        if (sender is DockControl host && e.Property == DockControl.IsDraggingDockProperty &&
+            e.GetOldValue<bool>() && !e.GetNewValue<bool>())
+        {
+            WorkbenchTextInput.RequestNativeContextRecovery(host);
+        }
     }
 
     private static ToolDockControl CreateToolDockControl()

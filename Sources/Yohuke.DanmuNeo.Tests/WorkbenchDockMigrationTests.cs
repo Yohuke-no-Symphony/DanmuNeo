@@ -162,7 +162,7 @@ public class WorkbenchDockMigrationTests
                 Assert.True(workbench.Layouts.FloatingWindows.Count == 0, diagnostics);
                 Assert.Same(main, TopLevel.GetTopLevel(panel.View));
                 Assert.Same(room, workbench.Panels.Composer.DataContext);
-                Assert.True(workbench.Panels.Composer.Input.Bounds.Height >= 64);
+                Assert.True(workbench.Panels.Composer.Input.Bounds.Height >= workbench.Panels.Composer.Input.MinHeight);
                 Assert.True(workbench.Panels.Composer.Input.Focus());
                 workbench.Panels.Composer.Input.CaretIndex = room.InputDraft.Length;
                 main.KeyTextInput("继续输入");

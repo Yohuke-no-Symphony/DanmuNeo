@@ -20,7 +20,8 @@ public sealed class BilibiliDanmuSendTransport(HttpClient? httpClient = null) : 
             {
                 FailureKind = failure,
                 ApiCode = response.Code,
-                ErrorMessage = failure == DanmuSendFailureKind.None ? "" : response.Message ?? response.Msg ?? "",
+                ErrorMessage = failure == DanmuSendFailureKind.None ? "" :
+                    !string.IsNullOrWhiteSpace(response.Message) ? response.Message : response.Msg ?? "",
                 StatusKey = failure switch
                 {
                     DanmuSendFailureKind.None => "Services.Send.Accepted",

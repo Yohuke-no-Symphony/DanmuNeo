@@ -54,8 +54,8 @@ public class DraftComposerViewTests
             Assert.DoesNotContain(composer.GetVisualDescendants().OfType<TextBlock>(),
                 text => text.Text == room.DraftSendStatus);
             Assert.Equal(height, composer.Bounds.Height);
-            Assert.InRange(height, 124, 140);
-            Assert.True(input.Bounds.Height >= 64);
+            Assert.InRange(height, 80, 100);
+            Assert.InRange(input.Bounds.Height, 20, 24);
             var send = composer.GetVisualDescendants().OfType<Button>()
                 .Single(control => control.Classes.Contains("translateComposerSendButton"));
             var bottom = send.TranslatePoint(new Point(0, send.Bounds.Height), composer)!.Value.Y;

@@ -12,6 +12,13 @@ internal static partial class WindowsNativeMethods
     internal const uint WS_MINIMIZE = 0x20000000;
     internal const uint WS_MAXIMIZE = 0x01000000;
     internal const uint WM_ACTIVATE = 0x0006;
+    internal const uint WM_SETFOCUS = 0x0007;
+    internal const uint WM_INPUTLANGCHANGE = 0x0051;
+    internal const uint WM_IME_ENDCOMPOSITION = 0x010E;
+    internal const uint NI_COMPOSITIONSTR = 0x0015;
+    internal const uint CPS_CANCEL = 0x0004;
+    internal const uint GCS_COMPSTR = 0x0008;
+    internal const int IMM_ERROR_NODATA = -1;
     internal const uint WM_NCCALCSIZE = 0x0083;
     internal const uint WM_NCHITTEST = 0x0084;
     internal const uint WM_NCMOUSEMOVE = 0x00A0;
@@ -50,6 +57,30 @@ internal static partial class WindowsNativeMethods
 
     [LibraryImport("user32.dll")]
     internal static partial uint GetDpiForWindow(nint window);
+
+    [LibraryImport("user32.dll")]
+    internal static partial nint GetActiveWindow();
+
+    [LibraryImport("user32.dll")]
+    internal static partial nint GetFocus();
+
+    [LibraryImport("user32.dll")]
+    internal static partial nint GetKeyboardLayout(uint threadId);
+
+    [LibraryImport("user32.dll", EntryPoint = "SendMessageW")]
+    internal static partial nint SendMessage(nint window, uint message, nint wParam, nint lParam);
+
+    [LibraryImport("imm32.dll")]
+    internal static partial nint ImmGetContext(nint window);
+
+    [LibraryImport("imm32.dll")]
+    internal static partial int ImmReleaseContext(nint window, nint context);
+
+    [LibraryImport("imm32.dll")]
+    internal static partial int ImmNotifyIME(nint context, uint action, uint index, uint value);
+
+    [LibraryImport("imm32.dll", EntryPoint = "ImmGetCompositionStringW")]
+    internal static partial int ImmGetCompositionString(nint context, uint index, nint buffer, uint bufferLength);
 
     [LibraryImport("user32.dll", SetLastError = true)]
     internal static partial int AdjustWindowRectExForDpi(ref WindowsRect rect, uint style, int hasMenu,

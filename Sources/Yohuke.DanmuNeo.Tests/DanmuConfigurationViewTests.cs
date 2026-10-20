@@ -69,7 +69,7 @@ public class DanmuConfigurationViewTests
                 }
             }
 
-            Assert.Equal(width == 760 ? 2 : 1, rows.Count);
+            Assert.Single(rows);
 
             for (var index = 0; index < controls.Length; index++)
             {

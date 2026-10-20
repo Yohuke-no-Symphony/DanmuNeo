@@ -315,7 +315,7 @@ public class WorkbenchLayoutMinimumTests
                 AssertFits(panel.View, window);
             }
 
-            Assert.True(workbench.Panels.Composer.Input.Bounds.Height >= 64);
+            Assert.True(workbench.Panels.Composer.Input.Bounds.Height >= workbench.Panels.Composer.Input.MinHeight);
         }
         finally
         {
