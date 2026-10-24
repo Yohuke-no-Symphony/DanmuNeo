@@ -8,6 +8,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Lucide.Avalonia;
+using Yohuke.DanmuNeo.Models.Workspace;
 using Yohuke.DanmuNeo.Views.Components;
 using Yohuke.DanmuNeo.Windowing;
 
@@ -18,6 +19,99 @@ namespace Yohuke.DanmuNeo.Tests;
 /// </summary>
 public class WorkbenchComposerLayoutTests
 {
+    /// <summary>
+    /// 异步加载配置后，颜色和方向角标在不同缩放、主题及悬停状态下完整显示。
+    /// </summary>
+    [AvaloniaTheory]
+    [InlineData(false, 1)]
+    [InlineData(true, 1)]
+    [InlineData(false, 1.25)]
+    [InlineData(true, 1.25)]
+    [InlineData(false, 1.5)]
+    [InlineData(true, 1.5)]
+    [InlineData(false, 2)]
+    [InlineData(true, 2)]
+    public async Task SelectorBadgesUpdateAfterAsynchronousConfigurationLoad(bool dark, double scale)
+    {
+        using var fixture = new LiveRoomFeedViewTestContext();
+        var configuration = fixture.DanmuConfigService.Config with
+        {
+            Current = new() { Color = 0xFF0000, Mode = 5 }
+        };
+        var loaded = new TaskCompletionSource<DanmuRoomConfig>(TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.DanmuConfigService.ReadAsync = (_, _, token, _) => loaded.Task.WaitAsync(token);
+        using var context = new WorkbenchContext(fixture.ViewModel);
+        using var composer = new DraftComposerPanelView(context);
+        var window = new Window
+        {
+            Width = 360 * scale, Height = 160 * scale,
+            RequestedThemeVariant = dark ? Avalonia.Styling.ThemeVariant.Dark : Avalonia.Styling.ThemeVariant.Light,
+            Content = new LayoutTransformControl
+            {
+                LayoutTransform = new ScaleTransform(scale, scale), Child = composer
+            }
+        };
+
+        try
+        {
+            window.Show();
+            Pump(window);
+            Assert.True(fixture.Room.IsLoadingDanmuConfiguration);
+            loaded.SetResult(configuration);
+            await fixture.Room.DanmuConfigurationTask;
+            Pump(window);
+            var color = composer.FindControl<ComboBox>("DanmuColorSelector")!;
+            var mode = composer.FindControl<ComboBox>("DanmuModeSelector")!;
+            Assert.Equal(0xFF0000, Assert.IsType<DanmuColorOption>(color.SelectedItem).Value);
+            Assert.Equal(5, Assert.IsType<DanmuModeOption>(mode.SelectedItem).Value);
+
+            foreach (var hovered in new[] { false, true })
+            {
+                foreach (var selector in new[] { color, mode })
+                {
+                    var point = hovered
+                        ? selector.TranslatePoint(new Point(selector.Bounds.Width / 2, selector.Bounds.Height / 2), window)!.Value
+                        : new Point(-1, -1);
+                    window.MouseMove(point);
+                    Pump(window);
+                    var badge = composer.FindControl<Border>(selector == color ? "ComposerColorBadge" : "ComposerModeBadge")!;
+                    Assert.True(badge.IsEffectivelyVisible);
+                    Assert.True(badge.Bounds.Width > 0 && badge.Bounds.Height > 0);
+                    var badgeBounds = new Rect(badge.Bounds.Size).TransformToAABB(badge.TransformToVisual(selector)!.Value);
+                    Assert.True(new Rect(selector.Bounds.Size).Contains(badgeBounds));
+
+                    if (hovered)
+                    {
+                        var hit = window.InputHitTest(badge.TranslatePoint(
+                            new Point(badge.Bounds.Width / 2, badge.Bounds.Height / 2), window)!.Value);
+                        Assert.True(ReferenceEquals(hit, selector) ||
+                                    hit is Visual visual && visual.GetVisualAncestors().Contains(selector));
+                    }
+
+                    foreach (var clip in badge.GetVisualAncestors().OfType<Control>().Where(control => control.ClipToBounds))
+                    {
+                        var bounds = new Rect(badge.Bounds.Size).TransformToAABB(badge.TransformToVisual(clip)!.Value);
+                        Assert.True(new Rect(clip.Bounds.Size).Inflate(0.5).Contains(bounds),
+                            $"{badge.Name} 被 {clip.GetType().Name}#{clip.Name} 裁剪：{bounds} / {clip.Bounds.Size}");
+                    }
+                }
+
+                var colorBadge = composer.FindControl<Border>("ComposerColorBadge")!;
+                Assert.Equal(Colors.Red, Assert.IsAssignableFrom<ISolidColorBrush>(colorBadge.Background).Color);
+                var modeBadge = composer.FindControl<LucideIcon>("ComposerModeBadgeIcon")!;
+                Assert.Equal(LucideIconKind.ArrowUpToLine, modeBadge.Kind);
+                SaveFrame(window, $"composer-badges-{dark}-{scale}-{hovered}.png");
+            }
+
+            Assert.Empty(fixture.DanmuConfigService.SetRequests);
+        }
+        finally
+        {
+            loaded.TrySetCanceled();
+            window.Close();
+        }
+    }
+
     /// <summary>
     /// 错误信息不挤散操作区，发送按钮始终靠右，输入内容从顶部开始并随高度伸展。
     /// </summary>
@@ -190,8 +284,7 @@ public class WorkbenchComposerLayoutTests
             await fixture.Room.DanmuConfigurationTask;
             Pump(window);
             Assert.False(color.IsDropDownOpen);
-            var badge = color.GetVisualDescendants().OfType<Border>()
-                .Single(control => control.Name == "ComposerColorBadge");
+            var badge = composer.FindControl<Border>("ComposerColorBadge")!;
             Assert.Equal(Colors.Red, Assert.IsAssignableFrom<ISolidColorBrush>(badge.Background).Color);
 
             Click(mode);
@@ -200,8 +293,7 @@ public class WorkbenchComposerLayoutTests
             await fixture.Room.DanmuConfigurationTask;
             Pump(window);
             Assert.False(mode.IsDropDownOpen);
-            var modeBadge = mode.GetVisualDescendants().OfType<LucideIcon>()
-                .Single(icon => icon.Name == "ComposerModeBadgeIcon");
+            var modeBadge = composer.FindControl<LucideIcon>("ComposerModeBadgeIcon")!;
             Assert.Equal(LucideIconKind.ArrowUpToLine, modeBadge.Kind);
             Assert.Equal(2, fixture.DanmuConfigService.SetRequests.Count);
             Assert.Equal(new() { Color = 0xFF0000, Mode = 5 }, fixture.DanmuConfigService.SetRequests.Last().Options);
@@ -233,8 +325,7 @@ public class WorkbenchComposerLayoutTests
             Assert.Null(color.SelectedItem);
             Assert.True(color.SelectionBoxItemTemplate?.Match(null), "紧凑模板必须能呈现无选中项的基础图标");
             Assert.Contains(color.GetVisualDescendants().OfType<LucideIcon>(), icon => icon.Kind == LucideIconKind.Palette && icon.IsEffectivelyVisible);
-            Assert.False(color.GetVisualDescendants().OfType<Border>()
-                .Single(control => control.Name == "ComposerColorBadge").IsVisible);
+            Assert.False(composer.FindControl<Border>("ComposerColorBadge")!.IsVisible);
             SaveFrame(window, "composer-compact-empty-selection.png");
 
             fixture.DanmuConfigService.Exception = null;

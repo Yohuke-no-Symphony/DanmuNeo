@@ -1,13 +1,16 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Presenters;
 using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
+using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using Lucide.Avalonia;
 using Yohuke.DanmuNeo.Services;
 using Yohuke.DanmuNeo.ViewModels.Items;
 using Yohuke.DanmuNeo.Views.Components;
@@ -20,6 +23,58 @@ namespace Yohuke.DanmuNeo.Tests;
 /// </summary>
 public class DanmuForwardPanelInteractionTests
 {
+    /// <summary>
+    /// 启用和停用图标在普通、悬停及按下状态中始终与实际绘制背景保持可辨对比。
+    /// </summary>
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void EnabledIconKeepsContrastAcrossPointerStates(bool dark)
+    {
+        using var context = new DanmuForwardViewTestContext();
+        using var selection = new WorkbenchContext(context.ViewModel, context.Room);
+        using var view = new ForwardingPanelView(selection);
+        var window = CreateWindow(view);
+        window.RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light;
+
+        try
+        {
+            window.Show();
+            Pump(window);
+            var rule = context.Room.ForwardRules[0];
+            var button = Find<ToggleButton>(view, "ForwardEnabledToggle", rule);
+            var icon = Assert.Single(button.GetVisualDescendants().OfType<LucideIcon>());
+            var presenter = button.GetVisualDescendants().OfType<ContentPresenter>()
+                .Single(control => control.Name == "PART_ContentPresenter");
+            var card = Find<Border>(view, "ForwardRuleCard", rule);
+            var surface = Assert.IsAssignableFrom<ISolidColorBrush>(card.Background).Color;
+
+            foreach (var enabled in new[] { true, false })
+            {
+                button.IsChecked = enabled;
+                window.MouseMove(new(-1, -1));
+                Pump(window);
+                AssertIconContrast(icon, presenter, surface);
+                SaveIconFrame(window, $"forward-toggle-{dark}-{enabled}-normal.png");
+
+                var center = Center(button, window);
+                window.MouseMove(center);
+                Pump(window);
+                AssertIconContrast(icon, presenter, surface);
+                SaveIconFrame(window, $"forward-toggle-{dark}-{enabled}-hover.png");
+
+                window.MouseDown(center, MouseButton.Left);
+                Pump(window);
+                AssertIconContrast(icon, presenter, surface);
+                window.MouseUp(center, MouseButton.Left);
+            }
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
     /// <summary>
     /// 标题按列表顺序复制选中项或全量，条目复制只复制当前项且保留选择。
     /// </summary>
@@ -395,6 +450,54 @@ public class DanmuForwardPanelInteractionTests
         {
             Content = view, Width = width, Height = height
         };
+    }
+
+    private static void AssertIconContrast(LucideIcon icon, ContentPresenter presenter, Color surface)
+    {
+        Assert.True(icon.IsEffectivelyVisible);
+        Assert.True(icon.Bounds.Width > 0 && icon.Bounds.Height > 0);
+        var background = Composite(Assert.IsAssignableFrom<ISolidColorBrush>(presenter.Background), surface);
+        var foreground = Composite(Assert.IsAssignableFrom<ISolidColorBrush>(icon.Foreground), background);
+        var backgroundLuminance = Luminance(background);
+        var foregroundLuminance = Luminance(foreground);
+        var contrast = (Math.Max(backgroundLuminance, foregroundLuminance) + 0.05) /
+                       (Math.Min(backgroundLuminance, foregroundLuminance) + 0.05);
+        Assert.True(contrast >= 2, $"电源图标与背景的对比度过低：{contrast:F2}，前景 {foreground}，背景 {background}");
+    }
+
+    private static Color Composite(ISolidColorBrush brush, Color background)
+    {
+        var alpha = brush.Color.A / 255d * brush.Opacity;
+        return Color.FromRgb(
+            (byte)Math.Round(brush.Color.R * alpha + background.R * (1 - alpha)),
+            (byte)Math.Round(brush.Color.G * alpha + background.G * (1 - alpha)),
+            (byte)Math.Round(brush.Color.B * alpha + background.B * (1 - alpha)));
+    }
+
+    private static double Luminance(Color color)
+    {
+        return 0.2126 * LinearChannel(color.R) + 0.7152 * LinearChannel(color.G) + 0.0722 * LinearChannel(color.B);
+    }
+
+    private static double LinearChannel(byte channel)
+    {
+        var value = channel / 255d;
+        return value <= 0.04045 ? value / 12.92 : Math.Pow((value + 0.055) / 1.055, 2.4);
+    }
+
+    private static void SaveIconFrame(Window window, string name)
+    {
+        var directory = Environment.GetEnvironmentVariable("YOHUKE_FORWARD_QA_OUTPUT");
+
+        if (!string.IsNullOrWhiteSpace(directory))
+        {
+            Directory.CreateDirectory(directory);
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick(2);
+            Dispatcher.UIThread.RunJobs();
+            using var frame = window.CaptureRenderedFrame();
+            Assert.NotNull(frame);
+            frame.Save(Path.Combine(directory, name));
+        }
     }
 
     private static T Find<T>(Control view, string name, DanmuForwardRuleViewModel? rule = null) where T : Control

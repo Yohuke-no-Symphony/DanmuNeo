@@ -33,27 +33,6 @@
         <Style Selector="Button.forwardDragHandle.selected LucideIcon">
             <Setter Property="Foreground" Value="{DynamicResource AppPrimaryBrush}" />
         </Style>
-        <Style Selector="ToggleButton.forwardEnabledToggle">
-            <Setter Property="Width" Value="{StaticResource WorkbenchControlHeight}" />
-            <Setter Property="Height" Value="{StaticResource WorkbenchControlHeight}" />
-            <Setter Property="MinWidth" Value="{StaticResource WorkbenchControlHeight}" />
-            <Setter Property="MinHeight" Value="{StaticResource WorkbenchControlHeight}" />
-            <Setter Property="Padding" Value="0" />
-            <Setter Property="CornerRadius" Value="{StaticResource WorkbenchControlCornerRadius}" />
-            <Setter Property="HorizontalContentAlignment" Value="Center" />
-            <Setter Property="VerticalContentAlignment" Value="Center" />
-        </Style>
-        <Style Selector="ToggleButton.forwardEnabledToggle LucideIcon">
-            <Setter Property="Size" Value="16" />
-            <Setter Property="Foreground" Value="{DynamicResource AppMutedTextBrush}" />
-        </Style>
-        <Style Selector="ToggleButton.forwardEnabledToggle:checked">
-            <Setter Property="Background" Value="{DynamicResource AppSidebarSelectedBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource AppPrimaryBrush}" />
-        </Style>
-        <Style Selector="ToggleButton.forwardEnabledToggle:checked LucideIcon">
-            <Setter Property="Foreground" Value="{DynamicResource AppPrimaryBrush}" />
-        </Style>
         <Style Selector="ComboBox.forwardSelector">
             <Setter Property="MinWidth" Value="0" />
             <Setter Property="HorizontalAlignment" Value="Stretch" />
@@ -116,7 +95,7 @@
                                                 <LucideIcon Kind="GripVertical" />
                                             </Button>
                                             <ToggleButton x:Name="ForwardEnabledToggle" Grid.Column="1"
-                                                          Classes="forwardEnabledToggle" IsChecked="{Binding IsEnabled}"
+                                                          Classes="iconButton forwardEnabledToggle" IsChecked="{Binding IsEnabled}"
                                                           ToolTip.Tip="{Loc Key=UI.ForwardingPanelView.ToggleRuleHint}" AutomationProperties.Name="{Loc Key=UI.ForwardingPanelView.EnableRule}">
                                                 <LucideIcon Kind="Power" />
                                             </ToggleButton>

@@ -15,11 +15,6 @@
                 <DataTemplate x:DataType="workspace:DanmuColorOption" DataType="{x:Null}">
                     <Grid Width="26" Height="26" IsHitTestVisible="False">
                         <LucideIcon Kind="Palette" Size="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        <Border x:Name="ComposerColorBadge" Width="9" Height="9" CornerRadius="5"
-                                HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                                Background="{Binding ColorHex}" BorderThickness="1"
-                                BorderBrush="{DynamicResource AppTextBrush}"
-                                IsVisible="{Binding Converter={x:Static ObjectConverters.IsNotNull}}" />
                     </Grid>
                 </DataTemplate>
             </Setter>
@@ -29,13 +24,6 @@
                 <DataTemplate x:DataType="workspace:DanmuModeOption" DataType="{x:Null}">
                     <Grid Width="26" Height="26" IsHitTestVisible="False">
                         <LucideIcon Kind="MessageSquareText" Size="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        <Border x:Name="ComposerModeBadge" Width="14" Height="14" CornerRadius="7"
-                                HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                                Background="{DynamicResource AppCardBrush}"
-                                IsVisible="{Binding Converter={x:Static ObjectConverters.IsNotNull}}">
-                            <LucideIcon Kind="{Binding Converter={x:Static components:DraftComposerPanelView.ModeBadgeIconConverter}}"
-                                        Size="11" x:Name="ComposerModeBadgeIcon" />
-                        </Border>
                     </Grid>
                 </DataTemplate>
             </Setter>
@@ -78,54 +66,70 @@
                     </ComboBox>
                     <WrapPanel x:Name="ComposerActions" Orientation="Horizontal"
                                ItemsAlignment="End" ItemSpacing="4" LineSpacing="4">
-                        <ComboBox x:Name="DanmuColorSelector"
-                                  Classes="translateComposerConfigSelector translateComposerColorSelector"
-                                  AutomationProperties.Name="{Loc Key=UI.DraftComposerPanelView.Color}"
-                                  AutomationProperties.HelpText="{Binding SelectedDanmuColor.Name, FallbackValue=''}"
-                                  PlaceholderText="{Loc Key=UI.DraftComposerPanelView.Color}"
-                                  IsEnabled="{Binding CanSelectDanmuColor}"
-                                  ItemsSource="{Binding DanmuColorOptions}"
-                                  SelectedItem="{Binding SelectedDanmuColor, Mode=TwoWay}"
-                                  DropDownOpened="DanmuConfigSelector_OnDropDownOpened">
-                            <ToolTip.Tip>
-                                <StackPanel Spacing="4">
-                                    <TextBlock Text="{Binding SelectedDanmuColor.Name, FallbackValue=''}" FontWeight="SemiBold" />
-                                    <TextBlock Text="{Binding DanmuConfigurationStatus}" />
-                                </StackPanel>
-                            </ToolTip.Tip>
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate x:DataType="workspace:DanmuColorOption">
-                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="5">
-                                        <Border Width="10" Height="10" CornerRadius="3"
-                                                BorderThickness="1" BorderBrush="{DynamicResource AppMutedTextBrush}"
-                                                Background="{Binding ColorHex}" VerticalAlignment="Center" />
-                                        <TextBlock Grid.Column="1" Text="{Binding Name}"
-                                                   TextTrimming="CharacterEllipsis" />
-                                    </Grid>
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
-                        <ComboBox x:Name="DanmuModeSelector"
-                                  Classes="translateComposerConfigSelector translateComposerModeSelector"
-                                  AutomationProperties.Name="{Loc Key=UI.DraftComposerPanelView.Position}"
-                                  AutomationProperties.HelpText="{Binding SelectedDanmuMode.Name, FallbackValue=''}"
-                                  PlaceholderText="{Loc Key=UI.DraftComposerPanelView.Position}"
-                                  IsEnabled="{Binding CanSelectDanmuMode}"
-                                  ItemsSource="{Binding DanmuModeOptions}"
-                                  SelectedItem="{Binding SelectedDanmuMode, Mode=TwoWay}"
-                                  DropDownOpened="DanmuConfigSelector_OnDropDownOpened">
-                            <ToolTip.Tip>
-                                <StackPanel Spacing="4">
-                                    <TextBlock Text="{Binding SelectedDanmuMode.Name, FallbackValue=''}" FontWeight="SemiBold" />
-                                    <TextBlock Text="{Binding DanmuConfigurationStatus}" />
-                                </StackPanel>
-                            </ToolTip.Tip>
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate x:DataType="workspace:DanmuModeOption">
-                                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
+                        <Grid x:Name="ComposerColorSelectorHost" VerticalAlignment="Center">
+                            <ComboBox x:Name="DanmuColorSelector"
+                                      Classes="translateComposerConfigSelector translateComposerColorSelector"
+                                      AutomationProperties.Name="{Loc Key=UI.DraftComposerPanelView.Color}"
+                                      AutomationProperties.HelpText="{Binding SelectedDanmuColor.Name, FallbackValue=''}"
+                                      PlaceholderText="{Loc Key=UI.DraftComposerPanelView.Color}"
+                                      IsEnabled="{Binding CanSelectDanmuColor}"
+                                      ItemsSource="{Binding DanmuColorOptions}"
+                                      SelectedItem="{Binding SelectedDanmuColor, Mode=TwoWay}"
+                                      DropDownOpened="DanmuConfigSelector_OnDropDownOpened">
+                                <ToolTip.Tip>
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="{Binding SelectedDanmuColor.Name, FallbackValue=''}" FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding DanmuConfigurationStatus}" />
+                                    </StackPanel>
+                                </ToolTip.Tip>
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="workspace:DanmuColorOption">
+                                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="5">
+                                            <Border Width="10" Height="10" CornerRadius="3"
+                                                    BorderThickness="1" BorderBrush="{DynamicResource AppMutedTextBrush}"
+                                                    Background="{Binding ColorHex}" VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Name}"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <Border x:Name="ComposerColorBadge" Width="9" Height="9" CornerRadius="5" Margin="4"
+                                    HorizontalAlignment="Right" VerticalAlignment="Bottom" IsHitTestVisible="False"
+                                    Background="{Binding SelectedDanmuColor.ColorHex}" BorderThickness="1"
+                                    BorderBrush="{DynamicResource AppTextBrush}"
+                                    IsVisible="{Binding SelectedDanmuColor, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                        </Grid>
+                        <Grid x:Name="ComposerModeSelectorHost" VerticalAlignment="Center">
+                            <ComboBox x:Name="DanmuModeSelector"
+                                      Classes="translateComposerConfigSelector translateComposerModeSelector"
+                                      AutomationProperties.Name="{Loc Key=UI.DraftComposerPanelView.Position}"
+                                      AutomationProperties.HelpText="{Binding SelectedDanmuMode.Name, FallbackValue=''}"
+                                      PlaceholderText="{Loc Key=UI.DraftComposerPanelView.Position}"
+                                      IsEnabled="{Binding CanSelectDanmuMode}"
+                                      ItemsSource="{Binding DanmuModeOptions}"
+                                      SelectedItem="{Binding SelectedDanmuMode, Mode=TwoWay}"
+                                      DropDownOpened="DanmuConfigSelector_OnDropDownOpened">
+                                <ToolTip.Tip>
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="{Binding SelectedDanmuMode.Name, FallbackValue=''}" FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding DanmuConfigurationStatus}" />
+                                    </StackPanel>
+                                </ToolTip.Tip>
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="workspace:DanmuModeOption">
+                                        <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <Border x:Name="ComposerModeBadge" Width="14" Height="14" CornerRadius="7" Margin="4"
+                                    HorizontalAlignment="Right" VerticalAlignment="Bottom" IsHitTestVisible="False"
+                                    Background="{DynamicResource AppCardBrush}"
+                                    IsVisible="{Binding SelectedDanmuMode, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                <LucideIcon Kind="{Binding SelectedDanmuMode, Converter={x:Static components:DraftComposerPanelView.ModeBadgeIconConverter}}"
+                                            Size="11" x:Name="ComposerModeBadgeIcon" />
+                            </Border>
+                        </Grid>
                         <Button
                             Classes="translateComposerSendButton"
                             ToolTip.Tip="{Loc Key=UI.DraftComposerPanelView.SendTranslation}"
