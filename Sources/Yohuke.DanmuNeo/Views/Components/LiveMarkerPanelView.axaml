@@ -21,7 +21,7 @@
     </components:WorkbenchRoomPanel.Styles>
     <Border Padding="{StaticResource WorkbenchPanelPadding}">
         <Grid x:Name="MarkerContent"
-              DataContext="{Binding LiveMarker}"
+              DataContext="{Binding LiveMarker, DataType=items:LiveRoomTabViewModel}"
               x:DataType="items:LiveMarkerViewModel"
               RowDefinitions="Auto,*,Auto"
               RowSpacing="8">
