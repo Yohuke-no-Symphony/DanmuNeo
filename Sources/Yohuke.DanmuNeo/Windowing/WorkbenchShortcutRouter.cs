@@ -148,7 +148,8 @@ internal sealed class WorkbenchShortcutRouter : IDisposable
         }
 
         if (action is null || inTextInput && action is not
-            (ShortcutActionKeys.INPUT_CLEAR_DRAFT or ShortcutActionKeys.INPUT_CYCLE_MARK_GROUP or ShortcutActionKeys.LIVE_PLAYER_CAPTURE))
+            (ShortcutActionKeys.INPUT_CLEAR_DRAFT or ShortcutActionKeys.INPUT_CYCLE_MARK_GROUP or
+                ShortcutActionKeys.LIVE_PLAYER_CAPTURE or ShortcutActionKeys.DANMU_SCROLL_TO_TOP))
         {
             return;
         }
@@ -182,6 +183,9 @@ internal sealed class WorkbenchShortcutRouter : IDisposable
                 break;
             case ShortcutActionKeys.LIVE_ROOM_STOP_LISTENING:
                 room.StopListening();
+                break;
+            case ShortcutActionKeys.DANMU_SCROLL_TO_TOP:
+                panels.Danmu.ScrollToTop();
                 break;
             case ShortcutActionKeys.LIVE_PLAYER_START:
                 showPanel(WorkbenchPanelIds.LIVE_PLAYER);

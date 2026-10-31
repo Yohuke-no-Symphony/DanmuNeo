@@ -14,6 +14,7 @@ public static partial class ShortcutActionCatalog
     [
         new(ShortcutActionKeys.LIVE_ROOM_START_LISTENING, "liveRoom", "App.Shortcut.Group.liveRoom", "App.Shortcut.Action.LiveRoomStartListening", "Ctrl+Alt+P"),
         new(ShortcutActionKeys.LIVE_ROOM_STOP_LISTENING, "liveRoom", "App.Shortcut.Group.liveRoom", "App.Shortcut.Action.LiveRoomStopListening", "Ctrl+Alt+O"),
+        new(ShortcutActionKeys.DANMU_SCROLL_TO_TOP, "danmu", "App.Shortcut.Group.danmu", "App.Shortcut.Action.DanmuScrollToTop", "Alt+Home"),
         new(ShortcutActionKeys.LIVE_PLAYER_START, "livePlayer", "App.Shortcut.Group.livePlayer", "App.Shortcut.Action.LivePlayerStart", "Ctrl+Shift+P"),
         new(ShortcutActionKeys.LIVE_PLAYER_STOP, "livePlayer", "App.Shortcut.Group.livePlayer", "App.Shortcut.Action.LivePlayerStop", "Ctrl+Shift+O"),
         new(ShortcutActionKeys.LIVE_PLAYER_CHASE, "livePlayer", "App.Shortcut.Group.livePlayer", "App.Shortcut.Action.LivePlayerChase", "Ctrl+Shift+R"),

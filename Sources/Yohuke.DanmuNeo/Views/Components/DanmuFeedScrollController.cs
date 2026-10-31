@@ -80,6 +80,19 @@ internal sealed class DanmuFeedScrollController : IDisposable
         }
     }
 
+    /// <summary>
+    /// 撤销历史阅读定位，立即回顶并恢复后续新弹幕跟随。
+    /// </summary>
+    public void ScrollToLatest()
+    {
+        ObjectDisposedException.ThrowIf(isDisposed, this);
+
+        if (items is not null)
+        {
+            ResetToLatest();
+        }
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {

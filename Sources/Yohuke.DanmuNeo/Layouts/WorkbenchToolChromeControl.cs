@@ -1,8 +1,12 @@
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Controls.Templates;
+using Avalonia.Data;
 using Avalonia.Interactivity;
+using Avalonia.Layout;
 using Dock.Avalonia.Controls;
 using Dock.Model.Core;
+using Yohuke.DanmuNeo.Views.Components;
 
 namespace Yohuke.DanmuNeo.Layouts;
 
@@ -31,6 +35,17 @@ internal sealed class WorkbenchToolChromeControl : ToolChromeControl
 
         base.OnApplyTemplate(e);
 
+        if (closeButton?.Parent is StackPanel headerButtons)
+        {
+            headerButtons.Children.Insert(0, new ContentControl
+            {
+                Name = "PART_HeaderActions",
+                VerticalContentAlignment = VerticalAlignment.Center,
+                [!ContentProperty] = new Binding(nameof(IDock.ActiveDockable)),
+                ContentTemplate = new FuncDataTemplate<WorkbenchDockPanel>((panel, _) => CreateHeaderActions(panel))
+            });
+        }
+
         foreach (var name in new[]
                      { "PART_MenuButton", "PART_PinButton", "PART_MaximizeRestoreButton", "PART_CloseButton" })
         {
@@ -39,6 +54,23 @@ internal sealed class WorkbenchToolChromeControl : ToolChromeControl
                 button.Classes.Add("dockChromeButton");
             }
         }
+    }
+
+    private static Control? CreateHeaderActions(WorkbenchDockPanel? panel)
+    {
+        if (panel?.View is not WorkbenchPanelView { HeaderActionsTemplate: { } template } view)
+        {
+            return null;
+        }
+
+        var actions = template.Build(view);
+
+        if (actions is not null)
+        {
+            actions.DataContext = view;
+        }
+
+        return actions;
     }
 
     private void OnCloseButtonClick(object? sender, RoutedEventArgs e)

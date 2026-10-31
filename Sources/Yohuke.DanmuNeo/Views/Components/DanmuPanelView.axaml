@@ -8,6 +8,18 @@
                                x:DataType="items:LiveRoomTabViewModel"
                                x:CompileBindings="True"
                                x:Name="Root">
+    <components:WorkbenchRoomPanel.HeaderActionsTemplate>
+        <DataTemplate x:DataType="components:DanmuPanelView">
+            <Button x:Name="DanmuScrollToTopButton"
+                    Classes="dockChromeButton"
+                    Foreground="{DynamicResource AppMutedTextBrush}"
+                    ToolTip.Tip="{Loc Key=UI.DanmuPanelView.ScrollToTop}"
+                    AutomationProperties.Name="{Loc Key=UI.DanmuPanelView.ScrollToTop}"
+                    Command="{Binding ScrollToTopCommand}">
+                <LucideIcon Kind="ArrowUpToLine" Width="16" Height="16" />
+            </Button>
+        </DataTemplate>
+    </components:WorkbenchRoomPanel.HeaderActionsTemplate>
     <Border Padding="{StaticResource WorkbenchPanelPadding}">
         <Grid Classes.compactDanmu="{Binding #Root.Context.Application.IsCompactDanmuDisplay}"
               Classes.compactDanmuWrap="{Binding #Root.Context.Application.IsCompactDanmuWrap}"

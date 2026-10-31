@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Templates;
 using Yohuke.DanmuNeo.I18n;
 using Yohuke.DanmuNeo.Windowing;
 
@@ -23,6 +24,9 @@ public class WorkbenchPanelView : UserControl, IDisposable
 
     /// <summary>由工作台显式注入的应用及选择上下文。</summary>
     public WorkbenchContext Context => context;
+
+    /// <summary>由 Dock 标题栏以当前面板为数据上下文创建的操作模板。</summary>
+    public IDataTemplate? HeaderActionsTemplate { get; set; }
 
     /// <summary>连接工作台，不覆盖面板自己的业务数据上下文。</summary>
     protected void InitializeContext(WorkbenchContext context)

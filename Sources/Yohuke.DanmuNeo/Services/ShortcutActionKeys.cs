@@ -16,6 +16,11 @@ public static partial class ShortcutActionKeys
     public const string LIVE_ROOM_STOP_LISTENING = "liveRoom.stopListening";
 
     /// <summary>
+    /// 弹幕列表回到顶部并恢复跟随。
+    /// </summary>
+    public const string DANMU_SCROLL_TO_TOP = "danmu.scrollToTop";
+
+    /// <summary>
     /// 开始播放直播。
     /// </summary>
     public const string LIVE_PLAYER_START = "livePlayer.start";

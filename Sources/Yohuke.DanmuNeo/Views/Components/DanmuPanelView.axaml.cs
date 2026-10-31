@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using CommunityToolkit.Mvvm.Input;
 using Yohuke.DanmuNeo.Models.Workspace;
 using Yohuke.DanmuNeo.ViewModels.Items;
 using Yohuke.DanmuNeo.Windowing;
@@ -26,14 +27,25 @@ public partial class DanmuPanelView : WorkbenchRoomPanel
     /// <summary>创建供 XAML 加载器使用的弹幕面板。</summary>
     public DanmuPanelView()
     {
+        ScrollToTopCommand = new RelayCommand(ScrollToTop, () => DataContext is LiveRoomTabViewModel);
         InitializeComponent();
         scrollController = new(DanmuScrollViewer, DanmuItemsControl);
+    }
+
+    /// <summary>回到最新弹幕并恢复自动跟随的界面命令。</summary>
+    public IRelayCommand ScrollToTopCommand { get; }
+
+    /// <summary>清除历史阅读锚点并立即回到弹幕列表顶部。</summary>
+    public void ScrollToTop()
+    {
+        scrollController.ScrollToLatest();
     }
 
     /// <inheritdoc/>
     protected override void OnCurrentRoomChanged(LiveRoomTabViewModel? oldRoom, LiveRoomTabViewModel? newRoom)
     {
         scrollController.Attach(newRoom?.DanmuItems);
+        ScrollToTopCommand.NotifyCanExecuteChanged();
     }
 
     /// <inheritdoc/>
