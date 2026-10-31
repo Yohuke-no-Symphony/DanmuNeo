@@ -176,8 +176,10 @@ public partial class LiveRoomTabViewModel
                 ? Localization.Format("Room.Log.ApiError", part.ErrorMessage, code) : part.ErrorMessage).Distinct();
             var exceptions = rejected.Select(part => part.Error).OfType<Exception>().ToList();
             var details = exceptions.Count switch { 0 => null, 1 => exceptions[0], _ => new AggregateException(exceptions) };
+            var diagnostics = string.Join(Environment.NewLine,
+                rejected.Select(part => part.Diagnostic?.ToLogDetails()).OfType<string>());
             log?.Error(source, Localization.Format("Room.Log.SendPartiallyAccepted", result.Results.Count - rejected.Count,
-                result.Results.Count, string.Join(Localization.Get("Room.Log.ErrorSeparator"), errors)), details);
+                result.Results.Count, string.Join(Localization.Get("Room.Log.ErrorSeparator"), errors)), details, diagnostics);
         }
         return result;
     }

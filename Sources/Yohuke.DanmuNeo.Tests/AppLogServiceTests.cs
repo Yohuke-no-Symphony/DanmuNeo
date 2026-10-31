@@ -9,6 +9,35 @@ namespace Yohuke.DanmuNeo.Tests;
 /// </summary>
 public class AppLogServiceTests
 {
+    /// <summary>发送诊断与真实异常链合入同一条错误，且两部分均经过脱敏。</summary>
+    [Fact]
+    public void ErrorPreservesDiagnosticsAndExceptionWithoutCredentials()
+    {
+        using var log = new AppLogService();
+        var error = new IOException("网络失败 buvid4=error-secret", new InvalidOperationException("内部原因"));
+
+        log.Error("发送", "发送失败", error, "code=0 message=f buvid_fp=diagnostic-secret");
+
+        var entry = Assert.Single(log.Entries);
+        Assert.Contains("code=0 message=f", entry.Details);
+        Assert.Contains(nameof(IOException), entry.Details);
+        Assert.Contains("内部原因", entry.Details);
+        Assert.DoesNotContain("diagnostic-secret", entry.FullText);
+        Assert.DoesNotContain("error-secret", entry.FullText);
+    }
+
+    /// <summary>已经脱敏的响应再次进入日志时保持隐藏标识稳定。</summary>
+    [Theory]
+    [InlineData("csrf=secret")]
+    [InlineData("buvid_fp=secret")]
+    [InlineData("Cookie: SESSDATA=secret")]
+    public void RepeatedSanitizationKeepsRedactedTextStable(string text)
+    {
+        var sanitized = AppLogSanitizer.Sanitize(text);
+
+        Assert.Equal(sanitized, AppLogSanitizer.Sanitize(sanitized));
+    }
+
     /// <summary>仅保留最近记录，未读数跟随仍保留的错误且序号不会复用。</summary>
     [Fact]
     public void CapacityEvictsOldErrorsAndReadMarkersStayMonotonic()
@@ -122,9 +151,14 @@ public class AppLogServiceTests
     /// <summary>摘要、来源和完整异常详情中的凭据均在进入内存日志前脱敏。</summary>
     [Theory]
     [InlineData("Cookie: SESSDATA=secret-sample; bili_jct=csrf-sample", "secret-sample")]
+    [InlineData("Cookie: SESSDATA=session-sample; unknown_cookie=tail-sample", "tail-sample")]
+    [InlineData("Cookie: [已隐藏]; unknown_cookie=tail-sample", "tail-sample")]
+    [InlineData("Authorization: Basic basic-sample", "basic-sample")]
     [InlineData("Authorization: Bearer bearer-sample", "bearer-sample")]
     [InlineData("{\"cookie\":\"SESSDATA=json-sample; bili_jct=another\"}", "json-sample")]
     [InlineData("csrf=csrf-sample", "csrf-sample")]
+    [InlineData("buvid4=device-sample", "device-sample")]
+    [InlineData("buvid_fp=fingerprint-sample", "fingerprint-sample")]
     [InlineData("token='quoted-sample'", "quoted-sample")]
     [InlineData("https://live.example.test/play.flv?deadline=123&sign=url-sample#fragment", "url-sample")]
     [InlineData("https://user:userinfo-sample@example.test/play.flv", "userinfo-sample")]

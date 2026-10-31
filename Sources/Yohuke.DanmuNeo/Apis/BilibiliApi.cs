@@ -15,6 +15,8 @@ public partial class BilibiliApi : BaseApi
     private readonly int rnd;
     private readonly BilibiliWbiSigner signer;
 
+    internal int DanmuSessionTimestamp => rnd;
+
     /// <summary>
     /// 初始化 B 站 API。
     /// </summary>
@@ -447,26 +449,7 @@ public partial class BilibiliApi : BaseApi
         using var response = await client.SendAsync(request, cancellationToken);
         response.EnsureSuccessStatusCode();
 
-        var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (Cookie cookie in container.GetAllCookies())
-        {
-            values[cookie.Name] = cookie.Value;
-        }
-
-        values.TryGetValue("buvid3", out var buvid3);
-        values.TryGetValue("SESSDATA", out var sessData);
-        values.TryGetValue("bili_jct", out var biliJct);
-        values.TryGetValue("DedeUserID", out var dedeUserId);
-        values.TryGetValue("DedeUserId", out var dedeUserIdLower);
-
-        return new()
-        {
-            Buvid3 = buvid3 ?? "",
-            SessData = sessData ?? "",
-            BiliJct = biliJct ?? "",
-            DedeUserId = dedeUserId ?? dedeUserIdLower ?? ""
-        };
+        return BilibiliLoginCookie.FromCookies(container.GetAllCookies().Cast<Cookie>());
     }
 
     private Dictionary<string, string> CreateAccountHeaders(int number)

@@ -274,7 +274,7 @@ public class DanmuSendService : IDanmuSendService
             ApiCode = attempt.ApiCode, ErrorMessage = accepted ? "" : record.Status, Error = attempt.Error,
             ErrorMessageKey = accepted ? null : key, ErrorMessageArguments = arguments,
             ErrorMessageProvider = attempt.Error is null || key is not null ? null : () => LocalizedExceptionText.Get(attempt.Error),
-            Record = record
+            Record = record, Diagnostic = attempt.Diagnostic
         };
     }
 

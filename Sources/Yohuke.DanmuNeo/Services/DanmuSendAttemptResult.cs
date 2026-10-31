@@ -11,5 +11,7 @@ public sealed record DanmuSendAttemptResult
     public string ErrorMessage { get; init; } = "";
     /// <summary>传输或本地异常。</summary>
     public Exception? Error { get; init; }
+    /// <summary>实际请求的摘要与脱敏响应。</summary>
+    public DanmuSendDiagnostic? Diagnostic { get; init; }
     internal string? StatusKey { get; init; }
 }

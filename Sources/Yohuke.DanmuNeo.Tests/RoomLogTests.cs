@@ -1,4 +1,7 @@
 using System.Threading;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using Avalonia.Headless.XUnit;
 using Yohuke.DanmuNeo.Models.Logging;
 using Yohuke.DanmuNeo.Models.State;
@@ -13,6 +16,94 @@ namespace Yohuke.DanmuNeo.Tests;
 /// </summary>
 public class RoomLogTests
 {
+    /// <summary>屏蔽失败的单条日志保留两个响应字段和实际请求摘要，且不泄露凭据或正文。</summary>
+    [AvaloniaTheory]
+    [InlineData("f", null)]
+    [InlineData("", "f")]
+    [InlineData("success", "f")]
+    public async Task BlockedDraftPreservesResponseAndRequestDiagnostics(string message, string? msg)
+    {
+        using var handler = new DanmuSendHttpHandler
+        {
+            ResponseJson = JsonSerializer.Serialize(new { code = 0, message, msg, data = new { } })
+        };
+        using var client = new HttpClient(handler);
+        var configuration = new FakeBilibiliDanmuConfigService
+        {
+            Config = new() { Length = 20, Current = new() { Color = 255, Mode = 5 } }
+        };
+        var sender = new DanmuSendService(client, configuration);
+        using var log = new AppLogService();
+        var account = new BilibiliAccount
+        {
+            Id = "account",
+            Cookie = "buvid3=device-three;SESSDATA=session-secret;bili_jct=csrf-secret;DedeUserID=12345678;buvid4=device-four;buvid_fp=device-fingerprint"
+        };
+        using var room = CreateRoom(log, sender, accountOverride: account);
+        room.InputDraft = "同传原文";
+
+        await room.SendDraftAsync();
+
+        var entry = Assert.Single(log.Entries);
+        var form = Assert.Single(handler.Forms);
+        Assert.Equal(AppLogLevel.ERROR, entry.Level);
+        Assert.Contains("弹幕被屏蔽", entry.Message);
+        Assert.Contains("接口状态码 0", entry.Message);
+        Assert.True(room.IsDraftSendFailed);
+        Assert.Equal("同传原文", room.InputDraft);
+        Assert.True(entry.HasDetails);
+        var fields = entry.Details.Split(Environment.NewLine);
+        Assert.Contains("code=0", fields);
+        Assert.Contains($"message={JsonSerializer.Serialize(message)}", fields);
+        Assert.Contains($"msg={JsonSerializer.Serialize(msg)}", fields);
+        Assert.Contains($"roomId={form["roomid"]}", fields);
+        Assert.Contains($"textLength={form["msg"].Length}", fields);
+        var hash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(form["msg"])));
+        Assert.Contains($"textSha256=\"{hash}\"", fields);
+        Assert.Contains($"color={form["color"]}", fields);
+        Assert.Contains($"mode={form["mode"]}", fields);
+        Assert.Contains($"rnd={form["rnd"]}", fields);
+        Assert.Contains("cookieFields=[\"DedeUserId\",\"SESSDATA\",\"bili_jct\",\"buvid3\",\"buvid4\",\"buvid_fp\"]", fields);
+        Assert.DoesNotContain("同传原文", entry.FullText);
+        foreach (var secret in new[] { "device-three", "session-secret", "csrf-secret", "12345678", "device-four", "device-fingerprint" })
+        {
+            Assert.DoesNotContain(secret, entry.FullText);
+        }
+    }
+
+    /// <summary>响应意外回显凭据时先脱敏再保留，换行不会伪造额外日志。</summary>
+    [AvaloniaFact]
+    public async Task BlockedDraftDiagnosticsRedactEchoedCredentials()
+    {
+        using var handler = new DanmuSendHttpHandler
+        {
+            ResponseJson = JsonSerializer.Serialize(new
+            {
+                code = 0,
+                message = "f",
+                msg = "session-secret csrf=csrf-secret buvid_fp=fingerprint-secret\nCookie: SESSDATA=session-secret",
+                data = new { }
+            })
+        };
+        using var client = new HttpClient(handler);
+        var sender = new DanmuSendService(client, new FakeBilibiliDanmuConfigService());
+        using var log = new AppLogService();
+        using var room = CreateRoom(log, sender, accountOverride: new()
+        {
+            Cookie = "SESSDATA=session-secret;bili_jct=csrf-secret;buvid_fp=fingerprint-secret"
+        });
+        room.InputDraft = "同传原文";
+
+        await room.SendDraftAsync();
+
+        var entry = Assert.Single(log.Entries);
+        Assert.True(entry.HasDetails);
+        Assert.Contains("message=\"f\"", entry.Details.Split(Environment.NewLine));
+        Assert.DoesNotContain("session-secret", entry.FullText);
+        Assert.DoesNotContain("csrf-secret", entry.FullText);
+        Assert.DoesNotContain("fingerprint-secret", entry.FullText);
+    }
+
     /// <summary>
     /// 同传接口拒绝会写入错误，并保留原来的草稿恢复与反馈。
     /// </summary>
@@ -384,9 +475,10 @@ public class RoomLogTests
         IBilibiliLiveStreamService? streams = null,
         IBilibiliDanmuConfigService? configuration = null,
         IBilibiliModerationService? moderation = null,
-        ForwardSourceRoomOption? forwardingSource = null)
+        ForwardSourceRoomOption? forwardingSource = null,
+        BilibiliAccount? accountOverride = null)
     {
-        var account = new BilibiliAccount { Id = "account", Cookie = "test-account" };
+        var account = accountOverride ?? new BilibiliAccount { Id = "account", Cookie = "test-account" };
         var state = new LiveRoomTabState { Id = "room-state", RoomId = "200", RoomName = "原直播间" };
 
         if (forwardingSource is not null)

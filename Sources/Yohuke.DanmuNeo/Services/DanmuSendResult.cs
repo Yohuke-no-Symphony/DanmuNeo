@@ -51,6 +51,9 @@ public class DanmuSendResult
     /// </summary>
     public Exception? Error { get; init; }
 
+    /// <summary>最终网络尝试的请求摘要与脱敏响应。</summary>
+    public DanmuSendDiagnostic? Diagnostic { get; init; }
+
     /// <summary>
     /// 对应的本地发送记录。
     /// </summary>

@@ -73,15 +73,9 @@ public class BrowserCookieLoginService
 
     private static BrowserCookieLoginResult CreateBilibiliResult(IEnumerable<Cookie> cookies)
     {
-        var values = ToDictionary(cookies);
-        values.TryGetValue("buvid3", out var buvid3);
-        values.TryGetValue("SESSDATA", out var sessData);
-        values.TryGetValue("bili_jct", out var biliJct);
-        values.TryGetValue("DedeUserId", out var dedeUserId);
-        values.TryGetValue("DedeUserID", out var dedeUserIdUpper);
-
-        var cookie = ApiCookieHelper.CreateBilibiliCookie(
-            $"buvid3={buvid3};SESSDATA={sessData};bili_jct={biliJct};DedeUserId={dedeUserId ?? dedeUserIdUpper}");
+        var cookie = ApiCookieHelper.CreateBilibiliCookie(cookies);
+        var sessData = ApiCookieHelper.GetValue(cookie, "SESSDATA");
+        var biliJct = ApiCookieHelper.GetValue(cookie, "bili_jct");
 
         if (string.IsNullOrWhiteSpace(sessData) || string.IsNullOrWhiteSpace(biliJct))
         {

@@ -898,14 +898,6 @@ public class BilibiliLiveWebSocket : BaseApi, ILiveDanmuSocket
 
     private static BilibiliLoginCookie CreateCookie(string cookie)
     {
-        var normalizedCookie = ApiCookieHelper.CreateBilibiliCookie(cookie);
-
-        return new()
-        {
-            Buvid3 = ApiCookieHelper.GetValue(normalizedCookie, "buvid3"),
-            SessData = ApiCookieHelper.GetValue(normalizedCookie, "SESSDATA"),
-            BiliJct = ApiCookieHelper.GetValue(normalizedCookie, "bili_jct"),
-            DedeUserId = ApiCookieHelper.GetValue(normalizedCookie, "DedeUserId")
-        };
+        return BilibiliLoginCookie.FromCookieString(cookie);
     }
 }

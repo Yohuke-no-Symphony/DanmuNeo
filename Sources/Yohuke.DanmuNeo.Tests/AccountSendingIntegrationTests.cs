@@ -1,3 +1,4 @@
+using System.Threading;
 using Yohuke.DanmuNeo.Models.State;
 using Yohuke.DanmuNeo.Models.Workspace;
 using Yohuke.DanmuNeo.Services;
@@ -7,6 +8,54 @@ namespace Yohuke.DanmuNeo.Tests;
 /// <summary>验证账号状态与统一发送队列、限频重试和已接受进度的边界。</summary>
 public class AccountSendingIntegrationTests
 {
+    /// <summary>连续屏蔽不锁定账号或发送队列，响应恢复后原内容和新内容均可继续发送。</summary>
+    [Theory]
+    [InlineData("""{"code":0,"message":"f","data":{}}""")]
+    [InlineData("""{"code":0,"msg":"f","data":{}}""")]
+    public async Task RepeatedBlockedResponsesAllowLaterRecoveryAndNewMessages(string blockedResponse)
+    {
+        using var sessions = new BilibiliAccountSessionService(new ControlledAccountValidationService());
+        var account = CreateAccount();
+        sessions.Register(account);
+        using var handler = new DanmuSendHttpHandler { ResponseJson = """{"code":0,"data":{}}""" };
+        for (var index = 0; index < 3; index++)
+        {
+            handler.ResponseBodies.Enqueue(blockedResponse);
+        }
+
+        using var client = new HttpClient(handler);
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var sender = new DanmuSendService(client, new FakeBilibiliDanmuConfigService(), accountSessions: sessions);
+        var settings = new AppSettings { SendIntervalMs = 0 };
+        var request = CreateRequest("同传内容");
+        DanmuDeliveryProgress? progress = null;
+        for (var index = 0; index < 3; index++)
+        {
+            var blocked = await sender.SendAsync(request, account, settings, progress, cancellation.Token);
+            progress = blocked.Progress;
+
+            Assert.False(blocked.IsComplete);
+            var failure = Assert.Single(blocked.Results);
+            Assert.Equal(0, failure.ApiCode);
+            Assert.Equal(DanmuSendFailureKind.Blocked, failure.FailureKind);
+            Assert.Equal(index + 1, handler.RequestCount);
+            Assert.True(sessions.CanSend(account.Id, account.Cookie));
+        }
+
+        var recovered = await sender.SendAsync(request, account, settings, progress, cancellation.Token);
+        var next = await sender.SendAsync(CreateRequest("不同的同传内容"), account, settings,
+            cancellationToken: cancellation.Token);
+
+        Assert.True(recovered.IsComplete);
+        Assert.True(Assert.Single(recovered.Results).IsAccepted);
+        Assert.True(next.IsComplete);
+        Assert.True(Assert.Single(next.Results).IsAccepted);
+        Assert.Equal(5, handler.RequestCount);
+        Assert.Equal(["同传内容", "同传内容", "同传内容", "同传内容", "不同的同传内容"],
+            handler.Forms.Select(form => form["msg"]));
+        Assert.True(sessions.CanSend(account.Id, account.Cookie));
+    }
+
     /// <summary>真实传输层的未登录响应保留失败历史并阻止同一凭据后续发送。</summary>
     [Fact]
     public async Task AuthenticationFailureIsRecordedAndBlocksLaterRequests()

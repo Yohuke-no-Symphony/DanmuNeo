@@ -10,18 +10,25 @@ public sealed class BilibiliDanmuSendTransport(HttpClient? httpClient = null) : 
     public async Task<DanmuSendAttemptResult> SendOnceAsync(string roomId, string message, string cookie,
         DanmuRoomConfig config, TimeSpan timeout, CancellationToken cancellationToken)
     {
+        DanmuSendDiagnostic? diagnostic = null;
         try
         {
+            var parsedRoomId = long.Parse(roomId);
             using var api = new BilibiliApi(cookie, timeout, httpClient);
-            var response = await api.SendDanmuAsync(long.Parse(roomId), message, config.Current.Mode,
+            diagnostic = DanmuSendDiagnostic.Create(parsedRoomId, message, cookie,
+                config.Current.Color, config.Current.Mode, api.DanmuSessionTimestamp);
+            var response = await api.SendDanmuAsync(parsedRoomId, message, config.Current.Mode,
                 cancellationToken: cancellationToken, color: config.Current.Color);
             var failure = DanmuSendResponseClassifier.Classify(response.Code, response.Message, response.Msg);
+            diagnostic = diagnostic.WithResponse(response.Code, response.Message, response.Msg, cookie);
+            var errorMessage = !string.IsNullOrWhiteSpace(response.Message) ? response.Message : response.Msg ?? "";
             return new()
             {
                 FailureKind = failure,
                 ApiCode = response.Code,
+                Diagnostic = diagnostic,
                 ErrorMessage = failure == DanmuSendFailureKind.None ? "" :
-                    !string.IsNullOrWhiteSpace(response.Message) ? response.Message : response.Msg ?? "",
+                    AppLogSanitizer.Sanitize(errorMessage, ApiCookieHelper.Parse(cookie).Values),
                 StatusKey = failure switch
                 {
                     DanmuSendFailureKind.None => "Services.Send.Accepted",
@@ -45,6 +52,10 @@ public sealed class BilibiliDanmuSendTransport(HttpClient? httpClient = null) : 
                 FailureKind = failure,
                 ApiCode = null,
                 Error = exception,
+                Diagnostic = diagnostic is null ? null : diagnostic with
+                {
+                    HttpStatusCode = exception is HttpRequestException { StatusCode: { } statusCode } ? (int)statusCode : null
+                },
                 StatusKey = failure == DanmuSendFailureKind.RateLimited ? "Services.Send.RateLimited" : null
             };
         }

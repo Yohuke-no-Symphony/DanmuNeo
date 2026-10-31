@@ -62,9 +62,11 @@ public sealed class AppLogService : IAppLogService
     }
 
     /// <inheritdoc/>
-    public void Error(string source, string message, Exception? error = null)
+    public void Error(string source, string message, Exception? error = null, string? details = null)
     {
-        Append(AppLogLevel.ERROR, source, message, error?.ToString());
+        var combinedDetails = string.Join(Environment.NewLine + Environment.NewLine,
+            new[] { details, error?.ToString() }.Where(value => !string.IsNullOrWhiteSpace(value)));
+        Append(AppLogLevel.ERROR, source, message, combinedDetails);
     }
 
     /// <inheritdoc/>

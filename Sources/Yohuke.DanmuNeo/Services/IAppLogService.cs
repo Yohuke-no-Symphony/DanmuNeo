@@ -20,8 +20,8 @@ public interface IAppLogService : IDisposable
     /// <summary>记录需要注意但不阻止运行的状态。</summary>
     void Warning(string source, string message, string? details = null);
 
-    /// <summary>记录操作失败及可选的异常链。</summary>
-    void Error(string source, string message, Exception? error = null);
+    /// <summary>记录操作失败、可选的异常链及诊断详情。</summary>
+    void Error(string source, string message, Exception? error = null, string? details = null);
 
     /// <summary>更新持续故障；相同故障在恢复前仅记录一次。</summary>
     void SetDiagnosticError(string source, Exception? error);

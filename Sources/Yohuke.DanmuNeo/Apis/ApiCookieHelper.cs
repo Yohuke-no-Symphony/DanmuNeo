@@ -8,6 +8,8 @@ namespace Yohuke.DanmuNeo.Apis;
 /// </summary>
 public static class ApiCookieHelper
 {
+    private static readonly string[] OPTIONAL_BILIBILI_COOKIE_NAMES = ["buvid4", "buvid_fp"];
+
     /// <summary>
     /// 从 Cookie 字符串解析键值。
     /// </summary>
@@ -46,7 +48,29 @@ public static class ApiCookieHelper
         values.TryGetValue("DedeUserId", out var dedeUserId);
         values.TryGetValue("DedeUserID", out var dedeUserIdUpper);
 
-        return $"buvid3={buvid3 ?? ""};SESSDATA={sessData ?? ""};bili_jct={biliJct ?? ""};DedeUserId={dedeUserId ?? dedeUserIdUpper ?? ""}";
+        var normalizedCookie = $"buvid3={buvid3 ?? ""};SESSDATA={sessData ?? ""};bili_jct={biliJct ?? ""};DedeUserId={dedeUserId ?? dedeUserIdUpper ?? ""}";
+
+        foreach (var name in OPTIONAL_BILIBILI_COOKIE_NAMES)
+        {
+            if (values.TryGetValue(name, out var value) && !string.IsNullOrWhiteSpace(value))
+            {
+                normalizedCookie += $";{name}={value}";
+            }
+        }
+
+        return normalizedCookie;
+    }
+
+    /// <summary>
+    /// 从浏览器或登录回跳结果中提取 B 站 Cookie，排除其他域的同名字段。
+    /// </summary>
+    public static string CreateBilibiliCookie(IEnumerable<Cookie> cookies)
+    {
+        var values = cookies
+            .Where(cookie => string.IsNullOrWhiteSpace(cookie.Domain) || IsBilibiliDomain(cookie.Domain))
+            .Where(cookie => !string.IsNullOrWhiteSpace(cookie.Value))
+            .Select(cookie => $"{cookie.Name}={cookie.Value}");
+        return CreateBilibiliCookie(string.Join(";", values));
     }
 
     /// <summary>
@@ -67,5 +91,12 @@ public static class ApiCookieHelper
     {
         var values = Parse(cookie);
         return values.TryGetValue(name, out var value) ? value : "";
+    }
+
+    private static bool IsBilibiliDomain(string domain)
+    {
+        var normalizedDomain = domain.TrimStart('.');
+        return normalizedDomain.Equals("bilibili.com", StringComparison.OrdinalIgnoreCase)
+               || normalizedDomain.EndsWith(".bilibili.com", StringComparison.OrdinalIgnoreCase);
     }
 }
